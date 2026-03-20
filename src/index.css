@@ -1,0 +1,243 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root,
+  .light {
+    --background: 36 20% 96%;
+    --foreground: 20 14% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 20 14% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14% 10%;
+
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 36 14% 91%;
+    --secondary-foreground: 20 14% 10%;
+
+    --muted: 36 10% 90%;
+    --muted-foreground: 25 6% 45%;
+
+    --accent: 36 14% 91%;
+    --accent-foreground: 20 14% 10%;
+
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 36 12% 87%;
+    --input: 36 12% 87%;
+    --ring: 239 84% 67%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 36 16% 95%;
+    --sidebar-foreground: 25 6% 35%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 36 14% 91%;
+    --sidebar-accent-foreground: 20 14% 10%;
+    --sidebar-border: 36 12% 87%;
+    --sidebar-ring: 239 84% 67%;
+
+    --glass-bg: 0 0% 100% / 0.7;
+    --glass-border: 0 0% 100% / 0.9;
+
+    --tip-bg: 49 100% 95%;
+    --tip-border: 38 92% 50%;
+    --project-tip-bg: 142 76% 97%;
+    --project-tip-border: 142 71% 45%;
+
+    --badge-hot-bg: 0 93% 94%;
+    --badge-hot-text: 0 72% 51%;
+    --badge-med-bg: 48 96% 89%;
+    --badge-med-text: 32 95% 44%;
+
+    --code-bg: 0 0% 12%;
+    --code-text: 0 0% 83%;
+  }
+
+  .dark {
+    --background: 30 10% 5%;
+    --foreground: 36 20% 94%;
+
+    --card: 30 7% 10%;
+    --card-foreground: 36 20% 94%;
+
+    --popover: 30 7% 10%;
+    --popover-foreground: 36 20% 94%;
+
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 30 5% 12%;
+    --secondary-foreground: 36 20% 94%;
+
+    --muted: 30 5% 15%;
+    --muted-foreground: 30 5% 48%;
+
+    --accent: 30 5% 15%;
+    --accent-foreground: 36 20% 94%;
+
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 30 5% 17%;
+    --input: 30 5% 17%;
+    --ring: 239 84% 67%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 30 7% 5%;
+    --sidebar-foreground: 30 5% 65%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 30 5% 12%;
+    --sidebar-accent-foreground: 36 20% 94%;
+    --sidebar-border: 30 5% 14%;
+    --sidebar-ring: 239 84% 67%;
+
+    --glass-bg: 30 7% 8% / 0.6;
+    --glass-border: 0 0% 100% / 0.08;
+
+    --tip-bg: 38 50% 6%;
+    --tip-border: 38 92% 60%;
+    --project-tip-bg: 142 40% 6%;
+    --project-tip-border: 142 71% 45%;
+
+    --badge-hot-bg: 0 50% 12%;
+    --badge-hot-text: 0 90% 78%;
+    --badge-med-bg: 38 50% 10%;
+    --badge-med-text: 48 96% 78%;
+
+    --code-bg: 0 0% 5%;
+    --code-text: 220 9% 87%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border transition-colors duration-200;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply backdrop-blur-xl border rounded-xl;
+    background: hsla(var(--glass-bg));
+    border-color: hsla(var(--glass-border));
+    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  .dark .glass {
+    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+  }
+
+  .glass-strong {
+    @apply backdrop-blur-2xl border-b;
+    background: hsla(var(--glass-bg));
+    border-color: hsla(var(--glass-border));
+  }
+
+  .gradient-mesh {
+    @apply bg-background;
+  }
+
+  .dark .gradient-mesh {
+    background:
+      radial-gradient(ellipse at 20% 50%, hsla(239, 84%, 40%, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, hsla(239, 84%, 35%, 0.06) 0%, transparent 50%),
+      hsl(var(--background));
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(239, 84%, 67%), hsl(263, 70%, 65%));
+  }
+
+  .tip-box {
+    background: hsl(var(--tip-bg));
+    border-left: 4px solid hsl(var(--tip-border));
+  }
+
+  .project-tip-box {
+    background: hsl(var(--project-tip-bg));
+    border-left: 4px solid hsl(var(--project-tip-border));
+  }
+
+  .badge-hot {
+    background: hsl(var(--badge-hot-bg));
+    color: hsl(var(--badge-hot-text));
+  }
+
+  .badge-med {
+    background: hsl(var(--badge-med-bg));
+    color: hsl(var(--badge-med-text));
+  }
+}
+
+/* Tiptap editor styles */
+.tiptap-editor .ProseMirror {
+  @apply outline-none min-h-[120px] text-foreground;
+}
+
+.tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+  @apply text-muted-foreground pointer-events-none float-left h-0;
+  content: attr(data-placeholder);
+}
+
+.tiptap-editor .ProseMirror h1 { @apply text-2xl font-bold mt-6 mb-3; }
+.tiptap-editor .ProseMirror h2 { @apply text-xl font-semibold mt-5 mb-2; }
+.tiptap-editor .ProseMirror h3 { @apply text-lg font-medium mt-4 mb-2; }
+.tiptap-editor .ProseMirror p { @apply mb-2 leading-relaxed; }
+.tiptap-editor .ProseMirror ul { @apply list-disc pl-6 mb-3; }
+.tiptap-editor .ProseMirror ol { @apply list-decimal pl-6 mb-3; }
+.tiptap-editor .ProseMirror li { @apply mb-1; }
+.tiptap-editor .ProseMirror blockquote {
+  @apply border-l-4 border-primary/40 pl-4 italic text-muted-foreground my-3;
+}
+.tiptap-editor .ProseMirror pre {
+  @apply rounded-lg p-4 my-3 overflow-x-auto text-sm font-mono;
+  background: hsl(var(--code-bg));
+  color: hsl(var(--code-text));
+}
+.tiptap-editor .ProseMirror code {
+  @apply px-1.5 py-0.5 rounded text-sm font-mono;
+  background: hsl(var(--code-bg));
+  color: hsl(var(--code-text));
+}
+.tiptap-editor .ProseMirror hr {
+  @apply border-border my-6;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/20 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/40;
+}
