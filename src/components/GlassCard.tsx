@@ -11,13 +11,13 @@ export const GlassCard = ({ children, className, hover = true, ...props }: Glass
   return (
     <motion.div
       className={cn(
-        "glass p-6",
-        hover && "hover:shadow-lg dark:hover:shadow-[0_0_30px_-5px_hsla(239,84%,67%,0.12)]",
+        "obsidian-card p-6",
+        hover && "hover:border-[hsla(263,70%,55%,0.4)] hover:-translate-y-0.5 hover:shadow-[0_0_24px_hsla(263,70%,55%,0.15)]",
         className
       )}
       initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
       {...props}
     >
       {children}
