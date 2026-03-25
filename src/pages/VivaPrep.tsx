@@ -5,7 +5,6 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Layout } from "@/components/Layout";
-import { GlassCard } from "@/components/GlassCard";
 import { EmptyState } from "@/components/EmptyState";
 import { QuestionSkeleton, CardSkeleton } from "@/components/LoadingSkeleton";
 import { StarRating } from "@/components/StarRating";
@@ -17,6 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, ChevronDown, Heart, Pencil, Save, X, MessageSquare,
   Lightbulb, GraduationCap, Copy, Check, HelpCircle, Users, Plus, Loader2,
+  ArrowUp, Share2, BookCheck,
 } from "lucide-react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -58,10 +58,33 @@ const FREQUENCIES = ["All", "Hot", "Medium", "Low"];
 const FREQ_COLORS: Record<string, string> = {
   hot: "badge-hot",
   medium: "badge-med",
-  low: "bg-muted text-muted-foreground",
+  low: "badge-low",
+};
+const SORT_OPTIONS = ["Latest", "Most Voted", "Difficulty"] as const;
+
+// Generate a consistent color from a string
+const hashColor = (str: string) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash % 360);
+  return `hsl(${hue}, 65%, 55%)`;
 };
 
-const QuestionCard = ({ q, onUpvote }: { q: Question; onUpvote: (id: string) => void }) => {
+const QuestionCard = ({
+  q,
+  onUpvote,
+  isUpvoted,
+  isStudied,
+  onToggleStudied,
+}: {
+  q: Question;
+  onUpvote: (id: string) => void;
+  isUpvoted: boolean;
+  isStudied: boolean;
+  onToggleStudied: (id: string) => void;
+}) => {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -69,7 +92,7 @@ const QuestionCard = ({ q, onUpvote }: { q: Question; onUpvote: (id: string) => 
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Placeholder.configure({ placeholder: "Type / for commands... Write your answer here." }),
+      Placeholder.configure({ placeholder: "Type your answer here..." }),
     ],
     content: q.answer || "",
     editable: editing,
@@ -99,32 +122,65 @@ const QuestionCard = ({ q, onUpvote }: { q: Question; onUpvote: (id: string) => 
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const shareQuestion = () => {
+    navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#q-${q.id}`);
+    toast.success("Link copied!");
+  };
+
   return (
-    <GlassCard className="!p-0 overflow-hidden" hover={false}>
+    <div
+      className={cn(
+        "obsidian-card overflow-hidden",
+        isStudied && "ring-1 ring-[hsl(142,71%,45%)]/30"
+      )}
+      id={`q-${q.id}`}
+    >
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full text-left p-5 flex items-start gap-3 transition-colors hover:bg-accent/50"
+        className="w-full text-left p-5 flex items-start gap-3 transition-colors duration-200 hover:bg-accent/30"
       >
         <div className="flex-1 min-w-0">
-          <p className="font-medium leading-relaxed pr-2">{q.question}</p>
-          <div className="flex flex-wrap gap-2 mt-2.5">
-            <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", FREQ_COLORS[q.frequency] || FREQ_COLORS.low)}>
-              {q.frequency}
-            </span>
+          <p className="font-mono-dm font-medium leading-relaxed pr-2 text-foreground">{q.question}</p>
+          <div className="flex flex-wrap gap-2 mt-3">
+            {q.frequency && (
+              <span className={cn("text-xs px-2.5 py-0.5 rounded-full font-semibold font-body", FREQ_COLORS[q.frequency?.toLowerCase()] || FREQ_COLORS.low)}>
+                {q.frequency}
+              </span>
+            )}
+            {q.category && (
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-secondary text-muted-foreground font-body">
+                {q.category}
+              </span>
+            )}
             {q.proctors?.map((p) => (
-              <Badge key={p} variant="outline" className="text-xs">
+              <span
+                key={p}
+                className="text-xs px-2.5 py-0.5 rounded-full border border-primary/30 text-primary font-body inline-flex items-center gap-1.5"
+              >
+                <span
+                  className="h-2 w-2 rounded-full inline-block"
+                  style={{ backgroundColor: hashColor(p) }}
+                />
                 {p}
-              </Badge>
+              </span>
             ))}
+            {isStudied && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-[hsl(142,71%,45%)]/10 text-[hsl(142,71%,45%)] font-body inline-flex items-center gap-1">
+                <Check className="h-3 w-3" /> Studied
+              </span>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 pt-0.5">
           <button
             onClick={(e) => { e.stopPropagation(); onUpvote(q.id); }}
-            className="flex items-center gap-1 text-muted-foreground hover:text-destructive transition-colors"
+            className={cn(
+              "flex items-center gap-1 transition-all duration-200",
+              isUpvoted ? "text-destructive" : "text-muted-foreground hover:text-destructive"
+            )}
           >
-            <Heart className="h-4 w-4" />
-            <span className="text-xs tabular-nums">{q.upvotes || 0}</span>
+            <Heart className={cn("h-4 w-4 transition-all", isUpvoted && "fill-current scale-110")} />
+            <span className="text-xs tabular-nums font-body">{q.upvotes || 0}</span>
           </button>
           <ChevronDown
             className={cn("h-4 w-4 text-muted-foreground transition-transform duration-300", expanded && "rotate-180")}
@@ -138,112 +194,139 @@ const QuestionCard = ({ q, onUpvote }: { q: Question; onUpvote: (id: string) => 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
             className="overflow-hidden"
           >
-            <div className="px-5 pb-5 border-t border-border/50 pt-4">
-              <div className="group relative">
-                {!editing && (
-                  <button
-                    onClick={() => setEditing(true)}
-                    className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                )}
+            <div className="px-5 pb-5 border-t border-border/30 pt-4">
+              <div className="border-l-2 border-primary/40 pl-4">
+                <div className="group relative">
+                  {!editing && (
+                    <button
+                      onClick={() => setEditing(true)}
+                      className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  )}
 
-                {editing ? (
-                  <div className="space-y-3">
-                    <div className="tiptap-editor rounded-lg border border-border p-4 bg-secondary/30 min-h-[120px]">
-                      <EditorContent editor={editor} />
+                  {editing ? (
+                    <div className="space-y-3">
+                      <div className="tiptap-editor rounded-lg border border-border p-4 bg-secondary/20 min-h-[120px]">
+                        <EditorContent editor={editor} />
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button size="sm" variant="ghost" onClick={() => setEditing(false)} className="font-body">
+                          <X className="h-3.5 w-3.5 mr-1" /> Cancel
+                        </Button>
+                        <Button size="sm" onClick={handleSave} className="bg-primary hover:bg-primary/90 font-body">
+                          <Save className="h-3.5 w-3.5 mr-1" /> Save
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex gap-2 justify-end">
-                      <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
-                        <X className="h-3.5 w-3.5 mr-1" /> Cancel
-                      </Button>
-                      <Button size="sm" onClick={handleSave} className="bg-primary hover:bg-primary/90">
-                        <Save className="h-3.5 w-3.5 mr-1" /> Save
-                      </Button>
+                  ) : (
+                    <div>
+                      {q.answer && (
+                        <div className="prose prose-sm dark:prose-invert max-w-none mb-4 text-muted-foreground font-body" dangerouslySetInnerHTML={{ __html: q.answer }} />
+                      )}
+
+                      {q.tip && (
+                        <div className="tip-box rounded-r-lg p-4 mb-4">
+                          <div className="flex items-center gap-2 mb-2" style={{ color: "hsl(var(--tip-border))" }}>
+                            <Lightbulb className="h-4 w-4" />
+                            <span className="text-sm font-semibold font-body">Interview Tip</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground leading-relaxed font-body">{q.tip}</p>
+                        </div>
+                      )}
+
+                      {q.projectTip && (
+                        <div className="project-tip-box rounded-r-lg p-4 mb-4">
+                          <div className="flex items-center gap-2 mb-2" style={{ color: "hsl(var(--project-tip-border))" }}>
+                            <GraduationCap className="h-4 w-4" />
+                            <span className="text-sm font-semibold font-body">In Your Project</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground leading-relaxed font-body">{q.projectTip}</p>
+                        </div>
+                      )}
+
+                      {q.codeExample && (
+                        <div className="relative rounded-lg overflow-hidden mb-4">
+                          <div className="flex items-center justify-between px-4 py-2 border-b border-border/30" style={{ background: "hsl(var(--code-bg))" }}>
+                            <span className="text-xs font-mono-dm" style={{ color: "hsl(var(--code-text))" }}>{q.codeLanguage || "code"}</span>
+                            <button onClick={copyCode} className="text-xs flex items-center gap-1 transition-colors font-body" style={{ color: "hsl(var(--code-text))" }}>
+                              {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                              {copied ? "Copied" : "Copy"}
+                            </button>
+                          </div>
+                          <pre className="p-4 overflow-x-auto text-sm font-mono-dm" style={{ background: "hsl(var(--code-bg))", color: "hsl(var(--code-text))" }}>
+                            <code>{q.codeExample}</code>
+                          </pre>
+                        </div>
+                      )}
+
+                      {q.followUps && q.followUps.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-4">
+                          <span className="text-xs text-muted-foreground mr-1 font-body">Follow-ups:</span>
+                          {q.followUps.map((f, i) => (
+                            <Badge key={i} variant="outline" className="text-xs cursor-pointer hover:bg-accent transition-colors font-body">
+                              {f}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+
+                      {!q.answer && !q.tip && !q.projectTip && !q.codeExample && (
+                        <p className="text-sm text-muted-foreground italic font-body">
+                          No answer yet. Click the edit icon to add one.
+                        </p>
+                      )}
                     </div>
-                  </div>
-                ) : (
-                  <div>
-                    {q.answer && (
-                      <div className="prose prose-sm dark:prose-invert max-w-none mb-4" dangerouslySetInnerHTML={{ __html: q.answer }} />
-                    )}
+                  )}
+                </div>
+              </div>
 
-                    {q.tip && (
-                      <div className="tip-box rounded-r-lg p-4 mb-4">
-                        <div className="flex items-center gap-2 mb-2" style={{ color: "hsl(var(--tip-border))" }}>
-                          <Lightbulb className="h-4 w-4" />
-                          <span className="text-sm font-semibold">Interview Tip</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground leading-relaxed">{q.tip}</p>
-                      </div>
-                    )}
-
-                    {q.projectTip && (
-                      <div className="project-tip-box rounded-r-lg p-4 mb-4">
-                        <div className="flex items-center gap-2 mb-2" style={{ color: "hsl(var(--project-tip-border))" }}>
-                          <GraduationCap className="h-4 w-4" />
-                          <span className="text-sm font-semibold">In Your Project</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground leading-relaxed">{q.projectTip}</p>
-                      </div>
-                    )}
-
-                    {q.codeExample && (
-                      <div className="relative rounded-lg overflow-hidden mb-4">
-                        <div className="flex items-center justify-between px-4 py-2 border-b border-border" style={{ background: "hsl(var(--code-bg))" }}>
-                          <span className="text-xs font-mono" style={{ color: "hsl(var(--code-text))" }}>{q.codeLanguage || "code"}</span>
-                          <button onClick={copyCode} className="text-xs flex items-center gap-1 transition-colors" style={{ color: "hsl(var(--code-text))" }}>
-                            {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                            {copied ? "Copied" : "Copy"}
-                          </button>
-                        </div>
-                        <pre className="p-4 overflow-x-auto text-sm font-mono" style={{ background: "hsl(var(--code-bg))", color: "hsl(var(--code-text))" }}>
-                          <code>{q.codeExample}</code>
-                        </pre>
-                      </div>
-                    )}
-
-                    {q.followUps && q.followUps.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-4">
-                        <span className="text-xs text-muted-foreground mr-1">Follow-ups:</span>
-                        {q.followUps.map((f, i) => (
-                          <Badge key={i} variant="outline" className="text-xs cursor-pointer hover:bg-accent transition-colors">
-                            {f}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-
-                    {!q.answer && !q.tip && !q.projectTip && !q.codeExample && (
-                      <p className="text-sm text-muted-foreground italic">
-                        No answer yet. Click the edit icon to add one — everyone can contribute!
-                      </p>
-                    )}
-                  </div>
-                )}
+              {/* Bottom action bar */}
+              <div className="flex items-center gap-3 mt-4 pt-3 border-t border-border/20">
+                <button
+                  onClick={() => onToggleStudied(q.id)}
+                  className={cn(
+                    "text-xs px-3 py-1.5 rounded-full font-body flex items-center gap-1.5 transition-all duration-200",
+                    isStudied
+                      ? "bg-[hsl(142,71%,45%)]/10 text-[hsl(142,71%,45%)]"
+                      : "bg-secondary text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <BookCheck className="h-3.5 w-3.5" />
+                  {isStudied ? "Studied ✓" : "Mark as Studied"}
+                </button>
+                <button
+                  onClick={shareQuestion}
+                  className="text-xs px-3 py-1.5 rounded-full bg-secondary text-muted-foreground hover:text-foreground font-body flex items-center gap-1.5 transition-colors"
+                >
+                  <Share2 className="h-3.5 w-3.5" /> Share
+                </button>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </GlassCard>
+    </div>
   );
 };
 
 const SubmissionCard = ({ s }: { s: Submission }) => (
-  <GlassCard className="space-y-3">
+  <div className="obsidian-card p-5 space-y-3">
     <div className="flex items-center justify-between flex-wrap gap-2">
       <div className="flex items-center gap-2">
-        <span className="font-medium">{s.isAnonymous ? "Anonymous" : s.name || "Anonymous"}</span>
+        <span className="font-heading font-semibold">{s.isAnonymous ? "Anonymous" : s.name || "Anonymous"}</span>
         {s.proctorId && (
-          <Badge variant="outline" className="text-xs">{s.proctorId}</Badge>
+          <span className="text-xs px-2 py-0.5 rounded-full border border-primary/30 text-primary font-body inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: hashColor(s.proctorId) }} />
+            {s.proctorId}
+          </span>
         )}
       </div>
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+      <div className="flex items-center gap-3 text-xs text-muted-foreground font-body">
         {s.level && <span className="font-medium text-foreground">{s.level}</span>}
         {s.date && <span>{s.date}</span>}
         {s.duration && <span>{s.duration}</span>}
@@ -252,8 +335,8 @@ const SubmissionCard = ({ s }: { s: Submission }) => (
 
     {s.questionsAsked && (
       <div>
-        <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Questions Asked</p>
-        <ul className="text-sm space-y-1 list-disc pl-4 text-muted-foreground">
+        <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider font-body">Questions Asked</p>
+        <ul className="text-sm space-y-1 list-disc pl-4 text-muted-foreground font-body">
           {s.questionsAsked.split("\n").filter(Boolean).map((line, i) => (
             <li key={i}>{line.replace(/^[-•*]\s*/, "")}</li>
           ))}
@@ -263,33 +346,33 @@ const SubmissionCard = ({ s }: { s: Submission }) => (
 
     {s.codeChanges && (
       <div>
-        <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Code Changes</p>
-        <p className="text-sm text-muted-foreground">{s.codeChanges}</p>
+        <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider font-body">Code Changes</p>
+        <p className="text-sm text-muted-foreground font-body">{s.codeChanges}</p>
       </div>
     )}
 
     {s.tips && (
       <div className="tip-box rounded-lg p-3">
-        <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "hsl(var(--tip-border))" }}>Tips</p>
-        <p className="text-sm text-muted-foreground">{s.tips}</p>
+        <p className="text-xs font-semibold uppercase tracking-wider mb-1 font-body" style={{ color: "hsl(var(--tip-border))" }}>Tips</p>
+        <p className="text-sm text-muted-foreground font-body">{s.tips}</p>
       </div>
     )}
 
     <div className="flex items-center gap-6 pt-1">
       {s.difficultyRating > 0 && (
         <div className="flex items-center gap-2">
-          <span className="text-xs text-destructive">Difficulty</span>
+          <span className="text-xs text-destructive font-body">Difficulty</span>
           <StarRating value={s.difficultyRating} readonly size="sm" color="text-destructive" />
         </div>
       )}
       {s.friendlinessRating > 0 && (
         <div className="flex items-center gap-2">
-          <span className="text-xs" style={{ color: "hsl(var(--tip-border))" }}>Friendliness</span>
+          <span className="text-xs font-body" style={{ color: "hsl(var(--tip-border))" }}>Friendliness</span>
           <StarRating value={s.friendlinessRating} readonly size="sm" />
         </div>
       )}
     </div>
-  </GlassCard>
+  </div>
 );
 
 const VivaPrep = () => {
@@ -302,8 +385,23 @@ const VivaPrep = () => {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedFrequency, setSelectedFrequency] = useState("All");
+  const [selectedProctor, setSelectedProctor] = useState("All");
+  const [sortBy, setSortBy] = useState<typeof SORT_OPTIONS[number]>("Latest");
   const [subFilter, setSubFilter] = useState("");
   const [visibleSubs, setVisibleSubs] = useState(10);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // localStorage state
+  const [upvotedIds, setUpvotedIds] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem("vv_upvoted") || "[]"));
+    } catch { return new Set(); }
+  });
+  const [studiedIds, setStudiedIds] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem("vv_studied") || "[]"));
+    } catch { return new Set(); }
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -314,8 +412,27 @@ const VivaPrep = () => {
     document.title = `Viva Prep — VivaVault`;
   }, []);
 
+  // Keyboard shortcut: "/" to focus search
   useEffect(() => {
-    const fetch = async () => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault();
+        document.getElementById("viva-search")?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  // Scroll-to-top visibility
+  useEffect(() => {
+    const handler = () => setShowScrollTop(window.scrollY > 300);
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
       try {
         const q = query(collection(db, "questions"), where("projectId", "==", projectId));
         const snap = await getDocs(q);
@@ -326,22 +443,22 @@ const VivaPrep = () => {
         setLoading(false);
       }
     };
-    fetch();
+    fetchData();
   }, [projectId]);
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchSubs = async () => {
       try {
         const q = query(collection(db, "submissions"), where("projectId", "==", projectId), orderBy("createdAt", "desc"));
         const snap = await getDocs(q);
         setSubmissions(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Submission)));
       } catch {
-        // May fail if no index yet
+        // May fail if no index
       } finally {
         setSubLoading(false);
       }
     };
-    fetch();
+    fetchSubs();
   }, [projectId]);
 
   const categories = useMemo(() => {
@@ -349,17 +466,49 @@ const VivaPrep = () => {
     return ["All", ...Array.from(cats).sort()];
   }, [questions]);
 
+  const proctors = useMemo(() => {
+    const set = new Set<string>();
+    questions.forEach((q) => q.proctors?.forEach((p) => set.add(p)));
+    return ["All", ...Array.from(set).sort()];
+  }, [questions]);
+
+  // Active filter chips
+  const activeFilters = useMemo(() => {
+    const chips: { label: string; clear: () => void }[] = [];
+    if (selectedFrequency !== "All") chips.push({ label: selectedFrequency, clear: () => setSelectedFrequency("All") });
+    if (selectedCategory !== "All") chips.push({ label: selectedCategory, clear: () => setSelectedCategory("All") });
+    if (selectedProctor !== "All") chips.push({ label: selectedProctor, clear: () => setSelectedProctor("All") });
+    if (debouncedSearch) chips.push({ label: `"${debouncedSearch}"`, clear: () => { setSearch(""); setDebouncedSearch(""); } });
+    return chips;
+  }, [selectedFrequency, selectedCategory, selectedProctor, debouncedSearch]);
+
   const filtered = useMemo(() => {
-    return questions.filter((q) => {
+    let result = questions.filter((q) => {
       if (selectedCategory !== "All" && q.category !== selectedCategory) return false;
       if (selectedFrequency !== "All" && q.frequency?.toLowerCase() !== selectedFrequency.toLowerCase()) return false;
+      if (selectedProctor !== "All" && !q.proctors?.includes(selectedProctor)) return false;
       if (debouncedSearch) {
         const s = debouncedSearch.toLowerCase();
-        return q.question.toLowerCase().includes(s) || q.answer?.toLowerCase().includes(s);
+        return (
+          q.question?.toLowerCase().includes(s) ||
+          q.answer?.toLowerCase().includes(s) ||
+          q.category?.toLowerCase().includes(s) ||
+          q.proctors?.some((p) => p.toLowerCase().includes(s))
+        );
       }
       return true;
     });
-  }, [questions, selectedCategory, selectedFrequency, debouncedSearch]);
+
+    // Sort
+    if (sortBy === "Most Voted") {
+      result = [...result].sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+    } else if (sortBy === "Difficulty") {
+      const order: Record<string, number> = { hot: 3, medium: 2, low: 1 };
+      result = [...result].sort((a, b) => (order[b.frequency?.toLowerCase()] || 0) - (order[a.frequency?.toLowerCase()] || 0));
+    }
+
+    return result;
+  }, [questions, selectedCategory, selectedFrequency, selectedProctor, debouncedSearch, sortBy]);
 
   const filteredSubs = useMemo(() => {
     if (!subFilter) return submissions;
@@ -370,67 +519,152 @@ const VivaPrep = () => {
   }, [submissions, subFilter]);
 
   const handleUpvote = async (id: string) => {
+    if (upvotedIds.has(id)) return;
     try {
       await updateDoc(doc(db, "questions", id), { upvotes: firestoreIncrement(1) });
       setQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, upvotes: (q.upvotes || 0) + 1 } : q)));
+      const next = new Set(upvotedIds).add(id);
+      setUpvotedIds(next);
+      localStorage.setItem("vv_upvoted", JSON.stringify([...next]));
     } catch {
       toast.error("Failed to upvote");
     }
   };
 
+  const toggleStudied = (id: string) => {
+    const next = new Set(studiedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setStudiedIds(next);
+    localStorage.setItem("vv_studied", JSON.stringify([...next]));
+  };
+
   return (
     <Layout title="Viva Prep" showBack>
+      {/* Hero */}
+      <div className="mb-6 animate-fade-in">
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className="text-3xl sm:text-4xl font-heading font-extrabold tracking-tight">Viva Prep Questions</h1>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold font-body">
+            <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+            {questions.length} Questions
+          </span>
+        </div>
+        <p className="text-muted-foreground font-body">Filter, study, and upvote the questions that matter</p>
+      </div>
+
       {/* Filter Bar */}
-      <div className="sticky top-16 z-40 glass-strong -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 mb-6">
+      <div className="sticky top-16 z-40 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 mb-4 bg-background/80 backdrop-blur-2xl border-b border-border/30">
+        {/* Row 1: Search + Frequency */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search questions..."
+              id="viva-search"
+              placeholder="Search questions... (press /)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 bg-secondary border-border h-10"
+              className="pl-10 bg-secondary/30 border-border/40 h-10 font-body"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5">
             {FREQUENCIES.map((f) => (
-              <Button
+              <button
                 key={f}
-                size="sm"
-                variant={selectedFrequency === f ? "default" : "outline"}
                 onClick={() => setSelectedFrequency(f)}
                 className={cn(
-                  "transition-all duration-150 active:scale-95",
-                  selectedFrequency === f && "bg-primary hover:bg-primary/90"
+                  "px-3.5 py-1.5 rounded-full text-xs font-semibold font-body transition-all duration-200",
+                  selectedFrequency === f
+                    ? "bg-primary text-primary-foreground shadow-[0_0_12px_-2px_hsl(263,70%,55%/0.4)]"
+                    : "bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary"
                 )}
               >
                 {f}
-              </Button>
+              </button>
             ))}
           </div>
         </div>
 
+        {/* Row 2: Category pills */}
         <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-none">
           {categories.map((cat) => (
-            <Badge
+            <button
               key={cat}
-              variant={selectedCategory === cat ? "default" : "outline"}
-              className={cn(
-                "cursor-pointer whitespace-nowrap transition-all duration-150 active:scale-95 shrink-0",
-                selectedCategory === cat
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "hover:bg-accent"
-              )}
               onClick={() => setSelectedCategory(cat)}
+              className={cn(
+                "px-3 py-1 rounded-full text-xs font-body whitespace-nowrap transition-all duration-200 shrink-0",
+                selectedCategory === cat
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-[hsla(0,0%,100%,0.04)] text-muted-foreground hover:text-foreground hover:bg-accent"
+              )}
             >
               {cat}
-            </Badge>
+            </button>
           ))}
         </div>
 
-        <p className="text-xs text-muted-foreground mt-2 tabular-nums">
-          {filtered.length} question{filtered.length !== 1 ? "s" : ""}
+        {/* Row 3: Proctor filter */}
+        {proctors.length > 1 && (
+          <div className="flex items-center gap-2 mt-3">
+            <span className="text-xs text-muted-foreground font-body shrink-0">Proctor:</span>
+            <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
+              {proctors.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setSelectedProctor(p)}
+                  className={cn(
+                    "px-3 py-1 rounded-full text-xs font-body whitespace-nowrap transition-all duration-200 shrink-0 inline-flex items-center gap-1.5",
+                    selectedProctor === p
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-[hsla(0,0%,100%,0.04)] text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {p !== "All" && (
+                    <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: hashColor(p) }} />
+                  )}
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Active filter chips */}
+      {activeFilters.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {activeFilters.map((f) => (
+            <span key={f.label} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary font-body">
+              {f.label}
+              <button onClick={f.clear} className="hover:text-foreground"><X className="h-3 w-3" /></button>
+            </span>
+          ))}
+          <button
+            onClick={() => { setSelectedFrequency("All"); setSelectedCategory("All"); setSelectedProctor("All"); setSearch(""); }}
+            className="text-xs text-muted-foreground hover:text-foreground font-body"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
+
+      {/* Stats bar */}
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-muted-foreground font-body tabular-nums">
+          Showing <span className="text-foreground font-medium">{filtered.length}</span> of {questions.length} questions
         </p>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground font-body">Sort by:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof SORT_OPTIONS[number])}
+            className="text-xs bg-secondary/50 border border-border/40 rounded-lg px-2.5 py-1.5 text-foreground font-body outline-none focus:ring-1 focus:ring-primary"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Questions */}
@@ -444,7 +678,7 @@ const VivaPrep = () => {
           title="No questions found"
           description={
             questions.length === 0
-              ? "No questions have been imported for this project yet. Ask an admin to import questions."
+              ? "No questions have been imported for this project yet."
               : "No questions match your current filters. Try adjusting your search or filters."
           }
         />
@@ -455,9 +689,15 @@ const VivaPrep = () => {
               key={q.id}
               initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              transition={{ delay: Math.min(i * 0.04, 0.4), duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ delay: Math.min(i * 0.03, 0.3), duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
             >
-              <QuestionCard q={q} onUpvote={handleUpvote} />
+              <QuestionCard
+                q={q}
+                onUpvote={handleUpvote}
+                isUpvoted={upvotedIds.has(q.id)}
+                isStudied={studiedIds.has(q.id)}
+                onToggleStudied={toggleStudied}
+              />
             </motion.div>
           ))}
         </div>
@@ -465,24 +705,24 @@ const VivaPrep = () => {
 
       {/* Community Section */}
       <div className="mt-16">
-        <div className="h-px bg-border mb-10" />
+        <div className="h-px bg-border/30 mb-10" />
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
-            <h2 className="text-2xl font-bold flex items-center gap-2">
+            <h2 className="text-2xl font-heading font-bold flex items-center gap-2">
               <Users className="h-6 w-6 text-primary" /> Community Experiences
             </h2>
-            <p className="text-sm text-muted-foreground mt-1">Real viva experiences shared by students</p>
+            <p className="text-sm text-muted-foreground mt-1 font-body">Real viva experiences shared by students</p>
           </div>
           <div className="flex gap-3">
             <Input
               placeholder="Filter by proctor or level..."
               value={subFilter}
               onChange={(e) => setSubFilter(e.target.value)}
-              className="w-56 bg-secondary border-border h-9 text-sm"
+              className="w-56 bg-secondary/30 border-border/40 h-9 text-sm font-body"
             />
-            <Button asChild className="bg-gradient-to-r from-primary to-[hsl(263,70%,55%)] hover:opacity-90 transition-all active:scale-[0.97]">
+            <Button asChild className="bg-primary hover:bg-primary/90 transition-all active:scale-[0.97] font-body">
               <Link to={`/project/${projectId}/submit`}>
-                <Plus className="h-4 w-4 mr-1.5" /> Share Your Experience
+                <Plus className="h-4 w-4 mr-1.5" /> Share Experience
               </Link>
             </Button>
           </div>
@@ -494,9 +734,9 @@ const VivaPrep = () => {
           <EmptyState
             icon={MessageSquare}
             title="No experiences shared yet"
-            description="Be the first to share your viva experience and help fellow students!"
+            description="Be the first to share your viva experience!"
             action={
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" className="font-body">
                 <Link to={`/project/${projectId}/submit`}>Share Your Experience</Link>
               </Button>
             }
@@ -515,7 +755,7 @@ const VivaPrep = () => {
             ))}
             {visibleSubs < filteredSubs.length && (
               <div className="text-center pt-4">
-                <Button variant="outline" onClick={() => setVisibleSubs((v) => v + 10)}>
+                <Button variant="outline" onClick={() => setVisibleSubs((v) => v + 10)} className="font-body">
                   Load More ({filteredSubs.length - visibleSubs} remaining)
                 </Button>
               </div>
@@ -523,6 +763,29 @@ const VivaPrep = () => {
           </div>
         )}
       </div>
+
+      {/* Floating Submit Button */}
+      <Link
+        to="/submit-question"
+        className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 px-5 py-3 rounded-full bg-primary text-primary-foreground font-semibold font-body text-sm shadow-[0_0_30px_-5px_hsl(263,70%,55%/0.4)] hover:shadow-[0_0_40px_-5px_hsl(263,70%,55%/0.5)] transition-all duration-300 hover:scale-105 active:scale-95"
+      >
+        <Plus className="h-4 w-4" /> Submit Question
+      </Link>
+
+      {/* Scroll to top */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="fixed bottom-6 left-6 z-50 h-10 w-10 rounded-full bg-card border border-border/50 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shadow-lg"
+          >
+            <ArrowUp className="h-4 w-4" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </Layout>
   );
 };

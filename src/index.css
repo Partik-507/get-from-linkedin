@@ -5,44 +5,44 @@
 @layer base {
   :root,
   .light {
-    --background: 36 20% 96%;
-    --foreground: 20 14% 10%;
+    --background: 240 10% 96%;
+    --foreground: 240 10% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 20 14% 10%;
+    --card-foreground: 240 10% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 20 14% 10%;
+    --popover-foreground: 240 10% 10%;
 
-    --primary: 239 84% 67%;
+    --primary: 263 70% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 36 14% 91%;
-    --secondary-foreground: 20 14% 10%;
+    --secondary: 240 6% 92%;
+    --secondary-foreground: 240 10% 10%;
 
-    --muted: 36 10% 90%;
-    --muted-foreground: 25 6% 45%;
+    --muted: 240 6% 90%;
+    --muted-foreground: 240 4% 46%;
 
-    --accent: 36 14% 91%;
-    --accent-foreground: 20 14% 10%;
+    --accent: 240 6% 92%;
+    --accent-foreground: 240 10% 10%;
 
     --destructive: 0 62% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 36 12% 87%;
-    --input: 36 12% 87%;
-    --ring: 239 84% 67%;
+    --border: 240 6% 87%;
+    --input: 240 6% 87%;
+    --ring: 263 70% 50%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 36 16% 95%;
-    --sidebar-foreground: 25 6% 35%;
-    --sidebar-primary: 239 84% 67%;
+    --sidebar-background: 240 6% 95%;
+    --sidebar-foreground: 240 4% 35%;
+    --sidebar-primary: 263 70% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 36 14% 91%;
-    --sidebar-accent-foreground: 20 14% 10%;
-    --sidebar-border: 36 12% 87%;
-    --sidebar-ring: 239 84% 67%;
+    --sidebar-accent: 240 6% 92%;
+    --sidebar-accent-foreground: 240 10% 10%;
+    --sidebar-border: 240 6% 87%;
+    --sidebar-ring: 263 70% 50%;
 
     --glass-bg: 0 0% 100% / 0.7;
     --glass-border: 0 0% 100% / 0.9;
@@ -56,80 +56,90 @@
     --badge-hot-text: 0 72% 51%;
     --badge-med-bg: 48 96% 89%;
     --badge-med-text: 32 95% 44%;
+    --badge-low-bg: 142 76% 92%;
+    --badge-low-text: 142 71% 35%;
 
     --code-bg: 0 0% 12%;
     --code-text: 0 0% 83%;
+
+    --gold: 38 92% 50%;
   }
 
   .dark {
-    --background: 30 10% 5%;
-    --foreground: 36 20% 94%;
+    --background: 240 20% 4%;
+    --foreground: 240 10% 93%;
 
-    --card: 30 7% 10%;
-    --card-foreground: 36 20% 94%;
+    --card: 240 15% 7%;
+    --card-foreground: 240 10% 93%;
 
-    --popover: 30 7% 10%;
-    --popover-foreground: 36 20% 94%;
+    --popover: 240 15% 7%;
+    --popover-foreground: 240 10% 93%;
 
-    --primary: 239 84% 67%;
+    --primary: 263 70% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 30 5% 12%;
-    --secondary-foreground: 36 20% 94%;
+    --secondary: 240 10% 10%;
+    --secondary-foreground: 240 10% 93%;
 
-    --muted: 30 5% 15%;
-    --muted-foreground: 30 5% 48%;
+    --muted: 240 10% 13%;
+    --muted-foreground: 240 5% 50%;
 
-    --accent: 30 5% 15%;
-    --accent-foreground: 36 20% 94%;
+    --accent: 240 10% 12%;
+    --accent-foreground: 240 10% 93%;
 
     --destructive: 0 62% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 5% 17%;
-    --input: 30 5% 17%;
-    --ring: 239 84% 67%;
+    --border: 240 6% 12%;
+    --input: 240 6% 12%;
+    --ring: 263 70% 55%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 30 7% 5%;
-    --sidebar-foreground: 30 5% 65%;
-    --sidebar-primary: 239 84% 67%;
+    --sidebar-background: 240 15% 5%;
+    --sidebar-foreground: 240 5% 55%;
+    --sidebar-primary: 263 70% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 30 5% 12%;
-    --sidebar-accent-foreground: 36 20% 94%;
-    --sidebar-border: 30 5% 14%;
-    --sidebar-ring: 239 84% 67%;
+    --sidebar-accent: 240 10% 10%;
+    --sidebar-accent-foreground: 240 10% 93%;
+    --sidebar-border: 240 6% 12%;
+    --sidebar-ring: 263 70% 55%;
 
-    --glass-bg: 30 7% 8% / 0.6;
-    --glass-border: 0 0% 100% / 0.08;
+    --glass-bg: 240 15% 6% / 0.7;
+    --glass-border: 0 0% 100% / 0.06;
 
-    --tip-bg: 38 50% 6%;
-    --tip-border: 38 92% 60%;
-    --project-tip-bg: 142 40% 6%;
+    --tip-bg: 38 40% 6%;
+    --tip-border: 38 92% 55%;
+    --project-tip-bg: 142 30% 6%;
     --project-tip-border: 142 71% 45%;
 
     --badge-hot-bg: 0 50% 12%;
-    --badge-hot-text: 0 90% 78%;
+    --badge-hot-text: 0 90% 75%;
     --badge-med-bg: 38 50% 10%;
-    --badge-med-text: 48 96% 78%;
+    --badge-med-text: 38 90% 75%;
+    --badge-low-bg: 142 40% 10%;
+    --badge-low-text: 142 70% 70%;
 
-    --code-bg: 0 0% 5%;
-    --code-text: 220 9% 87%;
+    --code-bg: 240 20% 4%;
+    --code-text: 220 9% 85%;
+
+    --gold: 38 92% 55%;
   }
 }
 
 @layer base {
   * {
-    @apply border-border transition-colors duration-200;
+    @apply border-border;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: 'DM Sans', sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
   h1, h2, h3, h4, h5, h6 {
+    font-family: 'Syne', sans-serif;
     text-wrap: balance;
   }
 
@@ -139,6 +149,18 @@
 }
 
 @layer utilities {
+  .font-heading {
+    font-family: 'Syne', sans-serif;
+  }
+
+  .font-mono-dm {
+    font-family: 'DM Mono', monospace;
+  }
+
+  .font-body {
+    font-family: 'DM Sans', sans-serif;
+  }
+
   .glass {
     @apply backdrop-blur-xl border rounded-xl;
     background: hsla(var(--glass-bg));
@@ -147,7 +169,7 @@
   }
 
   .dark .glass {
-    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
   }
 
   .glass-strong {
@@ -162,14 +184,38 @@
 
   .dark .gradient-mesh {
     background:
-      radial-gradient(ellipse at 20% 50%, hsla(239, 84%, 40%, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 20%, hsla(239, 84%, 35%, 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 20% 50%, hsla(263, 70%, 35%, 0.12) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, hsla(263, 70%, 30%, 0.08) 0%, transparent 50%),
       hsl(var(--background));
+  }
+
+  .obsidian-bg {
+    position: relative;
+    background: hsl(var(--background));
+  }
+
+  .obsidian-bg::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse 600px 600px at 20% 40%, hsla(263, 70%, 40%, 0.15) 0%, transparent 70%),
+      radial-gradient(ellipse 500px 500px at 75% 25%, hsla(263, 70%, 35%, 0.10) 0%, transparent 70%),
+      radial-gradient(ellipse 400px 400px at 60% 80%, hsla(263, 70%, 30%, 0.08) 0%, transparent 70%);
+    animation: mesh-float 20s ease-in-out infinite;
+  }
+
+  @keyframes mesh-float {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -20px) scale(1.02); }
+    66% { transform: translate(-20px, 15px) scale(0.98); }
   }
 
   .text-gradient {
     @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, hsl(239, 84%, 67%), hsl(263, 70%, 65%));
+    background-image: linear-gradient(135deg, hsl(263, 70%, 60%), hsl(280, 70%, 55%));
   }
 
   .tip-box {
@@ -191,11 +237,31 @@
     background: hsl(var(--badge-med-bg));
     color: hsl(var(--badge-med-text));
   }
+
+  .badge-low {
+    background: hsl(var(--badge-low-bg));
+    color: hsl(var(--badge-low-text));
+  }
+
+  /* Obsidian card hover glow */
+  .obsidian-card {
+    @apply rounded-xl border transition-all;
+    background: hsl(var(--card));
+    border-color: hsla(0, 0%, 100%, 0.06);
+    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .obsidian-card:hover {
+    border-color: hsla(263, 70%, 55%, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 0 24px hsla(263, 70%, 55%, 0.15);
+  }
 }
 
 /* Tiptap editor styles */
 .tiptap-editor .ProseMirror {
   @apply outline-none min-h-[120px] text-foreground;
+  font-family: 'DM Sans', sans-serif;
 }
 
 .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
@@ -214,12 +280,14 @@
   @apply border-l-4 border-primary/40 pl-4 italic text-muted-foreground my-3;
 }
 .tiptap-editor .ProseMirror pre {
-  @apply rounded-lg p-4 my-3 overflow-x-auto text-sm font-mono;
+  @apply rounded-lg p-4 my-3 overflow-x-auto text-sm;
+  font-family: 'DM Mono', monospace;
   background: hsl(var(--code-bg));
   color: hsl(var(--code-text));
 }
 .tiptap-editor .ProseMirror code {
-  @apply px-1.5 py-0.5 rounded text-sm font-mono;
+  @apply px-1.5 py-0.5 rounded text-sm;
+  font-family: 'DM Mono', monospace;
   background: hsl(var(--code-bg));
   color: hsl(var(--code-text));
 }
@@ -240,4 +308,13 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-muted-foreground/40;
+}
+
+/* Scrollbar hide utility */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
