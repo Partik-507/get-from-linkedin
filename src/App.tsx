@@ -13,6 +13,7 @@ import SubmitExperience from "./pages/SubmitExperience";
 import SubmitQuestion from "./pages/SubmitQuestion";
 import Resources from "./pages/Resources";
 import Admin from "./pages/Admin";
+import Bookmarks from "./pages/Bookmarks";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
