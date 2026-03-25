@@ -52,6 +52,7 @@ const App = () => (
               <Route path="/project/:projectId/viva" element={<AuthGate><VivaPrep /></AuthGate>} />
               <Route path="/project/:projectId/submit" element={<AuthGate><SubmitExperience /></AuthGate>} />
               <Route path="/project/:projectId/resources" element={<AuthGate><Resources /></AuthGate>} />
+              <Route path="/bookmarks" element={<AuthGate><Bookmarks /></AuthGate>} />
               <Route path="/admin" element={<AuthGate><Admin /></AuthGate>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

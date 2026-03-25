@@ -11,12 +11,21 @@ import { StarRating } from "@/components/StarRating";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, ChevronDown, Heart, Pencil, Save, X, MessageSquare,
   Lightbulb, GraduationCap, Copy, Check, HelpCircle, Users, Plus, Loader2,
-  ArrowUp, Share2, BookCheck,
+  ArrowUp, Share2, BookCheck, Bookmark, BookmarkCheck, SlidersHorizontal,
+  Sparkles,
 } from "lucide-react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -36,6 +45,7 @@ interface Question {
   proctors: string[];
   upvotes: number;
   followUps?: string[];
+  customFields?: Record<string, string>;
 }
 
 interface Submission {
@@ -54,6 +64,8 @@ interface Submission {
   createdAt: any;
 }
 
+type BookmarkCollections = Record<string, string[]>;
+
 const FREQUENCIES = ["All", "Hot", "Medium", "Low"];
 const FREQ_COLORS: Record<string, string> = {
   hot: "badge-hot",
@@ -62,7 +74,6 @@ const FREQ_COLORS: Record<string, string> = {
 };
 const SORT_OPTIONS = ["Latest", "Most Voted", "Difficulty"] as const;
 
-// Generate a consistent color from a string
 const hashColor = (str: string) => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -72,18 +83,122 @@ const hashColor = (str: string) => {
   return `hsl(${hue}, 65%, 55%)`;
 };
 
+const loadBookmarks = (): BookmarkCollections => {
+  try {
+    return JSON.parse(localStorage.getItem("vv_bookmarks") || "{}");
+  } catch { return {}; }
+};
+
+const saveBookmarks = (b: BookmarkCollections) => {
+  localStorage.setItem("vv_bookmarks", JSON.stringify(b));
+};
+
+const isBookmarked = (bookmarks: BookmarkCollections, qId: string) => {
+  return Object.values(bookmarks).some((ids) => ids.includes(qId));
+};
+
+// ─── Bookmark Popover ───
+const BookmarkPopover = ({
+  questionId,
+  bookmarks,
+  setBookmarks,
+}: {
+  questionId: string;
+  bookmarks: BookmarkCollections;
+  setBookmarks: (b: BookmarkCollections) => void;
+}) => {
+  const [newName, setNewName] = useState("");
+  const collections = Object.keys(bookmarks);
+  const saved = isBookmarked(bookmarks, questionId);
+
+  const toggleCollection = (name: string) => {
+    const next = { ...bookmarks };
+    if (!next[name]) next[name] = [];
+    if (next[name].includes(questionId)) {
+      next[name] = next[name].filter((id) => id !== questionId);
+      if (next[name].length === 0) delete next[name];
+    } else {
+      next[name].push(questionId);
+    }
+    setBookmarks(next);
+    saveBookmarks(next);
+  };
+
+  const createCollection = () => {
+    const name = newName.trim();
+    if (!name) return;
+    const next = { ...bookmarks, [name]: [...(bookmarks[name] || []), questionId] };
+    setBookmarks(next);
+    saveBookmarks(next);
+    setNewName("");
+    toast.success(`Saved to "${name}"`);
+  };
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className={cn(
+            "flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-body transition-all duration-200",
+            saved
+              ? "bg-primary/15 text-primary"
+              : "bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary"
+          )}
+        >
+          {saved ? <BookmarkCheck className="h-3.5 w-3.5" /> : <Bookmark className="h-3.5 w-3.5" />}
+          {saved ? "Saved" : "Bookmark"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-3" align="start">
+        <p className="text-sm font-semibold mb-2 font-body">Save to collection</p>
+        {collections.length > 0 && (
+          <div className="space-y-1 mb-3 max-h-32 overflow-y-auto">
+            {collections.map((name) => (
+              <label key={name} className="flex items-center gap-2 text-sm font-body cursor-pointer hover:bg-accent/50 rounded px-2 py-1 transition-colors">
+                <Checkbox
+                  checked={bookmarks[name]?.includes(questionId)}
+                  onCheckedChange={() => toggleCollection(name)}
+                />
+                <span className="truncate">{name}</span>
+                <span className="text-muted-foreground text-xs ml-auto">{bookmarks[name]?.length || 0}</span>
+              </label>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <Input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="New collection..."
+            className="h-8 text-xs bg-secondary/30 border-border/40"
+            onKeyDown={(e) => e.key === "Enter" && createCollection()}
+          />
+          <Button size="sm" className="h-8 px-3 text-xs" onClick={createCollection} disabled={!newName.trim()}>
+            <Plus className="h-3 w-3" />
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+// ─── Question Card ───
 const QuestionCard = ({
   q,
   onUpvote,
   isUpvoted,
   isStudied,
   onToggleStudied,
+  bookmarks,
+  setBookmarks,
 }: {
   q: Question;
   onUpvote: (id: string) => void;
   isUpvoted: boolean;
   isStudied: boolean;
   onToggleStudied: (id: string) => void;
+  bookmarks: BookmarkCollections;
+  setBookmarks: (b: BookmarkCollections) => void;
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -124,48 +239,52 @@ const QuestionCard = ({
 
   const shareQuestion = () => {
     navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#q-${q.id}`);
-    toast.success("Link copied!");
+    toast.success("Link copied to clipboard!");
   };
 
   return (
     <div
       className={cn(
-        "obsidian-card overflow-hidden",
+        "obsidian-card overflow-hidden group",
         isStudied && "ring-1 ring-[hsl(142,71%,45%)]/30"
       )}
       id={`q-${q.id}`}
     >
+      {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full text-left p-5 flex items-start gap-3 transition-colors duration-200 hover:bg-accent/30"
+        className="w-full text-left p-5 sm:p-6 flex items-start gap-3 transition-colors duration-200 hover:bg-accent/20"
       >
         <div className="flex-1 min-w-0">
-          <p className="font-mono-dm font-medium leading-relaxed pr-2 text-foreground">{q.question}</p>
+          <p className="font-mono-dm font-medium leading-relaxed pr-2 text-foreground text-[15px] sm:text-base">{q.question}</p>
           <div className="flex flex-wrap gap-2 mt-3">
             {q.frequency && (
-              <span className={cn("text-xs px-2.5 py-0.5 rounded-full font-semibold font-body", FREQ_COLORS[q.frequency?.toLowerCase()] || FREQ_COLORS.low)}>
+              <span className={cn("text-xs px-2.5 py-1 rounded-full font-semibold font-body", FREQ_COLORS[q.frequency?.toLowerCase()] || FREQ_COLORS.low)}>
                 {q.frequency}
               </span>
             )}
             {q.category && (
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-secondary text-muted-foreground font-body">
+              <span className="text-xs px-2.5 py-1 rounded-full bg-secondary text-muted-foreground font-body">
                 {q.category}
               </span>
             )}
             {q.proctors?.map((p) => (
               <span
                 key={p}
-                className="text-xs px-2.5 py-0.5 rounded-full border border-primary/30 text-primary font-body inline-flex items-center gap-1.5"
+                className="text-xs px-2.5 py-1 rounded-full border border-primary/30 text-primary font-body inline-flex items-center gap-1.5"
               >
-                <span
-                  className="h-2 w-2 rounded-full inline-block"
-                  style={{ backgroundColor: hashColor(p) }}
-                />
+                <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: hashColor(p) }} />
                 {p}
               </span>
             ))}
+            {/* Custom field badges */}
+            {q.customFields && Object.entries(q.customFields).map(([key, val]) => (
+              <span key={key} className="text-xs px-2.5 py-1 rounded-full bg-accent text-accent-foreground font-body">
+                {key}: {val}
+              </span>
+            ))}
             {isStudied && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-[hsl(142,71%,45%)]/10 text-[hsl(142,71%,45%)] font-body inline-flex items-center gap-1">
+              <span className="text-xs px-2 py-1 rounded-full bg-[hsl(142,71%,45%)]/10 text-[hsl(142,71%,45%)] font-body inline-flex items-center gap-1">
                 <Check className="h-3 w-3" /> Studied
               </span>
             )}
@@ -188,6 +307,7 @@ const QuestionCard = ({
         </div>
       </button>
 
+      {/* Expanded */}
       <AnimatePresence>
         {expanded && (
           <motion.div
@@ -197,18 +317,9 @@ const QuestionCard = ({
             transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
             className="overflow-hidden"
           >
-            <div className="px-5 pb-5 border-t border-border/30 pt-4">
+            <div className="px-5 sm:px-6 pb-5 border-t border-border/30 pt-4">
               <div className="border-l-2 border-primary/40 pl-4">
-                <div className="group relative">
-                  {!editing && (
-                    <button
-                      onClick={() => setEditing(true)}
-                      className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                  )}
-
+                <div className="relative">
                   {editing ? (
                     <div className="space-y-3">
                       <div className="tiptap-editor rounded-lg border border-border p-4 bg-secondary/20 min-h-[120px]">
@@ -226,7 +337,7 @@ const QuestionCard = ({
                   ) : (
                     <div>
                       {q.answer && (
-                        <div className="prose prose-sm dark:prose-invert max-w-none mb-4 text-muted-foreground font-body" dangerouslySetInnerHTML={{ __html: q.answer }} />
+                        <div className="prose prose-sm dark:prose-invert max-w-none mb-4 text-muted-foreground font-body leading-relaxed" dangerouslySetInnerHTML={{ __html: q.answer }} />
                       )}
 
                       {q.tip && (
@@ -277,7 +388,7 @@ const QuestionCard = ({
 
                       {!q.answer && !q.tip && !q.projectTip && !q.codeExample && (
                         <p className="text-sm text-muted-foreground italic font-body">
-                          No answer yet. Click the edit icon to add one.
+                          No answer yet. Click Edit to add one.
                         </p>
                       )}
                     </div>
@@ -285,25 +396,32 @@ const QuestionCard = ({
                 </div>
               </div>
 
-              {/* Bottom action bar */}
-              <div className="flex items-center gap-3 mt-4 pt-3 border-t border-border/20">
+              {/* Always-visible action bar */}
+              <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/20 flex-wrap">
                 <button
-                  onClick={() => onToggleStudied(q.id)}
-                  className={cn(
-                    "text-xs px-3 py-1.5 rounded-full font-body flex items-center gap-1.5 transition-all duration-200",
-                    isStudied
-                      ? "bg-[hsl(142,71%,45%)]/10 text-[hsl(142,71%,45%)]"
-                      : "bg-secondary text-muted-foreground hover:text-foreground"
-                  )}
+                  onClick={() => setEditing(true)}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary font-body transition-all duration-200"
                 >
-                  <BookCheck className="h-3.5 w-3.5" />
-                  {isStudied ? "Studied ✓" : "Mark as Studied"}
+                  <Pencil className="h-3.5 w-3.5" /> Edit
                 </button>
                 <button
                   onClick={shareQuestion}
-                  className="text-xs px-3 py-1.5 rounded-full bg-secondary text-muted-foreground hover:text-foreground font-body flex items-center gap-1.5 transition-colors"
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary font-body transition-all duration-200"
                 >
                   <Share2 className="h-3.5 w-3.5" /> Share
+                </button>
+                <BookmarkPopover questionId={q.id} bookmarks={bookmarks} setBookmarks={setBookmarks} />
+                <button
+                  onClick={() => onToggleStudied(q.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-body transition-all duration-200",
+                    isStudied
+                      ? "bg-[hsl(142,71%,45%)]/10 text-[hsl(142,71%,45%)]"
+                      : "bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  )}
+                >
+                  <BookCheck className="h-3.5 w-3.5" />
+                  {isStudied ? "Studied ✓" : "Mark Studied"}
                 </button>
               </div>
             </div>
@@ -314,8 +432,9 @@ const QuestionCard = ({
   );
 };
 
+// ─── Submission Card ───
 const SubmissionCard = ({ s }: { s: Submission }) => (
-  <div className="obsidian-card p-5 space-y-3">
+  <div className="obsidian-card p-5 sm:p-6 space-y-3">
     <div className="flex items-center justify-between flex-wrap gap-2">
       <div className="flex items-center gap-2">
         <span className="font-heading font-semibold">{s.isAnonymous ? "Anonymous" : s.name || "Anonymous"}</span>
@@ -332,7 +451,6 @@ const SubmissionCard = ({ s }: { s: Submission }) => (
         {s.duration && <span>{s.duration}</span>}
       </div>
     </div>
-
     {s.questionsAsked && (
       <div>
         <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider font-body">Questions Asked</p>
@@ -343,21 +461,18 @@ const SubmissionCard = ({ s }: { s: Submission }) => (
         </ul>
       </div>
     )}
-
     {s.codeChanges && (
       <div>
         <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider font-body">Code Changes</p>
         <p className="text-sm text-muted-foreground font-body">{s.codeChanges}</p>
       </div>
     )}
-
     {s.tips && (
       <div className="tip-box rounded-lg p-3">
         <p className="text-xs font-semibold uppercase tracking-wider mb-1 font-body" style={{ color: "hsl(var(--tip-border))" }}>Tips</p>
         <p className="text-sm text-muted-foreground font-body">{s.tips}</p>
       </div>
     )}
-
     <div className="flex items-center gap-6 pt-1">
       {s.difficultyRating > 0 && (
         <div className="flex items-center gap-2">
@@ -375,6 +490,175 @@ const SubmissionCard = ({ s }: { s: Submission }) => (
   </div>
 );
 
+// ─── Filter Panel ───
+const FilterPanel = ({
+  questions,
+  categories,
+  proctors,
+  dynamicFilters,
+  selectedCategory,
+  setSelectedCategory,
+  selectedFrequency,
+  setSelectedFrequency,
+  selectedProctor,
+  setSelectedProctor,
+  selectedDynamic,
+  setSelectedDynamic,
+}: {
+  questions: Question[];
+  categories: string[];
+  proctors: string[];
+  dynamicFilters: Map<string, Set<string>>;
+  selectedCategory: string;
+  setSelectedCategory: (v: string) => void;
+  selectedFrequency: string;
+  setSelectedFrequency: (v: string) => void;
+  selectedProctor: string;
+  setSelectedProctor: (v: string) => void;
+  selectedDynamic: Record<string, Set<string>>;
+  setSelectedDynamic: (v: Record<string, Set<string>>) => void;
+}) => {
+  const activeCount = [
+    selectedFrequency !== "All" ? 1 : 0,
+    selectedCategory !== "All" ? 1 : 0,
+    selectedProctor !== "All" ? 1 : 0,
+    ...Object.values(selectedDynamic).map((s) => s.size),
+  ].reduce((a, b) => a + b, 0);
+
+  const clearAll = () => {
+    setSelectedFrequency("All");
+    setSelectedCategory("All");
+    setSelectedProctor("All");
+    setSelectedDynamic({});
+  };
+
+  const toggleDynamic = (key: string, val: string) => {
+    const next = { ...selectedDynamic };
+    if (!next[key]) next[key] = new Set();
+    else next[key] = new Set(next[key]);
+    if (next[key].has(val)) next[key].delete(val);
+    else next[key].add(val);
+    if (next[key].size === 0) delete next[key];
+    setSelectedDynamic(next);
+  };
+
+  return (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-2 font-body relative border-border/50 hover:border-primary/40">
+          <SlidersHorizontal className="h-4 w-4" />
+          Filters
+          {activeCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 h-5 min-w-[20px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+              {activeCount}
+            </span>
+          )}
+        </Button>
+      </SheetTrigger>
+      <SheetContent className="w-full sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle className="font-heading flex items-center justify-between">
+            <span>All Filters</span>
+            {activeCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearAll} className="text-xs text-muted-foreground font-body">
+                Clear All
+              </Button>
+            )}
+          </SheetTitle>
+        </SheetHeader>
+        <ScrollArea className="h-[calc(100vh-120px)] mt-4 pr-2">
+          <div className="space-y-6">
+            {/* Difficulty */}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 font-body">Difficulty</p>
+              <div className="flex flex-wrap gap-2">
+                {FREQUENCIES.map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setSelectedFrequency(f)}
+                    className={cn(
+                      "px-3.5 py-2 rounded-full text-xs font-semibold font-body transition-all duration-200",
+                      selectedFrequency === f
+                        ? "bg-primary text-primary-foreground shadow-[0_0_12px_-2px_hsl(263,70%,55%/0.4)]"
+                        : "bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                    )}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Category */}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 font-body">Category</p>
+              <div className="flex flex-wrap gap-2">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={cn(
+                      "px-3 py-2 rounded-full text-xs font-body whitespace-nowrap transition-all duration-200",
+                      selectedCategory === cat
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                    )}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Proctor */}
+            {proctors.length > 1 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 font-body">Proctor</p>
+                <div className="flex flex-wrap gap-2">
+                  {proctors.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setSelectedProctor(p)}
+                      className={cn(
+                        "px-3 py-2 rounded-full text-xs font-body whitespace-nowrap transition-all duration-200 inline-flex items-center gap-1.5",
+                        selectedProctor === p
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                      )}
+                    >
+                      {p !== "All" && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: hashColor(p) }} />}
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Dynamic filters from customFields */}
+            {Array.from(dynamicFilters.entries()).map(([key, values]) => (
+              <div key={key}>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 font-body">{key}</p>
+                <div className="space-y-1">
+                  {Array.from(values).sort().map((val) => (
+                    <label key={val} className="flex items-center gap-2.5 text-sm font-body cursor-pointer hover:bg-accent/50 rounded-lg px-2 py-1.5 transition-colors">
+                      <Checkbox
+                        checked={selectedDynamic[key]?.has(val) || false}
+                        onCheckedChange={() => toggleDynamic(key, val)}
+                      />
+                      <span>{val}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
+  );
+};
+
+// ─── Main Page ───
 const VivaPrep = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -386,21 +670,18 @@ const VivaPrep = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedFrequency, setSelectedFrequency] = useState("All");
   const [selectedProctor, setSelectedProctor] = useState("All");
+  const [selectedDynamic, setSelectedDynamic] = useState<Record<string, Set<string>>>({});
   const [sortBy, setSortBy] = useState<typeof SORT_OPTIONS[number]>("Latest");
   const [subFilter, setSubFilter] = useState("");
   const [visibleSubs, setVisibleSubs] = useState(10);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [bookmarks, setBookmarks] = useState<BookmarkCollections>(loadBookmarks);
 
-  // localStorage state
   const [upvotedIds, setUpvotedIds] = useState<Set<string>>(() => {
-    try {
-      return new Set(JSON.parse(localStorage.getItem("vv_upvoted") || "[]"));
-    } catch { return new Set(); }
+    try { return new Set(JSON.parse(localStorage.getItem("vv_upvoted") || "[]")); } catch { return new Set(); }
   });
   const [studiedIds, setStudiedIds] = useState<Set<string>>(() => {
-    try {
-      return new Set(JSON.parse(localStorage.getItem("vv_studied") || "[]"));
-    } catch { return new Set(); }
+    try { return new Set(JSON.parse(localStorage.getItem("vv_studied") || "[]")); } catch { return new Set(); }
   });
 
   useEffect(() => {
@@ -408,11 +689,8 @@ const VivaPrep = () => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  useEffect(() => {
-    document.title = `Viva Prep — VivaVault`;
-  }, []);
+  useEffect(() => { document.title = `Viva Prep — VivaVault`; }, []);
 
-  // Keyboard shortcut: "/" to focus search
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "/" && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
@@ -424,7 +702,6 @@ const VivaPrep = () => {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Scroll-to-top visibility
   useEffect(() => {
     const handler = () => setShowScrollTop(window.scrollY > 300);
     window.addEventListener("scroll", handler, { passive: true });
@@ -452,9 +729,7 @@ const VivaPrep = () => {
         const q = query(collection(db, "submissions"), where("projectId", "==", projectId), orderBy("createdAt", "desc"));
         const snap = await getDocs(q);
         setSubmissions(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Submission)));
-      } catch {
-        // May fail if no index
-      } finally {
+      } catch { /* index may not exist */ } finally {
         setSubLoading(false);
       }
     };
@@ -472,34 +747,68 @@ const VivaPrep = () => {
     return ["All", ...Array.from(set).sort()];
   }, [questions]);
 
-  // Active filter chips
+  // Extract dynamic filters from customFields
+  const dynamicFilters = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    questions.forEach((q) => {
+      if (q.customFields) {
+        Object.entries(q.customFields).forEach(([key, val]) => {
+          if (!map.has(key)) map.set(key, new Set());
+          if (val) map.get(key)!.add(val);
+        });
+      }
+    });
+    return map;
+  }, [questions]);
+
+  const studiedCount = useMemo(() => questions.filter((q) => studiedIds.has(q.id)).length, [questions, studiedIds]);
+
   const activeFilters = useMemo(() => {
     const chips: { label: string; clear: () => void }[] = [];
     if (selectedFrequency !== "All") chips.push({ label: selectedFrequency, clear: () => setSelectedFrequency("All") });
     if (selectedCategory !== "All") chips.push({ label: selectedCategory, clear: () => setSelectedCategory("All") });
     if (selectedProctor !== "All") chips.push({ label: selectedProctor, clear: () => setSelectedProctor("All") });
+    Object.entries(selectedDynamic).forEach(([key, vals]) => {
+      vals.forEach((val) => {
+        chips.push({
+          label: `${key}: ${val}`,
+          clear: () => {
+            const next = { ...selectedDynamic };
+            next[key] = new Set(next[key]);
+            next[key].delete(val);
+            if (next[key].size === 0) delete next[key];
+            setSelectedDynamic(next);
+          },
+        });
+      });
+    });
     if (debouncedSearch) chips.push({ label: `"${debouncedSearch}"`, clear: () => { setSearch(""); setDebouncedSearch(""); } });
     return chips;
-  }, [selectedFrequency, selectedCategory, selectedProctor, debouncedSearch]);
+  }, [selectedFrequency, selectedCategory, selectedProctor, selectedDynamic, debouncedSearch]);
 
   const filtered = useMemo(() => {
     let result = questions.filter((q) => {
       if (selectedCategory !== "All" && q.category !== selectedCategory) return false;
       if (selectedFrequency !== "All" && q.frequency?.toLowerCase() !== selectedFrequency.toLowerCase()) return false;
       if (selectedProctor !== "All" && !q.proctors?.includes(selectedProctor)) return false;
+      // Dynamic custom field filters
+      for (const [key, vals] of Object.entries(selectedDynamic)) {
+        if (vals.size > 0 && (!q.customFields || !vals.has(q.customFields[key]))) return false;
+      }
       if (debouncedSearch) {
         const s = debouncedSearch.toLowerCase();
+        const inCustom = q.customFields ? Object.values(q.customFields).some((v) => v.toLowerCase().includes(s)) : false;
         return (
           q.question?.toLowerCase().includes(s) ||
           q.answer?.toLowerCase().includes(s) ||
           q.category?.toLowerCase().includes(s) ||
-          q.proctors?.some((p) => p.toLowerCase().includes(s))
+          q.proctors?.some((p) => p.toLowerCase().includes(s)) ||
+          inCustom
         );
       }
       return true;
     });
 
-    // Sort
     if (sortBy === "Most Voted") {
       result = [...result].sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
     } else if (sortBy === "Difficulty") {
@@ -508,7 +817,7 @@ const VivaPrep = () => {
     }
 
     return result;
-  }, [questions, selectedCategory, selectedFrequency, selectedProctor, debouncedSearch, sortBy]);
+  }, [questions, selectedCategory, selectedFrequency, selectedProctor, selectedDynamic, debouncedSearch, sortBy]);
 
   const filteredSubs = useMemo(() => {
     if (!subFilter) return submissions;
@@ -539,60 +848,86 @@ const VivaPrep = () => {
     localStorage.setItem("vv_studied", JSON.stringify([...next]));
   };
 
+  // Difficulty distribution
+  const diffDist = useMemo(() => {
+    const counts = { hot: 0, medium: 0, low: 0 };
+    questions.forEach((q) => {
+      const f = q.frequency?.toLowerCase() as keyof typeof counts;
+      if (f in counts) counts[f]++;
+    });
+    return counts;
+  }, [questions]);
+
   return (
     <Layout title="Viva Prep" showBack>
       {/* Hero */}
-      <div className="mb-6 animate-fade-in">
-        <div className="flex items-center gap-3 mb-1">
+      <div className="mb-8 animate-fade-in">
+        <div className="flex items-center gap-3 mb-2">
           <h1 className="text-3xl sm:text-4xl font-heading font-extrabold tracking-tight">Viva Prep Questions</h1>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold font-body">
             <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-            {questions.length} Questions
+            {questions.length}
           </span>
         </div>
-        <p className="text-muted-foreground font-body">Filter, study, and upvote the questions that matter</p>
+        <p className="text-muted-foreground font-body text-sm sm:text-base">Filter, study, and upvote the questions that matter</p>
       </div>
 
-      {/* Filter Bar */}
-      <div className="sticky top-16 z-40 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 mb-4 bg-background/80 backdrop-blur-2xl border-b border-border/30">
-        {/* Row 1: Search + Frequency */}
+      {/* Search + Filters — flush, no container */}
+      <div className="space-y-3 mb-6">
+        {/* Row 1: Search + Filter button + Frequency */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               id="viva-search"
-              placeholder="Search questions... (press /)"
+              placeholder="Search questions, topics, or proctors... (press /)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 bg-secondary/30 border-border/40 h-10 font-body"
+              className="pl-10 h-12 rounded-xl bg-secondary/20 border-border/30 font-body text-sm focus:border-primary/50 focus:ring-primary/20"
             />
           </div>
-          <div className="flex gap-1.5">
-            {FREQUENCIES.map((f) => (
-              <button
-                key={f}
-                onClick={() => setSelectedFrequency(f)}
-                className={cn(
-                  "px-3.5 py-1.5 rounded-full text-xs font-semibold font-body transition-all duration-200",
-                  selectedFrequency === f
-                    ? "bg-primary text-primary-foreground shadow-[0_0_12px_-2px_hsl(263,70%,55%/0.4)]"
-                    : "bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary"
-                )}
-              >
-                {f}
-              </button>
-            ))}
+          <div className="flex gap-2 items-center">
+            <FilterPanel
+              questions={questions}
+              categories={categories}
+              proctors={proctors}
+              dynamicFilters={dynamicFilters}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              selectedFrequency={selectedFrequency}
+              setSelectedFrequency={setSelectedFrequency}
+              selectedProctor={selectedProctor}
+              setSelectedProctor={setSelectedProctor}
+              selectedDynamic={selectedDynamic}
+              setSelectedDynamic={setSelectedDynamic}
+            />
+            <div className="flex gap-1.5">
+              {FREQUENCIES.map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setSelectedFrequency(f)}
+                  className={cn(
+                    "px-3.5 py-2 rounded-full text-xs font-semibold font-body transition-all duration-200",
+                    selectedFrequency === f
+                      ? "bg-primary text-primary-foreground shadow-[0_0_12px_-2px_hsl(263,70%,55%/0.4)]"
+                      : "bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  )}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Row 2: Category pills */}
-        <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-none">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
               className={cn(
-                "px-3 py-1 rounded-full text-xs font-body whitespace-nowrap transition-all duration-200 shrink-0",
+                "px-3.5 py-2 rounded-full text-xs font-body whitespace-nowrap transition-all duration-200 shrink-0",
                 selectedCategory === cat
                   ? "bg-primary text-primary-foreground"
                   : "bg-[hsla(0,0%,100%,0.04)] text-muted-foreground hover:text-foreground hover:bg-accent"
@@ -605,7 +940,7 @@ const VivaPrep = () => {
 
         {/* Row 3: Proctor filter */}
         {proctors.length > 1 && (
-          <div className="flex items-center gap-2 mt-3">
+          <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground font-body shrink-0">Proctor:</span>
             <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
               {proctors.map((p) => (
@@ -613,15 +948,13 @@ const VivaPrep = () => {
                   key={p}
                   onClick={() => setSelectedProctor(p)}
                   className={cn(
-                    "px-3 py-1 rounded-full text-xs font-body whitespace-nowrap transition-all duration-200 shrink-0 inline-flex items-center gap-1.5",
+                    "px-3 py-1.5 rounded-full text-xs font-body whitespace-nowrap transition-all duration-200 shrink-0 inline-flex items-center gap-1.5",
                     selectedProctor === p
                       ? "bg-primary text-primary-foreground"
                       : "bg-[hsla(0,0%,100%,0.04)] text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {p !== "All" && (
-                    <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: hashColor(p) }} />
-                  )}
+                  {p !== "All" && <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: hashColor(p) }} />}
                   {p}
                 </button>
               ))}
@@ -640,7 +973,7 @@ const VivaPrep = () => {
             </span>
           ))}
           <button
-            onClick={() => { setSelectedFrequency("All"); setSelectedCategory("All"); setSelectedProctor("All"); setSearch(""); }}
+            onClick={() => { setSelectedFrequency("All"); setSelectedCategory("All"); setSelectedProctor("All"); setSelectedDynamic({}); setSearch(""); }}
             className="text-xs text-muted-foreground hover:text-foreground font-body"
           >
             Clear all
@@ -649,21 +982,40 @@ const VivaPrep = () => {
       )}
 
       {/* Stats bar */}
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-muted-foreground font-body tabular-nums">
-          Showing <span className="text-foreground font-medium">{filtered.length}</span> of {questions.length} questions
-        </p>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground font-body">Sort by:</span>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as typeof SORT_OPTIONS[number])}
-            className="text-xs bg-secondary/50 border border-border/40 rounded-lg px-2.5 py-1.5 text-foreground font-body outline-none focus:ring-1 focus:ring-primary"
-          >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>{opt}</option>
-            ))}
-          </select>
+      <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-muted-foreground font-body tabular-nums">
+            Showing <span className="text-foreground font-medium">{filtered.length}</span> of {questions.length}
+          </p>
+          {studiedCount > 0 && (
+            <span className="text-xs text-[hsl(142,71%,45%)] font-body flex items-center gap-1">
+              <Check className="h-3 w-3" /> {studiedCount} studied
+            </span>
+          )}
+          {/* Difficulty mini bar */}
+          {questions.length > 0 && (
+            <div className="hidden sm:flex items-center gap-1">
+              {diffDist.hot > 0 && <span className="h-2 rounded-full badge-hot" style={{ width: Math.max(8, (diffDist.hot / questions.length) * 60) }} />}
+              {diffDist.medium > 0 && <span className="h-2 rounded-full badge-med" style={{ width: Math.max(8, (diffDist.medium / questions.length) * 60) }} />}
+              {diffDist.low > 0 && <span className="h-2 rounded-full badge-low" style={{ width: Math.max(8, (diffDist.low / questions.length) * 60) }} />}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-1 bg-secondary/40 rounded-lg p-0.5">
+          {SORT_OPTIONS.map((opt) => (
+            <button
+              key={opt}
+              onClick={() => setSortBy(opt)}
+              className={cn(
+                "px-3 py-1.5 rounded-md text-xs font-body transition-all duration-200",
+                sortBy === opt
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {opt}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -697,6 +1049,8 @@ const VivaPrep = () => {
                 isUpvoted={upvotedIds.has(q.id)}
                 isStudied={studiedIds.has(q.id)}
                 onToggleStudied={toggleStudied}
+                bookmarks={bookmarks}
+                setBookmarks={setBookmarks}
               />
             </motion.div>
           ))}

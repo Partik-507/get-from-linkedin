@@ -36,6 +36,7 @@ export const Layout = ({ children, title, showBack }: LayoutProps) => {
     { to: "/", label: "Home", icon: Home },
     ...(user ? [{ to: "/dashboard", label: "Dashboard", icon: LayoutDashboard }] : []),
     { to: "/submit-question", label: "Submit Question", icon: PlusCircle },
+    { to: "/bookmarks", label: "Bookmarks", icon: Bookmark },
     ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: Shield }] : []),
   ];
 

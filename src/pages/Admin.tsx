@@ -344,6 +344,19 @@ const ImportQuestions = ({ projects }: { projects: Project[] }) => {
               continue;
             }
 
+            // Extract known fields, everything else goes into customFields
+            const KNOWN_KEYS = new Set([
+              "question", "q", "answer", "a", "category", "cat", "frequency", "freq",
+              "tip", "interviewTip", "projectTip", "codeExample", "code", "codeLanguage", "lang",
+              "proctors", "upvotes", "followUps", "projectId",
+            ]);
+            const customFields: Record<string, string> = {};
+            Object.keys(item).forEach((k) => {
+              if (!KNOWN_KEYS.has(k) && typeof item[k] === "string") {
+                customFields[k] = item[k];
+              }
+            });
+
             await addDoc(collection(db, "questions"), {
               projectId: targetProject,
               question,
@@ -357,6 +370,7 @@ const ImportQuestions = ({ projects }: { projects: Project[] }) => {
               proctors: Array.isArray(item.proctors) ? item.proctors.map(String) : [],
               upvotes: 0,
               followUps: Array.isArray(item.followUps) ? item.followUps : [],
+              customFields,
               createdAt: serverTimestamp(),
             });
 
