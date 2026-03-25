@@ -1,73 +1,101 @@
 
-# VivaVault — Full Build Plan
 
-## Design System
-- Dark-first theme with deep indigo/purple gradients
-- Glassmorphism cards: `backdrop-blur-xl bg-white/5 border border-white/10`
-- Accent colors: purple-500, indigo-500, amber-400, emerald-400
-- Smooth animations on all interactions (framer-motion)
-- Large, confident typography with generous spacing
+# VivaVault — Complete Platform Upgrade Plan
 
-## Pages & Features
+## Summary
 
-### 1. Auth Page (`/auth`)
-- Full-screen dark gradient background with animated gradient mesh (CSS animation)
-- Centered glassmorphism card with VivaVault logo
-- Google sign-in button, email/password form, and "Continue as Guest" button
-- Firebase Auth integration (Google + email/password)
+A comprehensive overhaul of the Viva Prep platform covering: dynamic JSON-driven filtering, bookmark system, visible edit/share/bookmark buttons, filter panel modal, UI bug fix (rogue container on filter bar), and overall visual polish upgrade.
 
-### 2. Home Page (`/`)
-- Grid of project cards with gradient icons, project code (MAD1, etc.), name, description
-- Two action buttons per card: "Viva Prep" and "Resources"
-- Projects fetched from Firestore `projects` collection
+---
 
-### 3. Viva Prep Page (`/project/:projectId/viva`)
-- **Sticky filter bar**: Search input (debounced 300ms), scrollable category chips, frequency filters (All/Hot/Medium/Low), live question count
-- **Question cards**: Glassmorphism, expandable with smooth animation
-  - Closed: question text, frequency badge (colored), proctor chips, chevron
-  - Expanded: rich answer with Simple Answer, Interview Tip (amber border), In Your Project (green border), syntax-highlighted code blocks with copy button, follow-up question chips
-- **Collaborative editing**: Tiptap block editor with slash commands (headings, lists, code block, tip block, project tip block, divider, quote). Anyone can edit, saves to Firestore
-- **Upvoting**: Heart/thumbs-up with count on each question
-- **Community Experiences section**: Submission cards with student name, proctor, level, date, duration, questions asked, code changes, tips, star ratings. Filters by proctor/level, sort by newest/most helpful, load more (10 at a time)
-- **"Share Your Experience" button** → links to submit page
+## What Will Change
 
-### 4. Submit Experience Page (`/project/:projectId/submit`)
-- Clean centered form, all fields optional with green badge
-- Sections: About You (name, roll number, anonymous toggle), Viva Details (proctor, level, date, duration), What Was Asked (questions, code changes), Tips, Ratings (difficulty + proctor friendliness with 5-star selectors)
-- Gradient submit button, success animation, redirect after 3s
+### 1. Fix Filter Bar UI Bug (VivaPrep.tsx)
+Remove the visible container/card wrapping the search bar and filter pills. The sticky filter section currently has `bg-background/80 backdrop-blur-2xl border-b border-border/30` which creates a floating panel look. Replace with transparent background so filters sit flush against the page.
 
-### 5. Resources Page (`/project/:projectId/resources`)
-- Category tabs: All, Guidelines, Milestones, YouTube, GitHub, Docs, Drive, Other
-- Resource cards with colored type icons, title, description, Open button
-- Type-specific icons (YouTube red, GitHub dark, etc.)
+### 2. Dynamic JSON-Based Filtering System
+Extend the Question interface and import logic to support arbitrary custom fields from JSON. Any key in the JSON beyond the known fields (question, answer, category, etc.) gets treated as a filterable metadata field.
 
-### 6. Admin Panel (`/admin`) — protected route
-- Sidebar nav: Projects, Questions, Resources, Submissions
-- **Import Questions**: Drag-and-drop JSON upload, preview table, progress bar, detailed import log. Extremely forgiving parser — handles missing fields with defaults, skips bad entries, shows summary
-- **Manage Projects**: Add/delete projects
-- **Add Resources**: Form with project, title, URL, type, category, description
-- **Submissions**: Table view with delete buttons
+- **Admin import** (`Admin.tsx`): When importing JSON, detect all unique keys across items and store them as `customFields: Record<string, string>` on each question document.
+- **VivaPrep page**: Dynamically extract all unique custom field keys and their values from loaded questions, then render them as filter options.
 
-## Technical Stack
-- React + Vite + TypeScript + Tailwind CSS
-- Firebase Auth (Google + email/password) + Firestore
-- Tiptap editor for collaborative answer editing
-- Framer Motion for animations
-- React Router for routing (scroll to top, dynamic titles)
-- Lucide icons
-- Firebase config via `VITE_` environment variables
-- `.env.example` file + README with full setup instructions
+### 3. Dedicated Filter Panel Modal
+Add a "Filters" button next to the search bar that opens a slide-in Sheet (right side) showing:
+- All standard filters (difficulty, category, proctor)
+- All dynamic/custom filters auto-detected from question data
+- Multi-select checkboxes for each filter group
+- Active filter count badge on the trigger button
+- "Clear All" and "Apply" buttons
 
-## Data Model (Firestore)
-- `projects`: id, code, name, description, color, icon
-- `questions`: id, projectId, question, answer (rich JSON), category, frequency, tip, projectTip, codeExample, codeLanguage, proctors[], upvotes, createdAt
-- `submissions`: id, projectId, name, rollNumber, isAnonymous, proctorId, level, date, duration, questionsAsked, codeChanges, tips, difficultyRating, friendlinessRating, createdAt
-- `resources`: id, projectId, title, url, type, category, description
+### 4. Visible Edit, Share, and Bookmark Buttons
+Redesign the question card action bar:
+- **Edit button**: Always visible (not hidden behind hover), styled as an outlined icon button with "Edit" label
+- **Share button**: Prominent with share icon, copies link to clipboard
+- **Bookmark button**: New feature — heart/bookmark icon that saves question ID to localStorage collections
+- Users can create named bookmark collections stored in localStorage
+- A "Bookmarks" section accessible from the navbar showing saved questions grouped by collection
 
-## UX Details
-- Loading skeletons on every data fetch
-- Beautiful empty states with icons and helpful messages
-- Toast notifications for all operations
-- Fully responsive (mobile, tablet, desktop)
-- Debounced search, combined filters
-- Route-based scroll-to-top and page titles
+### 5. Bookmark Collections System
+- New state in VivaPrep: `bookmarks: Record<string, string[]>` (collection name -> question IDs)
+- "Save to Bookmark" button on each card opens a small popover to pick/create a collection
+- Bookmarks persisted in localStorage under `vv_bookmarks`
+- Add a `/bookmarks` page showing all collections with their questions
+
+### 6. UI/Visual Polish Overhaul
+
+**Cards**: 
+- Increase padding, add subtle gradient border on hover
+- Question text slightly larger (17px)
+- Better spacing between badges
+
+**Filter pills**: 
+- Larger touch targets (py-2 px-4)
+- Smooth color transitions
+- Active state with subtle glow
+
+**Search bar**: 
+- Larger (h-12), rounded-xl, search icon animated
+- Placeholder: "Search questions, topics, or proctors..."
+
+**Typography**: 
+- Headings use Syne font at bolder weights
+- Better line-height on question text
+- Muted foreground slightly brighter for readability
+
+**Animations**: 
+- Cards fade in with stagger
+- Filter results transition smoothly
+- Toast confirmations for bookmark/share actions
+
+**Responsive**: 
+- Mobile: filters collapse, cards stack single column
+- Filter panel becomes full-screen sheet on mobile
+
+### 7. Stats & Analytics Bar Enhancement
+- Show difficulty distribution as mini colored dots/bar
+- Show "X studied" count
+- Sort dropdown styled as segmented control
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/pages/VivaPrep.tsx` | Fix filter container bug, add filter panel, bookmark system, dynamic filters, UI polish, visible action buttons |
+| `src/pages/Admin.tsx` | Extend JSON import to capture custom fields |
+| `src/components/Layout.tsx` | Add Bookmarks nav link |
+| `src/App.tsx` | Add bookmarks route |
+| `src/pages/Bookmarks.tsx` | **New** — bookmarks page showing saved collections |
+| `src/index.css` | Minor tweaks for new component styles |
+
+---
+
+## Technical Details
+
+- **Dynamic filter extraction**: On question load, scan all questions for keys in `customFields`, build a `Map<string, Set<string>>` of filter name -> unique values, render as filter groups in the panel
+- **Bookmark storage**: `localStorage.getItem("vv_bookmarks")` → `{ "My Collection": ["id1", "id2"], "Flask Questions": ["id3"] }`
+- **Filter panel**: Use existing `Sheet` component (right side), with `ScrollArea` for long filter lists
+- **No backend changes** for bookmarks — purely client-side localStorage
+- **JSON import change**: Store extra fields as `customFields` object in Firestore alongside existing fields, backward-compatible with existing data
+
