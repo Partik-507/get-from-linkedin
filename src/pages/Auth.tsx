@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Chrome, Mail, Eye, EyeOff, Loader2, Zap, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
+import { GithubAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "@/lib/firebase"; // adjust path if different
 
 const Auth = () => {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail, continueAsGuest } = useAuth();
@@ -25,6 +27,20 @@ const Auth = () => {
       navigate("/");
     } catch (e: any) {
       toast.error(e.message || "Failed to sign in with Google");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleGithub = async () => {
+    setLoading("github");
+    try {
+      const provider = new GithubAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      toast.success("Welcome to VivaVault!");
+      navigate("/");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to sign in with GitHub");
     } finally {
       setLoading(null);
     }
@@ -80,29 +96,9 @@ const Auth = () => {
           <p className="text-muted-foreground text-sm mt-1 font-body">Premium IITM BS Viva Preparation</p>
         </div>
 
-        {/* HERO CTA: Continue as Guest */}
-        <button
-          onClick={handleGuest}
-          disabled={!!loading}
-          className="w-full group relative mb-6 overflow-hidden rounded-2xl p-[1px] transition-all duration-300 hover:shadow-[0_0_30px_-5px_hsl(263,70%,55%/0.3)]"
-        >
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary via-[hsl(280,70%,50%)] to-primary opacity-80 group-hover:opacity-100 transition-opacity" />
-          <div className="relative flex items-center justify-between rounded-[15px] bg-card px-6 py-5">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Zap className="h-5 w-5 text-primary" />
-              </div>
-              <div className="text-left">
-                <span className="block font-heading font-bold text-lg text-foreground">Browse as Guest</span>
-                <span className="block text-xs text-muted-foreground font-body">No account needed — jump right in</span>
-              </div>
-            </div>
-            <ArrowRight className="h-5 w-5 text-primary group-hover:translate-x-1 transition-transform" />
-          </div>
-        </button>
-
         {/* Auth card */}
         <div className="obsidian-card p-6 space-y-5">
+
           {/* Google Sign In */}
           <Button
             variant="outline"
@@ -112,6 +108,23 @@ const Auth = () => {
           >
             {loading === "google" ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Chrome className="h-5 w-5 mr-2" />}
             Sign in with Google
+          </Button>
+
+          {/* GitHub Sign In */}
+          <Button
+            variant="outline"
+            className="w-full h-12 text-base transition-all duration-200 active:scale-[0.98] font-body border-border/60"
+            onClick={handleGithub}
+            disabled={!!loading}
+          >
+            {loading === "github" ? (
+              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+            ) : (
+              <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.015 2.896-.015 3.286 0 .315.216.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12z"/>
+              </svg>
+            )}
+            Sign in with GitHub
           </Button>
 
           {/* Divider */}
@@ -176,6 +189,28 @@ const Auth = () => {
             ))}
           </Tabs>
         </div>
+
+        {/* Browse as Guest — moved to bottom */}
+        <button
+          onClick={handleGuest}
+          disabled={!!loading}
+          className="w-full group relative mt-4 overflow-hidden rounded-2xl p-[1px] transition-all duration-300 hover:shadow-[0_0_30px_-5px_hsl(263,70%,55%/0.3)]"
+        >
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary via-[hsl(280,70%,50%)] to-primary opacity-80 group-hover:opacity-100 transition-opacity" />
+          <div className="relative flex items-center justify-between rounded-[15px] bg-card px-6 py-5">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Zap className="h-5 w-5 text-primary" />
+              </div>
+              <div className="text-left">
+                <span className="block font-heading font-bold text-lg text-foreground">Browse as Guest</span>
+                <span className="block text-xs text-muted-foreground font-body">No account needed — jump right in</span>
+              </div>
+            </div>
+            <ArrowRight className="h-5 w-5 text-primary group-hover:translate-x-1 transition-transform" />
+          </div>
+        </button>
+
       </motion.div>
     </div>
   );
