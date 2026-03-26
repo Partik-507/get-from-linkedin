@@ -870,6 +870,62 @@ const VivaPrep = () => {
           </span>
         </div>
         <p className="text-muted-foreground font-body text-sm sm:text-base">Filter, study, and upvote the questions that matter</p>
+
+        {/* Study Mode Buttons */}
+        <div className="flex flex-wrap gap-2 mt-4">
+          <Button asChild variant="outline" className="font-body gap-2 border-primary/30 hover:border-primary/50">
+            <Link to={`/project/${projectId}/flashcards`}>
+              <Sparkles className="h-4 w-4 text-primary" /> Flashcards
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="font-body gap-2 border-[hsl(38,92%,50%)]/30 hover:border-[hsl(38,92%,50%)]/50">
+            <Link to={`/project/${projectId}/quiz`}>
+              <GraduationCap className="h-4 w-4 text-[hsl(38,92%,50%)]" /> Quiz Mode
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            className="font-body gap-2 border-[hsl(142,71%,45%)]/30 hover:border-[hsl(142,71%,45%)]/50"
+            onClick={() => {
+              import("jspdf").then(({ default: jsPDF }) => {
+                const doc = new jsPDF();
+                doc.setFontSize(20);
+                doc.text("Viva Prep Study Sheet", 14, 22);
+                doc.setFontSize(10);
+                doc.setTextColor(128);
+                doc.text(`${questions.length} questions`, 14, 30);
+                let y = 40;
+                questions.forEach((q, i) => {
+                  if (y > 270) { doc.addPage(); y = 20; }
+                  doc.setFontSize(11);
+                  doc.setTextColor(0);
+                  doc.text(`${i + 1}. ${q.question}`, 14, y, { maxWidth: 180 });
+                  const qLines = doc.splitTextToSize(`${i + 1}. ${q.question}`, 180);
+                  y += qLines.length * 5 + 3;
+                  if (q.answer) {
+                    doc.setFontSize(9);
+                    doc.setTextColor(80);
+                    const plain = q.answer.replace(/<[^>]+>/g, "").substring(0, 300);
+                    const aLines = doc.splitTextToSize(`A: ${plain}`, 175);
+                    doc.text(aLines, 18, y);
+                    y += aLines.length * 4 + 2;
+                  }
+                  if (q.tip) {
+                    doc.setFontSize(8);
+                    doc.setTextColor(120, 100, 0);
+                    doc.text(`💡 ${q.tip.substring(0, 150)}`, 18, y, { maxWidth: 170 });
+                    y += 6;
+                  }
+                  y += 6;
+                });
+                doc.save(`viva-prep-${projectId}.pdf`);
+                toast.success("PDF downloaded!");
+              });
+            }}
+          >
+            <BookCheck className="h-4 w-4 text-[hsl(142,71%,45%)]" /> Export PDF
+          </Button>
+        </div>
       </div>
 
       {/* Search + Filters — flush, no container */}
