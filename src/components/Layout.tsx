@@ -1,7 +1,7 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { LogOut, Shield, Home, ArrowLeft, LayoutDashboard, Sun, Moon, Monitor, PlusCircle, Menu, X, Bookmark } from "lucide-react";
+import { LogOut, Shield, Home, ArrowLeft, LayoutDashboard, Sun, Moon, Monitor, PlusCircle, Menu, X, Bookmark, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
