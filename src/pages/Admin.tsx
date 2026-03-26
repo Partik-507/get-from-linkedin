@@ -21,10 +21,12 @@ import { motion } from "framer-motion";
 import {
   Upload, FileJson, Plus, Trash2, Check, AlertCircle, Loader2,
   FolderPlus, BookOpen, Link2, MessageSquare, ChevronDown, ChevronUp,
-  HelpCircle, CheckCircle2,
+  HelpCircle, CheckCircle2, FileText, ClipboardPaste, Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { extractJsonFromText, mapToQuestionSchema } from "@/lib/jsonExtractor";
+import { CsvMapper } from "@/components/CsvMapper";
 
 interface Project {
   id: string;
