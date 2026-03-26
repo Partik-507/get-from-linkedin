@@ -14,6 +14,9 @@ import SubmitQuestion from "./pages/SubmitQuestion";
 import Resources from "./pages/Resources";
 import Admin from "./pages/Admin";
 import Bookmarks from "./pages/Bookmarks";
+import Flashcards from "./pages/Flashcards";
+import Quiz from "./pages/Quiz";
+import Progress from "./pages/Progress";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,7 +55,10 @@ const App = () => (
               <Route path="/project/:projectId/viva" element={<AuthGate><VivaPrep /></AuthGate>} />
               <Route path="/project/:projectId/submit" element={<AuthGate><SubmitExperience /></AuthGate>} />
               <Route path="/project/:projectId/resources" element={<AuthGate><Resources /></AuthGate>} />
+              <Route path="/project/:projectId/flashcards" element={<AuthGate><Flashcards /></AuthGate>} />
+              <Route path="/project/:projectId/quiz" element={<AuthGate><Quiz /></AuthGate>} />
               <Route path="/bookmarks" element={<AuthGate><Bookmarks /></AuthGate>} />
+              <Route path="/progress" element={<AuthGate><Progress /></AuthGate>} />
               <Route path="/admin" element={<AuthGate><Admin /></AuthGate>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -21,10 +21,12 @@ import { motion } from "framer-motion";
 import {
   Upload, FileJson, Plus, Trash2, Check, AlertCircle, Loader2,
   FolderPlus, BookOpen, Link2, MessageSquare, ChevronDown, ChevronUp,
-  HelpCircle, CheckCircle2,
+  HelpCircle, CheckCircle2, FileText, ClipboardPaste, Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { extractJsonFromText, mapToQuestionSchema } from "@/lib/jsonExtractor";
+import { CsvMapper } from "@/components/CsvMapper";
 
 interface Project {
   id: string;
@@ -278,33 +280,63 @@ const ImportQuestions = ({ projects }: { projects: Project[] }) => {
   const [showLog, setShowLog] = useState(false);
   const [result, setResult] = useState<{ success: number; skipped: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [pasteText, setPasteText] = useState("");
+  const [importMode, setImportMode] = useState<"file" | "paste" | "csv">("file");
+  const [csvData, setCsvData] = useState<{ headers: string[]; rows: string[][] } | null>(null);
+
+  const processExtracted = (items: Record<string, any>[]) => {
+    const mapped = mapToQuestionSchema(items);
+    setPreview(mapped.slice(0, 10));
+    setTotal(mapped.length);
+    setResult(null);
+    setLog([]);
+    const firstProjectId = items[0]?.projectId;
+    if (firstProjectId) {
+      const found = projects.find((p) => p.id === firstProjectId || p.code?.toLowerCase() === String(firstProjectId).toLowerCase());
+      if (found) setTargetProject(found.id);
+    }
+  };
 
   const parseFile = useCallback((f: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      try {
-        let data = JSON.parse(e.target?.result as string);
-        if (!Array.isArray(data)) {
-          data = data.questions || data.data || data.items || [];
+      const text = e.target?.result as string;
+      if (f.name.endsWith(".csv")) {
+        const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+        if (lines.length > 1) {
+          const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+          const rows = lines.slice(1).map((l) => l.split(",").map((c) => c.trim().replace(/^"|"$/g, "")));
+          setCsvData({ headers, rows });
+          setImportMode("csv");
+          setFile(f);
+          return;
         }
-        if (!Array.isArray(data)) throw new Error("Could not find questions array in JSON");
-        setPreview(data.slice(0, 5));
-        setTotal(data.length);
-        setFile(f);
-        setResult(null);
-        setLog([]);
-
-        const firstProjectId = data[0]?.projectId;
-        if (firstProjectId) {
-          const found = projects.find((p) => p.id === firstProjectId || p.code?.toLowerCase() === firstProjectId.toLowerCase());
-          if (found) setTargetProject(found.id);
-        }
-      } catch (err: any) {
-        toast.error(`Invalid JSON: ${err.message}`);
       }
+      const { items, errors } = extractJsonFromText(text);
+      if (items.length === 0) {
+        toast.error(errors[0] || "No valid JSON found in file");
+        return;
+      }
+      setFile(f);
+      processExtracted(items);
+      toast.success(`Found ${items.length} items`);
     };
     reader.readAsText(f);
   }, [projects]);
+
+  const handlePaste = () => {
+    if (!pasteText.trim()) { toast.error("Please paste some content first"); return; }
+    const { items, errors } = extractJsonFromText(pasteText);
+    if (items.length === 0) { toast.error(errors[0] || "No valid JSON found"); return; }
+    processExtracted(items);
+    toast.success(`Extracted ${items.length} questions`);
+  };
+
+  const handleCsvMapped = (mappedData: Record<string, any>[]) => {
+    setCsvData(null);
+    setImportMode("file");
+    processExtracted(mappedData);
+  };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -312,116 +344,155 @@ const ImportQuestions = ({ projects }: { projects: Project[] }) => {
     if (f) parseFile(f);
   }, [parseFile]);
 
+  const removePreviewItem = (index: number) => {
+    setPreview((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      setTotal((t) => t - 1);
+      return next;
+    });
+  };
+
   const handleImport = async () => {
-    if (!targetProject) {
-      toast.error("Please select a target project");
-      return;
-    }
+    if (!targetProject) { toast.error("Please select a target project"); return; }
     setImporting(true);
     setProgress(0);
     setLog([]);
     setResult(null);
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
+    let allItems: any[];
+    if (pasteText && preview.length > 0 && !file) {
+      const { items } = extractJsonFromText(pasteText);
+      allItems = mapToQuestionSchema(items);
+    } else if (file) {
+      const text = await file.text();
+      const { items } = extractJsonFromText(text);
+      allItems = mapToQuestionSchema(items);
+    } else {
+      allItems = preview;
+    }
+
+    let success = 0;
+    let skipped = 0;
+    const logs: string[] = [];
+
+    for (let i = 0; i < allItems.length; i++) {
+      const item = allItems[i];
       try {
-        let data = JSON.parse(e.target?.result as string);
-        if (!Array.isArray(data)) data = data.questions || data.data || data.items || [];
+        const question = String(item.question || "").trim();
+        if (!question) { logs.push(`#${i + 1}: Skipped — missing question`); skipped++; continue; }
+        const KNOWN = new Set(["question","answer","category","frequency","tip","projectTip","codeExample","codeLanguage","proctors","upvotes","followUps","projectId","questionId","tips","tags","subCategory","relatedIds","source","choices","_raw","customFields"]);
+        const customFields: Record<string, string> = { ...(item.customFields || {}) };
+        Object.keys(item).forEach((k) => { if (!KNOWN.has(k) && typeof item[k] === "string") customFields[k] = item[k]; });
 
-        let success = 0;
-        let skipped = 0;
-        const logs: string[] = [];
-
-        for (let i = 0; i < data.length; i++) {
-          const item = data[i];
-          try {
-            const question = String(item.question || item.q || "").trim();
-            const answer = String(item.answer || item.a || "").trim();
-
-            if (!question) {
-              logs.push(`#${i + 1}: Skipped — missing question text`);
-              skipped++;
-              continue;
-            }
-
-            // Extract known fields, everything else goes into customFields
-            const KNOWN_KEYS = new Set([
-              "question", "q", "answer", "a", "category", "cat", "frequency", "freq",
-              "tip", "interviewTip", "projectTip", "codeExample", "code", "codeLanguage", "lang",
-              "proctors", "upvotes", "followUps", "projectId",
-            ]);
-            const customFields: Record<string, string> = {};
-            Object.keys(item).forEach((k) => {
-              if (!KNOWN_KEYS.has(k) && typeof item[k] === "string") {
-                customFields[k] = item[k];
-              }
-            });
-
-            await addDoc(collection(db, "questions"), {
-              projectId: targetProject,
-              question,
-              answer,
-              category: String(item.category || item.cat || "General"),
-              frequency: String(item.frequency || item.freq || "medium").toLowerCase(),
-              tip: String(item.tip || item.interviewTip || ""),
-              projectTip: String(item.projectTip || ""),
-              codeExample: String(item.codeExample || item.code || ""),
-              codeLanguage: String(item.codeLanguage || item.lang || ""),
-              proctors: Array.isArray(item.proctors) ? item.proctors.map(String) : [],
-              upvotes: 0,
-              followUps: Array.isArray(item.followUps) ? item.followUps : [],
-              customFields,
-              createdAt: serverTimestamp(),
-            });
-
-            success++;
-            logs.push(`#${i + 1}: ✓ "${question.slice(0, 50)}..."`);
-          } catch (err: any) {
-            logs.push(`#${i + 1}: Failed — ${err.message}`);
-            skipped++;
-          }
-
-          setProgress(Math.round(((i + 1) / data.length) * 100));
-        }
-
-        setLog(logs);
-        setResult({ success, skipped });
-        toast.success(`Imported ${success} questions${skipped > 0 ? `, skipped ${skipped}` : ""}`);
+        await addDoc(collection(db, "questions"), {
+          projectId: targetProject,
+          question,
+          answer: String(item.answer || ""),
+          category: String(item.category || "General"),
+          frequency: String(item.frequency || "medium").toLowerCase(),
+          tip: String(item.tip || ""),
+          projectTip: String(item.projectTip || ""),
+          codeExample: String(item.codeExample || ""),
+          codeLanguage: String(item.codeLanguage || ""),
+          proctors: Array.isArray(item.proctors) ? item.proctors.map(String) : [],
+          upvotes: 0,
+          followUps: Array.isArray(item.followUps) ? item.followUps : [],
+          tags: Array.isArray(item.tags) ? item.tags : [],
+          choices: item.choices || null,
+          customFields,
+          createdAt: serverTimestamp(),
+        });
+        success++;
+        logs.push(`#${i + 1}: ✓ "${question.slice(0, 50)}..."`);
       } catch (err: any) {
-        toast.error(`Import failed: ${err.message}`);
-      } finally {
-        setImporting(false);
+        logs.push(`#${i + 1}: Failed — ${err.message}`);
+        skipped++;
       }
-    };
-    reader.readAsText(file!);
+      setProgress(Math.round(((i + 1) / allItems.length) * 100));
+    }
+
+    setLog(logs);
+    setResult({ success, skipped });
+    toast.success(`Imported ${success} questions${skipped > 0 ? `, skipped ${skipped}` : ""}`);
+    setImporting(false);
   };
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <h2 className="text-2xl font-bold">Import Questions</h2>
+      <h2 className="text-2xl font-bold font-heading">Import Questions</h2>
 
-      <div
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={handleDrop}
-        onClick={() => fileRef.current?.click()}
-        className={cn(
-          "border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors duration-200",
-          "border-border hover:border-primary/50 hover:bg-primary/5"
-        )}
-      >
-        <Upload className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
-        <p className="text-lg font-medium mb-1">Drop your JSON file here</p>
-        <p className="text-sm text-muted-foreground">or click to browse</p>
-        <input ref={fileRef} type="file" accept=".json" className="hidden" onChange={(e) => e.target.files?.[0] && parseFile(e.target.files[0])} />
+      {/* Import mode tabs */}
+      <div className="flex gap-1 bg-secondary/30 rounded-lg p-1 w-fit">
+        {[
+          { key: "file" as const, label: "File Upload", icon: Upload },
+          { key: "paste" as const, label: "Paste Content", icon: ClipboardPaste },
+        ].map((m) => (
+          <button
+            key={m.key}
+            onClick={() => setImportMode(m.key)}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-body transition-all",
+              importMode === m.key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <m.icon className="h-4 w-4" />
+            {m.label}
+          </button>
+        ))}
       </div>
 
-      {preview.length > 0 && (
+      {/* CSV Mapper */}
+      {csvData && (
+        <GlassCard hover={false}>
+          <CsvMapper headers={csvData.headers} rows={csvData.rows} onMap={handleCsvMapped} onCancel={() => { setCsvData(null); setImportMode("file"); }} />
+        </GlassCard>
+      )}
+
+      {/* Universal Paste Box */}
+      {importMode === "paste" && !csvData && (
+        <GlassCard hover={false}>
+          <Label className="font-heading font-semibold text-base mb-2 block">Universal Paste Box</Label>
+          <p className="text-sm text-muted-foreground font-body mb-3">
+            Paste anything — JSON, JavaScript, Python, HTML, any code. We'll automatically find and extract the JSON.
+          </p>
+          <Textarea
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder="Paste anything here — JSON, JavaScript, Python, HTML, any code, any language. We will automatically find and extract the JSON."
+            className="bg-secondary/20 border-border/30 font-mono text-sm min-h-[200px] resize-y"
+            rows={10}
+          />
+          <Button onClick={handlePaste} className="mt-3 font-body gap-2" disabled={!pasteText.trim()}>
+            <FileText className="h-4 w-4" /> Extract & Preview
+          </Button>
+        </GlassCard>
+      )}
+
+      {/* File Upload */}
+      {importMode === "file" && !csvData && (
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleDrop}
+          onClick={() => fileRef.current?.click()}
+          className={cn(
+            "border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors duration-200",
+            "border-border hover:border-primary/50 hover:bg-primary/5"
+          )}
+        >
+          <Upload className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
+          <p className="text-lg font-medium mb-1 font-heading">Drop any file here</p>
+          <p className="text-sm text-muted-foreground font-body">Supports .json, .js, .py, .txt, .csv, and any text file</p>
+          <input ref={fileRef} type="file" accept=".json,.js,.ts,.py,.txt,.csv,.html,.css,.java,.xml,.yaml,.yml,.md" className="hidden" onChange={(e) => e.target.files?.[0] && parseFile(e.target.files[0])} />
+        </div>
+      )}
+
+      {/* Preview Table */}
+      {preview.length > 0 && !csvData && (
         <GlassCard hover={false}>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">Preview ({total} questions found)</h3>
-            <Badge variant="outline">{file?.name}</Badge>
+            <h3 className="font-semibold font-heading">Preview ({total} questions found)</h3>
+            {file && <Badge variant="outline" className="font-body">{file.name}</Badge>}
           </div>
-
           <div className="overflow-x-auto mb-4">
             <Table>
               <TableHeader>
@@ -429,33 +500,33 @@ const ImportQuestions = ({ projects }: { projects: Project[] }) => {
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead className="min-w-[300px]">Question</TableHead>
-                  <TableHead>Frequency</TableHead>
+                  <TableHead>Difficulty</TableHead>
+                  <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {preview.map((q, i) => (
                   <TableRow key={i}>
                     <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                    <TableCell><span className="text-xs bg-secondary px-2 py-0.5 rounded">{q.category || "General"}</span></TableCell>
-                    <TableCell className="text-sm">{String(q.question || q.q || "—").slice(0, 80)}</TableCell>
-                    <TableCell><span className="text-xs capitalize">{q.frequency || "medium"}</span></TableCell>
+                    <TableCell><span className="text-xs bg-secondary px-2 py-0.5 rounded font-body">{q.category || "General"}</span></TableCell>
+                    <TableCell className="text-sm font-body">{String(q.question || "—").slice(0, 80)}</TableCell>
+                    <TableCell><span className="text-xs capitalize font-body">{q.frequency || "medium"}</span></TableCell>
+                    <TableCell>
+                      <button onClick={() => removePreviewItem(i)} className="text-muted-foreground hover:text-destructive transition-colors">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
-
-          {total > 5 && (
-            <p className="text-xs text-muted-foreground mb-4">...and {total - 5} more</p>
-          )}
-
+          {total > 10 && <p className="text-xs text-muted-foreground mb-4 font-body">...and {total - 10} more</p>}
           <div className="flex items-end gap-4">
             <div className="flex-1 space-y-2">
-              <Label>Import into project</Label>
+              <Label className="font-body">Import into project</Label>
               <Select value={targetProject} onValueChange={setTargetProject}>
-                <SelectTrigger className="bg-secondary border-border">
-                  <SelectValue placeholder="Select project" />
-                </SelectTrigger>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Select project" /></SelectTrigger>
                 <SelectContent>
                   {projects.map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.code} — {p.name}</SelectItem>
@@ -463,51 +534,36 @@ const ImportQuestions = ({ projects }: { projects: Project[] }) => {
                 </SelectContent>
               </Select>
             </div>
-            <Button
-              onClick={handleImport}
-              disabled={importing || !targetProject}
-              className="h-10 bg-gradient-to-r from-primary to-[hsl(263,70%,55%)] hover:opacity-90 active:scale-[0.97]"
-            >
+            <Button onClick={handleImport} disabled={importing || !targetProject} className="h-10 bg-gradient-to-r from-primary to-[hsl(263,70%,55%)] hover:opacity-90 active:scale-[0.97] font-body">
               {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
               Import All ({total})
             </Button>
           </div>
-
           {importing && (
             <div className="mt-4">
               <Progress value={progress} className="h-2" />
-              <p className="text-xs text-muted-foreground mt-1 tabular-nums">{progress}%</p>
+              <p className="text-xs text-muted-foreground mt-1 tabular-nums font-body">{progress}%</p>
             </div>
           )}
-
           {result && (
-            <div className="mt-4 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-              <div className="flex items-center gap-2 text-emerald-500 mb-2">
+            <div className="mt-4 p-4 rounded-lg bg-[hsl(142,71%,45%)]/10 border border-[hsl(142,71%,45%)]/20">
+              <div className="flex items-center gap-2 text-[hsl(142,71%,45%)] mb-2">
                 <Check className="h-4 w-4" />
-                <span className="font-semibold">Import Complete</span>
+                <span className="font-semibold font-heading">Import Complete</span>
               </div>
-              <p className="text-sm text-muted-foreground">
-                {result.success} questions imported successfully
-                {result.skipped > 0 && `, ${result.skipped} skipped`}
-              </p>
+              <p className="text-sm text-muted-foreground font-body">{result.success} imported{result.skipped > 0 && `, ${result.skipped} skipped`}</p>
             </div>
           )}
-
           {log.length > 0 && (
             <div className="mt-4">
-              <button
-                onClick={() => setShowLog(!showLog)}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
+              <button onClick={() => setShowLog(!showLog)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors font-body">
                 {showLog ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                 {showLog ? "Hide" : "Show"} import log
               </button>
               {showLog && (
                 <div className="mt-2 max-h-64 overflow-y-auto rounded-lg bg-secondary/50 p-3 text-xs font-mono space-y-0.5">
                   {log.map((l, i) => (
-                    <p key={i} className={cn(l.includes("Skipped") || l.includes("Failed") ? "text-destructive" : "text-muted-foreground")}>
-                      {l}
-                    </p>
+                    <p key={i} className={cn(l.includes("Skipped") || l.includes("Failed") ? "text-destructive" : "text-muted-foreground")}>{l}</p>
                   ))}
                 </div>
               )}
