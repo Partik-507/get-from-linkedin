@@ -4,7 +4,7 @@ import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCicPKlEWeiZMewAcXaZ9JvyqCqtLZcpsQ",
-  authDomain: "iitmbs.vercel.app",
+  authDomain: "iitmbs.vercel.app","iitmbsprojects.firebaseapp.com",
   projectId: "iitmbsprojects",
   storageBucket: "iitmbsprojects.firebasestorage.app",
   messagingSenderId: "1062464836693",
