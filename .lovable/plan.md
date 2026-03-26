@@ -1,101 +1,95 @@
 
 
-# VivaVault — Complete Platform Upgrade Plan
+# VivaVault — Major Feature Expansion Plan
 
-## Summary
+## Important Constraint
+Lovable runs React + Vite + Tailwind CSS. Next.js and server-side frameworks are not supported. The app will continue using Firebase for the backend and localStorage for client-side state. All file parsing happens client-side using JavaScript libraries.
 
-A comprehensive overhaul of the Viva Prep platform covering: dynamic JSON-driven filtering, bookmark system, visible edit/share/bookmark buttons, filter panel modal, UI bug fix (rogue container on filter bar), and overall visual polish upgrade.
+---
+
+## Overview of New Features
+
+### 1. Flashcard Mode
+New page at `/project/:projectId/flashcards`. Full-screen centered card with flip animation. Front = question, back = answer. Navigation arrows + spacebar to flip. "Known" / "Review Later" buttons. Progress bar showing deck completion. Cards marked "Review Later" are reshuffled before session ends. Summary screen at the end.
+
+### 2. Quiz Mode
+New page at `/project/:projectId/quiz`. If a question has a `choices` array in its data, render as multiple choice. Otherwise, render as free-text input. Score summary at end with correct/wrong highlighted. Retry full quiz or retry wrong-only. Results saved to localStorage per session.
+
+### 3. Spaced Repetition (SM-2)
+Implemented entirely in localStorage. Track per-question: ease factor, interval, repetitions, next review date. "Due Today" button on the homepage pulls questions due based on SM-2 schedule. Integrated into flashcard and quiz modes — performance updates the schedule.
+
+### 4. Progress Tracking & Stats
+New `/progress` page. Shows: total studied, total known, total flagged, study streak (consecutive days), and an activity heatmap calendar (built with a simple grid component). Each project card on the homepage shows a progress bar based on questions marked learned. All data from localStorage.
+
+### 5. Enhanced Admin Import
+**Universal Paste Box**: Large textarea in admin panel. On submit, the system scans raw text with regex + recursive `JSON.parse` to extract all valid JSON blocks. Everything else is discarded. Extracted questions shown in preview table before saving.
+
+**Universal File Upload**: Accept any file type (.json, .js, .py, .txt, .csv, etc.). Read as text client-side, apply the same JSON extraction engine. For CSV files, show a column-mapping UI where admin maps CSV headers to question fields.
+
+**Preview & Edit**: All importers show an editable preview table before final save. Admin can delete individual rows or edit fields inline.
+
+### 6. PDF Export
+Add "Export to PDF" button on each project's question page. Uses `jspdf` library (client-side). Generates a clean document: project title, numbered Q&A pairs, tips, tags. Downloads immediately. Added as a new dependency.
+
+### 7. Enhanced Resources Section
+Add in-portal viewer overlay for resources. YouTube URLs auto-embed as players. Google Drive links use iframe viewer. PDFs use embedded PDF viewer. Fallback "Open in New Tab" button. Admin can add resources via URL paste (auto-detect type) or as custom notes. Pinned resources appear first.
+
+### 8. UI Polish Pass
+- Consistent card styling with gradient border hover effects
+- Smooth page transitions using framer-motion
+- Better empty states with illustrations
+- Improved mobile responsiveness on all new pages
+- Toast notifications for all user actions
+- Loading skeletons on all data-fetching pages
 
 ---
 
-## What Will Change
+## Files to Create
 
-### 1. Fix Filter Bar UI Bug (VivaPrep.tsx)
-Remove the visible container/card wrapping the search bar and filter pills. The sticky filter section currently has `bg-background/80 backdrop-blur-2xl border-b border-border/30` which creates a floating panel look. Replace with transparent background so filters sit flush against the page.
-
-### 2. Dynamic JSON-Based Filtering System
-Extend the Question interface and import logic to support arbitrary custom fields from JSON. Any key in the JSON beyond the known fields (question, answer, category, etc.) gets treated as a filterable metadata field.
-
-- **Admin import** (`Admin.tsx`): When importing JSON, detect all unique keys across items and store them as `customFields: Record<string, string>` on each question document.
-- **VivaPrep page**: Dynamically extract all unique custom field keys and their values from loaded questions, then render them as filter options.
-
-### 3. Dedicated Filter Panel Modal
-Add a "Filters" button next to the search bar that opens a slide-in Sheet (right side) showing:
-- All standard filters (difficulty, category, proctor)
-- All dynamic/custom filters auto-detected from question data
-- Multi-select checkboxes for each filter group
-- Active filter count badge on the trigger button
-- "Clear All" and "Apply" buttons
-
-### 4. Visible Edit, Share, and Bookmark Buttons
-Redesign the question card action bar:
-- **Edit button**: Always visible (not hidden behind hover), styled as an outlined icon button with "Edit" label
-- **Share button**: Prominent with share icon, copies link to clipboard
-- **Bookmark button**: New feature — heart/bookmark icon that saves question ID to localStorage collections
-- Users can create named bookmark collections stored in localStorage
-- A "Bookmarks" section accessible from the navbar showing saved questions grouped by collection
-
-### 5. Bookmark Collections System
-- New state in VivaPrep: `bookmarks: Record<string, string[]>` (collection name -> question IDs)
-- "Save to Bookmark" button on each card opens a small popover to pick/create a collection
-- Bookmarks persisted in localStorage under `vv_bookmarks`
-- Add a `/bookmarks` page showing all collections with their questions
-
-### 6. UI/Visual Polish Overhaul
-
-**Cards**: 
-- Increase padding, add subtle gradient border on hover
-- Question text slightly larger (17px)
-- Better spacing between badges
-
-**Filter pills**: 
-- Larger touch targets (py-2 px-4)
-- Smooth color transitions
-- Active state with subtle glow
-
-**Search bar**: 
-- Larger (h-12), rounded-xl, search icon animated
-- Placeholder: "Search questions, topics, or proctors..."
-
-**Typography**: 
-- Headings use Syne font at bolder weights
-- Better line-height on question text
-- Muted foreground slightly brighter for readability
-
-**Animations**: 
-- Cards fade in with stagger
-- Filter results transition smoothly
-- Toast confirmations for bookmark/share actions
-
-**Responsive**: 
-- Mobile: filters collapse, cards stack single column
-- Filter panel becomes full-screen sheet on mobile
-
-### 7. Stats & Analytics Bar Enhancement
-- Show difficulty distribution as mini colored dots/bar
-- Show "X studied" count
-- Sort dropdown styled as segmented control
-
----
+| File | Purpose |
+|------|---------|
+| `src/pages/Flashcards.tsx` | Flashcard mode with flip animation, Known/Review, progress bar, summary |
+| `src/pages/Quiz.tsx` | Quiz mode with MCQ and free-text, scoring, retry |
+| `src/pages/Progress.tsx` | Stats dashboard with heatmap, streaks, per-project progress |
+| `src/lib/spacedRepetition.ts` | SM-2 algorithm + localStorage persistence helpers |
+| `src/lib/jsonExtractor.ts` | Universal JSON extraction engine (regex + recursive parse) |
+| `src/components/ResourceViewer.tsx` | In-portal overlay for viewing resources (YouTube, Drive, PDF, etc.) |
+| `src/components/CsvMapper.tsx` | CSV column-mapping UI for admin import |
+| `src/components/ActivityHeatmap.tsx` | Study activity calendar grid |
+| `src/components/FlipCard.tsx` | Reusable flip card component with CSS 3D transform |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/VivaPrep.tsx` | Fix filter container bug, add filter panel, bookmark system, dynamic filters, UI polish, visible action buttons |
-| `src/pages/Admin.tsx` | Extend JSON import to capture custom fields |
-| `src/components/Layout.tsx` | Add Bookmarks nav link |
-| `src/App.tsx` | Add bookmarks route |
-| `src/pages/Bookmarks.tsx` | **New** — bookmarks page showing saved collections |
-| `src/index.css` | Minor tweaks for new component styles |
+| `src/App.tsx` | Add routes: `/project/:id/flashcards`, `/project/:id/quiz`, `/progress` |
+| `src/components/Layout.tsx` | Add Progress nav link |
+| `src/pages/VivaPrep.tsx` | Add Flashcard + Quiz + Export PDF buttons at top. Wire SM-2 into studied tracking |
+| `src/pages/Index.tsx` | Add progress bar per project card. Add "Due Today" smart review button |
+| `src/pages/Admin.tsx` | Add universal paste box, enhance file upload to accept all types, add CSV mapper, add editable preview table |
+| `src/pages/Resources.tsx` | Add in-portal viewer overlay, pinned resources, type-based embed rendering |
+| `package.json` | Add `jspdf` dependency |
 
 ---
 
 ## Technical Details
 
-- **Dynamic filter extraction**: On question load, scan all questions for keys in `customFields`, build a `Map<string, Set<string>>` of filter name -> unique values, render as filter groups in the panel
-- **Bookmark storage**: `localStorage.getItem("vv_bookmarks")` → `{ "My Collection": ["id1", "id2"], "Flask Questions": ["id3"] }`
-- **Filter panel**: Use existing `Sheet` component (right side), with `ScrollArea` for long filter lists
-- **No backend changes** for bookmarks — purely client-side localStorage
-- **JSON import change**: Store extra fields as `customFields` object in Firestore alongside existing fields, backward-compatible with existing data
+**SM-2 Algorithm** (localStorage key: `vv_sm2`):
+```
+{ questionId: { ef: 2.5, interval: 1, reps: 0, nextReview: "2026-03-27" } }
+```
+After each review: if quality >= 3 (correct), increase interval and reps. If quality < 3, reset to interval=1. Update ease factor per SM-2 formula.
+
+**JSON Extraction Engine**:
+1. Scan input text for `[...]` and `{...}` blocks using bracket-matching
+2. Attempt `JSON.parse` on each candidate
+3. If array, flatten. If object, wrap in array
+4. Recursively check nested keys for arrays of objects
+5. Return all successfully parsed question objects
+
+**PDF Export**: Use `jspdf` with `autoTable` plugin for clean formatting. Project name as header, questions numbered, answers below each, tips as indented bullets.
+
+**Activity Heatmap**: 365-day grid (like GitHub). Each cell colored by study intensity. Data from localStorage key `vv_activity`: `{ "2026-03-26": 5 }` (count of questions studied that day).
+
+**Flashcard Flip**: CSS `transform: rotateY(180deg)` with `perspective(1000px)` and `backface-visibility: hidden`. Transition 600ms ease.
 
