@@ -25,7 +25,7 @@ import {
   Search, ChevronDown, Heart, Pencil, Save, X, MessageSquare,
   Lightbulb, GraduationCap, Copy, Check, HelpCircle, Users, Plus, Loader2,
   ArrowUp, Share2, BookCheck, Bookmark, BookmarkCheck, SlidersHorizontal,
-  Sparkles,
+  Sparkles, BookOpen,
 } from "lucide-react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -872,20 +872,19 @@ const VivaPrep = () => {
         <p className="text-muted-foreground font-body text-sm sm:text-base">Filter, study, and upvote the questions that matter</p>
 
         {/* Study Mode Buttons */}
-        <div className="flex flex-wrap gap-2 mt-4">
-          <Button asChild variant="outline" className="font-body gap-2 border-primary/30 hover:border-primary/50">
+        <div className="flex flex-wrap gap-3 mt-5">
+          <Button asChild className="font-body gap-2 bg-gradient-to-r from-primary to-[hsl(280,60%,50%)] text-primary-foreground shadow-md hover:shadow-lg hover:opacity-90 h-11 px-5 rounded-xl">
             <Link to={`/project/${projectId}/flashcards`}>
-              <Sparkles className="h-4 w-4 text-primary" /> Flashcards
+              <Sparkles className="h-4 w-4" /> Flashcard Mode
             </Link>
           </Button>
-          <Button asChild variant="outline" className="font-body gap-2 border-[hsl(38,92%,50%)]/30 hover:border-[hsl(38,92%,50%)]/50">
+          <Button asChild className="font-body gap-2 bg-gradient-to-r from-[hsl(38,92%,45%)] to-[hsl(30,90%,50%)] text-white shadow-md hover:shadow-lg hover:opacity-90 h-11 px-5 rounded-xl">
             <Link to={`/project/${projectId}/quiz`}>
-              <GraduationCap className="h-4 w-4 text-[hsl(38,92%,50%)]" /> Quiz Mode
+              <GraduationCap className="h-4 w-4" /> Quiz Mode
             </Link>
           </Button>
           <Button
-            variant="outline"
-            className="font-body gap-2 border-[hsl(142,71%,45%)]/30 hover:border-[hsl(142,71%,45%)]/50"
+            className="font-body gap-2 bg-gradient-to-r from-[hsl(142,71%,40%)] to-[hsl(160,60%,38%)] text-white shadow-md hover:shadow-lg hover:opacity-90 h-11 px-5 rounded-xl"
             onClick={() => {
               import("jspdf").then(({ default: jsPDF }) => {
                 const doc = new jsPDF();
@@ -923,7 +922,12 @@ const VivaPrep = () => {
               });
             }}
           >
-            <BookCheck className="h-4 w-4 text-[hsl(142,71%,45%)]" /> Export PDF
+            <BookCheck className="h-4 w-4" /> Export PDF
+          </Button>
+          <Button asChild variant="outline" className="font-body gap-2 h-11 px-5 rounded-xl border-[hsl(210,80%,50%)]/30 hover:border-[hsl(210,80%,50%)]/50">
+            <Link to={`/project/${projectId}/resources`}>
+              <BookOpen className="h-4 w-4 text-[hsl(210,80%,50%)]" /> Resources
+            </Link>
           </Button>
         </div>
       </div>
