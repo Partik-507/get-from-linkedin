@@ -21,7 +21,8 @@ import { motion } from "framer-motion";
 import {
   Upload, FileJson, Plus, Trash2, Check, AlertCircle, Loader2,
   FolderPlus, BookOpen, Link2, MessageSquare, ChevronDown, ChevronUp,
-  HelpCircle, CheckCircle2, FileText, ClipboardPaste, Pencil,
+  HelpCircle, CheckCircle2, FileText, ClipboardPaste, Pencil, Shield,
+  StickyNote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
@@ -36,7 +37,7 @@ interface Project {
   color: string;
 }
 
-type AdminSection = "projects" | "questions" | "resources" | "submissions" | "question_submissions";
+type AdminSection = "projects" | "questions" | "resources" | "submissions" | "question_submissions" | "admins" | "notes";
 
 const Admin = () => {
   const { isAdmin } = useAuth();
@@ -77,7 +78,9 @@ const Admin = () => {
     { key: "questions", label: "Import Questions", icon: FileJson },
     { key: "question_submissions", label: "Question Submissions", icon: HelpCircle, badge: pendingCount },
     { key: "resources", label: "Add Resource", icon: Link2 },
+    { key: "notes", label: "Manage Notes", icon: FileText },
     { key: "submissions", label: "Submissions", icon: MessageSquare },
+    { key: "admins", label: "Admin Roles", icon: Shield },
   ];
 
   return (
@@ -115,6 +118,8 @@ const Admin = () => {
           {section === "question_submissions" && (
             <QuestionSubmissions projects={projects} onCountChange={setPendingCount} />
           )}
+          {section === "admins" && <ManageAdmins />}
+          {section === "notes" && <ManageNotes />}
         </div>
       </div>
     </Layout>
@@ -812,6 +817,207 @@ const ManageSubmissions = () => {
               ))}
             </TableBody>
           </Table>
+        </GlassCard>
+      )}
+    </div>
+  );
+};
+
+// ============ MANAGE ADMINS ============
+const ManageAdmins = () => {
+  const [admins, setAdmins] = useState<any[]>([]);
+  const [newEmail, setNewEmail] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const snap = await getDocs(collection(db, "admins"));
+        setAdmins(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      } catch {
+        toast.error("Failed to load admins");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, []);
+
+  const handleAdd = async () => {
+    if (!newEmail.trim()) { toast.error("Enter an email"); return; }
+    setAdding(true);
+    try {
+      const ref = await addDoc(collection(db, "admins"), {
+        email: newEmail.trim().toLowerCase(),
+        grantedBy: user?.email || "unknown",
+        grantedAt: serverTimestamp(),
+      });
+      setAdmins((prev) => [...prev, { id: ref.id, email: newEmail.trim().toLowerCase(), grantedBy: user?.email }]);
+      setNewEmail("");
+      toast.success("Admin added!");
+    } catch {
+      toast.error("Failed to add admin");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleRemove = async (id: string) => {
+    if (!confirm("Remove this admin?")) return;
+    try {
+      await deleteDoc(doc(db, "admins", id));
+      setAdmins((prev) => prev.filter((a) => a.id !== id));
+      toast.success("Admin removed");
+    } catch {
+      toast.error("Failed to remove admin");
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <h2 className="text-2xl font-bold font-heading">Admin Role Management</h2>
+      <GlassCard hover={false}>
+        <h3 className="font-semibold mb-4">Add New Admin</h3>
+        <div className="flex gap-3">
+          <Input
+            placeholder="user@email.com"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            className="bg-secondary border-border flex-1"
+            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+          />
+          <Button onClick={handleAdd} disabled={adding}>
+            {adding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+            Add Admin
+          </Button>
+        </div>
+      </GlassCard>
+      <GlassCard hover={false}>
+        <h3 className="font-semibold mb-4">Current Admins</h3>
+        {loading ? (
+          <p className="text-muted-foreground">Loading...</p>
+        ) : admins.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No admins configured. Add one above.</p>
+        ) : (
+          <div className="space-y-2">
+            {admins.map((a) => (
+              <div key={a.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+                <div>
+                  <span className="font-medium">{a.email}</span>
+                  {a.grantedBy && <span className="text-xs text-muted-foreground ml-2">added by {a.grantedBy}</span>}
+                </div>
+                <Button size="icon" variant="ghost" className="text-destructive" onClick={() => handleRemove(a.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </GlassCard>
+    </div>
+  );
+};
+
+// ============ MANAGE NOTES ============
+const ManageNotes = () => {
+  const [notes, setNotes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ title: "", type: "note", description: "", url: "" });
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const snap = await getDocs(collection(db, "notes"));
+        setNotes(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      } catch {
+        toast.error("Failed to load notes");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, []);
+
+  const handleAdd = async () => {
+    if (!form.title) { toast.error("Title is required"); return; }
+    setAdding(true);
+    try {
+      const ref = await addDoc(collection(db, "notes"), { ...form, createdAt: serverTimestamp() });
+      setNotes((prev) => [...prev, { id: ref.id, ...form }]);
+      setForm({ title: "", type: "note", description: "", url: "" });
+      toast.success("Note added!");
+    } catch {
+      toast.error("Failed to add note");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this note?")) return;
+    try {
+      await deleteDoc(doc(db, "notes", id));
+      setNotes((prev) => prev.filter((n) => n.id !== id));
+      toast.success("Note deleted");
+    } catch {
+      toast.error("Failed to delete");
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <h2 className="text-2xl font-bold font-heading">Manage Notes</h2>
+      <GlassCard hover={false}>
+        <h3 className="font-semibold mb-4">Add Note</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div className="space-y-2">
+            <Label>Title</Label>
+            <Input placeholder="Note title" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} className="bg-secondary border-border" />
+          </div>
+          <div className="space-y-2">
+            <Label>Type</Label>
+            <Select value={form.type} onValueChange={(v) => setForm((f) => ({ ...f, type: v }))}>
+              <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["note", "pdf", "doc", "html", "link"].map((t) => (
+                  <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>URL (optional)</Label>
+            <Input placeholder="https://..." value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} className="bg-secondary border-border" />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Description</Label>
+            <Textarea placeholder="Description..." value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} className="bg-secondary border-border resize-none" rows={2} />
+          </div>
+        </div>
+        <Button onClick={handleAdd} disabled={adding}>
+          {adding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+          Add Note
+        </Button>
+      </GlassCard>
+      {notes.length > 0 && (
+        <GlassCard hover={false}>
+          <h3 className="font-semibold mb-4">Existing Notes ({notes.length})</h3>
+          <div className="space-y-2">
+            {notes.map((n) => (
+              <div key={n.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+                <div className="min-w-0 flex-1">
+                  <span className="font-medium">{n.title}</span>
+                  <span className="text-xs text-muted-foreground ml-2 capitalize">{n.type}</span>
+                </div>
+                <Button size="icon" variant="ghost" className="text-destructive" onClick={() => handleDelete(n.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
         </GlassCard>
       )}
     </div>

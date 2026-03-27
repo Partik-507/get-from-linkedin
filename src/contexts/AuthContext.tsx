@@ -6,8 +6,10 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
+  sendPasswordResetEmail,
 } from "firebase/auth";
-import { auth, googleProvider, ADMIN_EMAIL } from "@/lib/firebase";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { auth, googleProvider, githubProvider, db } from "@/lib/firebase";
 
 interface AuthContextType {
   user: User | null;
@@ -15,8 +17,10 @@ interface AuthContextType {
   isAdmin: boolean;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithGithub: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   continueAsGuest: () => void;
   signOut: () => Promise<void>;
 }
@@ -28,24 +32,45 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isGuest, setIsGuest] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const checkAdmin = async (email: string | null) => {
+    if (!email) { setIsAdmin(false); return; }
+    try {
+      const q = query(collection(db, "admins"), where("email", "==", email));
+      const snap = await getDocs(q);
+      setIsAdmin(!snap.empty);
+    } catch {
+      // Fallback: check hardcoded
+      setIsAdmin(email === "partik" || email === "kunal77x@gmail.com");
+    }
+  };
 
   useEffect(() => {
     const guestFlag = sessionStorage.getItem("vivavault_guest");
     if (guestFlag === "true") setIsGuest(true);
 
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
-      if (u) setIsGuest(false);
+      if (u) {
+        setIsGuest(false);
+        await checkAdmin(u.email);
+      } else {
+        setIsAdmin(false);
+      }
       setLoading(false);
     });
     return unsub;
   }, []);
 
-  const isAdmin = user?.email === ADMIN_EMAIL;
-
   const signInWithGoogle = async () => {
     await signInWithPopup(auth, googleProvider);
+    sessionStorage.removeItem("vivavault_guest");
+  };
+
+  const signInWithGithub = async () => {
+    await signInWithPopup(auth, githubProvider);
     sessionStorage.removeItem("vivavault_guest");
   };
 
@@ -59,6 +84,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sessionStorage.removeItem("vivavault_guest");
   };
 
+  const resetPassword = async (email: string) => {
+    await sendPasswordResetEmail(auth, email);
+  };
+
   const continueAsGuest = () => {
     setIsGuest(true);
     sessionStorage.setItem("vivavault_guest", "true");
@@ -67,6 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     await firebaseSignOut(auth);
     setIsGuest(false);
+    setIsAdmin(false);
     sessionStorage.removeItem("vivavault_guest");
   };
 
@@ -78,8 +108,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAdmin,
         loading,
         signInWithGoogle,
+        signInWithGithub,
         signInWithEmail,
         signUpWithEmail,
+        resetPassword,
         continueAsGuest,
         signOut,
       }}
