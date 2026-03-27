@@ -36,7 +36,7 @@ interface Project {
   color: string;
 }
 
-type AdminSection = "projects" | "questions" | "resources" | "submissions" | "question_submissions";
+type AdminSection = "projects" | "questions" | "resources" | "submissions" | "question_submissions" | "admins" | "notes";
 
 const Admin = () => {
   const { isAdmin } = useAuth();
@@ -77,7 +77,9 @@ const Admin = () => {
     { key: "questions", label: "Import Questions", icon: FileJson },
     { key: "question_submissions", label: "Question Submissions", icon: HelpCircle, badge: pendingCount },
     { key: "resources", label: "Add Resource", icon: Link2 },
+    { key: "notes", label: "Manage Notes", icon: FileText },
     { key: "submissions", label: "Submissions", icon: MessageSquare },
+    { key: "admins", label: "Admin Roles", icon: Shield },
   ];
 
   return (
@@ -115,6 +117,8 @@ const Admin = () => {
           {section === "question_submissions" && (
             <QuestionSubmissions projects={projects} onCountChange={setPendingCount} />
           )}
+          {section === "admins" && <ManageAdmins />}
+          {section === "notes" && <ManageNotes />}
         </div>
       </div>
     </Layout>
