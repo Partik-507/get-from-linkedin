@@ -95,7 +95,6 @@ const Resources = () => {
         <p className="text-muted-foreground font-body">Curated links and materials to help you prepare</p>
       </div>
 
-      {/* Search */}
       <div className="relative mb-4">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
@@ -106,14 +105,13 @@ const Resources = () => {
         />
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-none">
         {CATEGORY_TABS.map((tab) => (
           <Badge
             key={tab}
             variant={activeTab === tab ? "default" : "outline"}
             className={cn(
-              "cursor-pointer whitespace-nowrap text-sm px-4 py-1.5 transition-all duration-150 active:scale-95 shrink-0 font-body",
+              "cursor-pointer whitespace-nowrap text-sm px-4 py-1.5 transition-all shrink-0 font-body",
               activeTab === tab
                 ? "bg-primary text-primary-foreground hover:bg-primary/90"
                 : "hover:bg-muted"
@@ -128,11 +126,7 @@ const Resources = () => {
       {loading ? (
         <GridSkeleton />
       ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={Bookmark}
-          title="No resources yet"
-          description="Resources for this project will be added soon. Check back later!"
-        />
+        <EmptyState icon={Bookmark} title="No resources yet" description="Resources for this project will be added soon." />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((r, i) => {
@@ -141,44 +135,52 @@ const Resources = () => {
             return (
               <motion.div
                 key={r.id}
-                initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                transition={{ delay: Math.min(i * 0.06, 0.4), duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(i * 0.06, 0.4), duration: 0.5 }}
               >
-                <div
-                  className="block group cursor-pointer"
-                  onClick={() => openViewer(r)}
-                >
-                  <GlassCard className="h-full flex flex-col transition-transform duration-200 group-hover:scale-[1.02] group-active:scale-[0.98]">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0", config.color)}>
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold truncate group-hover:text-primary transition-colors font-heading">{r.title}</h3>
-                          {r.isPinned && <Pin className="h-3 w-3 text-[hsl(38,92%,50%)] shrink-0" />}
-                        </div>
-                        <p className="text-xs text-muted-foreground capitalize font-body">{r.type || r.category}</p>
-                      </div>
+                <GlassCard className="h-full flex flex-col">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0", config.color)}>
+                      <Icon className="h-5 w-5" />
                     </div>
-                    {r.description && (
-                      <p className="text-sm text-muted-foreground mb-4 flex-1 line-clamp-2 font-body">{r.description}</p>
-                    )}
-                    <div className="flex justify-end mt-auto gap-2">
-                      <Button size="sm" variant="outline" className="gap-1.5 transition-all active:scale-95 font-body">
-                        <Eye className="h-3.5 w-3.5" /> View
-                      </Button>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        {/* Allow 2-3 lines for title */}
+                        <h3 className="font-semibold line-clamp-3 leading-snug group-hover:text-primary transition-colors font-heading">{r.title}</h3>
+                        {r.isPinned && <Pin className="h-3 w-3 text-[hsl(38,92%,50%)] shrink-0" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground capitalize font-body">{r.type || r.category}</p>
                     </div>
-                  </GlassCard>
-                </div>
+                  </div>
+                  {r.description && (
+                    <p className="text-sm text-muted-foreground mb-4 flex-1 line-clamp-2 font-body">{r.description}</p>
+                  )}
+                  <div className="flex justify-end mt-auto gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 font-body"
+                      onClick={() => openViewer(r)}
+                    >
+                      <Eye className="h-3.5 w-3.5" /> View
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 font-body"
+                      onClick={(e) => { e.stopPropagation(); window.open(r.url, "_blank", "noopener,noreferrer"); }}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" /> Open Link
+                    </Button>
+                  </div>
+                </GlassCard>
               </motion.div>
             );
           })}
         </div>
       )}
 
-      {/* In-portal Viewer */}
       <ResourceViewer
         open={viewer.open}
         onClose={() => setViewer({ open: false, title: "", url: "", type: "" })}

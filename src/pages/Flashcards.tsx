@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { FlipCard } from "@/components/FlipCard";
 import { reviewQuestion, recordActivity } from "@/lib/spacedRepetition";
@@ -11,9 +12,11 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft, ChevronRight, Check, RotateCcw, Trophy,
-  Eye, ArrowLeft, Shuffle, Lightbulb,
+  Eye, Shuffle, Lightbulb,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Question {
   id: string;
@@ -45,9 +48,7 @@ const Flashcards = () => {
         const snap = await getDocs(q);
         const qs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Question));
         setQuestions(qs);
-        // Shuffle the deck
-        const shuffled = [...qs].sort(() => Math.random() - 0.5);
-        setDeck(shuffled);
+        setDeck([...qs].sort(() => Math.random() - 0.5));
       } catch {
         toast.error("Failed to load questions");
       } finally {
@@ -57,29 +58,11 @@ const Flashcards = () => {
     fetchData();
   }, [projectId]);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (sessionComplete) return;
-    if (e.key === " " || e.key === "Enter") {
-      e.preventDefault();
-      setFlipped((f) => !f);
-    } else if (e.key === "ArrowRight") {
-      goNext();
-    } else if (e.key === "ArrowLeft") {
-      goPrev();
-    }
-  }, [currentIndex, deck.length, sessionComplete]);
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
-
-  const goNext = () => {
+  const goNext = useCallback(() => {
     if (currentIndex < deck.length - 1) {
       setCurrentIndex((i) => i + 1);
       setFlipped(false);
     } else {
-      // End of deck — check for review cards
       const reviewCards = deck.filter((q) => statuses.get(q.id) === "review");
       if (reviewCards.length > 0 && !reviewRound) {
         setDeck(reviewCards.sort(() => Math.random() - 0.5));
@@ -91,7 +74,7 @@ const Flashcards = () => {
         setSessionComplete(true);
       }
     }
-  };
+  }, [currentIndex, deck, statuses, reviewRound]);
 
   const goPrev = () => {
     if (currentIndex > 0) {
@@ -100,27 +83,30 @@ const Flashcards = () => {
     }
   };
 
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (sessionComplete) return;
+    if (e.key === " " || e.key === "Enter") { e.preventDefault(); setFlipped((f) => !f); }
+    else if (e.key === "ArrowRight") goNext();
+    else if (e.key === "ArrowLeft") goPrev();
+  }, [sessionComplete, goNext]);
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
+
   const markCard = (status: CardStatus) => {
     const q = deck[currentIndex];
     if (!q) return;
-    setStatuses((prev) => {
-      const next = new Map(prev);
-      next.set(q.id, status);
-      return next;
-    });
-
-    // Update SM-2
+    setStatuses((prev) => { const next = new Map(prev); next.set(q.id, status); return next; });
     const quality = status === "known" ? 4 : 1;
     reviewQuestion(q.id, quality);
     recordActivity(1);
-
-    // Auto advance
     setTimeout(goNext, 300);
   };
 
   const resetSession = () => {
-    const shuffled = [...questions].sort(() => Math.random() - 0.5);
-    setDeck(shuffled);
+    setDeck([...questions].sort(() => Math.random() - 0.5));
     setStatuses(new Map());
     setCurrentIndex(0);
     setFlipped(false);
@@ -156,40 +142,31 @@ const Flashcards = () => {
     );
   }
 
-  // Session Complete Summary
   if (sessionComplete) {
     return (
       <Layout title="Flashcards" showBack>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-lg mx-auto text-center py-16"
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-lg mx-auto text-center py-16">
           <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary to-[hsl(280,60%,45%)] flex items-center justify-center mx-auto mb-6">
             <Trophy className="h-10 w-10 text-primary-foreground" />
           </div>
           <h1 className="text-3xl font-heading font-extrabold mb-3">Session Complete!</h1>
-          <p className="text-muted-foreground font-body mb-8">Great work! Here's your summary.</p>
-
+          <p className="text-muted-foreground font-body mb-8">Great work!</p>
           <div className="grid grid-cols-2 gap-4 mb-8">
-            <div className="obsidian-card p-6 text-center">
+            <div className="bg-card border border-border/50 rounded-xl p-6 text-center">
               <p className="text-3xl font-heading font-bold text-[hsl(142,71%,45%)]">{knownCount}</p>
               <p className="text-sm text-muted-foreground font-body mt-1">Known</p>
             </div>
-            <div className="obsidian-card p-6 text-center">
+            <div className="bg-card border border-border/50 rounded-xl p-6 text-center">
               <p className="text-3xl font-heading font-bold text-[hsl(38,92%,50%)]">{reviewCount}</p>
-              <p className="text-sm text-muted-foreground font-body mt-1">Flagged for Review</p>
+              <p className="text-sm text-muted-foreground font-body mt-1">Review</p>
             </div>
           </div>
-
           <div className="flex gap-3 justify-center">
             <Button variant="outline" onClick={resetSession} className="font-body gap-2">
               <RotateCcw className="h-4 w-4" /> Try Again
             </Button>
             <Button asChild className="font-body gap-2">
-              <Link to={`/project/${projectId}/quiz`}>
-                Take Quiz
-              </Link>
+              <Link to={`/project/${projectId}/quiz`}>Take Quiz</Link>
             </Button>
           </div>
         </motion.div>
@@ -200,7 +177,6 @@ const Flashcards = () => {
   return (
     <Layout title="Flashcards" showBack>
       <div className="max-w-2xl mx-auto">
-        {/* Progress */}
         <div className="mb-6">
           <div className="flex items-center justify-between text-sm font-body text-muted-foreground mb-2">
             <span>
@@ -212,17 +188,11 @@ const Flashcards = () => {
           <Progress value={progressPercent} className="h-1.5" />
         </div>
 
-        {/* Stats */}
         <div className="flex justify-center gap-6 mb-6 text-sm font-body">
-          <span className="text-[hsl(142,71%,45%)] flex items-center gap-1">
-            <Check className="h-3.5 w-3.5" /> {knownCount} Known
-          </span>
-          <span className="text-[hsl(38,92%,50%)] flex items-center gap-1">
-            <Eye className="h-3.5 w-3.5" /> {reviewCount} Review
-          </span>
+          <span className="text-[hsl(142,71%,45%)] flex items-center gap-1"><Check className="h-3.5 w-3.5" /> {knownCount} Known</span>
+          <span className="text-[hsl(38,92%,50%)] flex items-center gap-1"><Eye className="h-3.5 w-3.5" /> {reviewCount} Review</span>
         </div>
 
-        {/* Card */}
         {currentQuestion && (
           <FlipCard
             flipped={flipped}
@@ -230,12 +200,8 @@ const Flashcards = () => {
             className="h-[400px] sm:h-[450px] mb-6"
             front={
               <div className="text-center">
-                <span className="text-xs text-muted-foreground font-body mb-4 block">
-                  {currentQuestion.category}
-                </span>
-                <p className="text-lg sm:text-xl font-heading font-semibold leading-relaxed">
-                  {currentQuestion.question}
-                </p>
+                <span className="text-xs text-muted-foreground font-body mb-4 block">{currentQuestion.category}</span>
+                <p className="text-lg sm:text-xl font-heading font-semibold leading-relaxed">{currentQuestion.question}</p>
                 <p className="text-xs text-muted-foreground font-body mt-6 flex items-center gap-1 justify-center">
                   <Shuffle className="h-3 w-3" /> Click or press Space to flip
                 </p>
@@ -245,10 +211,11 @@ const Flashcards = () => {
               <div>
                 <span className="text-xs text-primary font-body mb-3 block">Answer</span>
                 {currentQuestion.answer ? (
-                  <div
-                    className="prose prose-sm dark:prose-invert max-w-none font-body leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: currentQuestion.answer }}
-                  />
+                  <div className="prose prose-sm dark:prose-invert max-w-none font-body leading-relaxed">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {currentQuestion.answer.replace(/<[^>]+>/g, "")}
+                    </ReactMarkdown>
+                  </div>
                 ) : (
                   <p className="text-muted-foreground italic font-body">No answer provided yet.</p>
                 )}
@@ -266,53 +233,24 @@ const Flashcards = () => {
           />
         )}
 
-        {/* Controls */}
         <div className="flex items-center justify-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={goPrev}
-            disabled={currentIndex === 0}
-            className="h-12 w-12 rounded-full"
-          >
+          <Button variant="outline" size="icon" onClick={goPrev} disabled={currentIndex === 0} className="h-12 w-12 rounded-full">
             <ChevronLeft className="h-5 w-5" />
           </Button>
-
-          <Button
-            variant="outline"
-            onClick={() => markCard("review")}
-            className="h-12 px-6 rounded-full font-body gap-2 border-[hsl(38,92%,50%)]/40 text-[hsl(38,92%,50%)] hover:bg-[hsl(38,92%,50%)]/10"
-          >
+          <Button variant="outline" onClick={() => markCard("review")} className="h-12 px-6 rounded-full font-body gap-2 border-[hsl(38,92%,50%)]/40 text-[hsl(38,92%,50%)] hover:bg-[hsl(38,92%,50%)]/10">
             <Eye className="h-4 w-4" /> Review Later
           </Button>
-
-          <Button
-            onClick={() => markCard("known")}
-            className="h-12 px-6 rounded-full font-body gap-2 bg-[hsl(142,71%,45%)] hover:bg-[hsl(142,71%,40%)] text-background"
-          >
+          <Button onClick={() => markCard("known")} className="h-12 px-6 rounded-full font-body gap-2 bg-[hsl(142,71%,45%)] hover:bg-[hsl(142,71%,40%)] text-background">
             <Check className="h-4 w-4" /> Known
           </Button>
-
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={goNext}
-            disabled={currentIndex >= deck.length - 1}
-            className="h-12 w-12 rounded-full"
-          >
+          <Button variant="outline" size="icon" onClick={goNext} disabled={currentIndex >= deck.length - 1} className="h-12 w-12 rounded-full">
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
-
-        <p className="text-center text-xs text-muted-foreground font-body mt-4">
-          Use ← → arrows to navigate, Space to flip
-        </p>
+        <p className="text-center text-xs text-muted-foreground font-body mt-4">Use ← → arrows to navigate, Space to flip</p>
       </div>
     </Layout>
   );
 };
-
-// Need Badge import
-import { Badge } from "@/components/ui/badge";
 
 export default Flashcards;
