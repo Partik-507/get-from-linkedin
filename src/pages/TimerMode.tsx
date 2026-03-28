@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Play, Pause, RotateCcw, Sun, Moon, Music, Upload, ArrowLeft, Volume2 } from "lucide-react";
+import { Play, Pause, RotateCcw, Sun, Moon, Music, Upload, ArrowLeft, Volume2, Image } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const BUILT_IN_MUSIC = [
@@ -20,8 +20,10 @@ const TimerMode = () => {
   const [initialTime, setInitialTime] = useState(25);
   const [currentTrack, setCurrentTrack] = useState<string | null>(null);
   const [volume, setVolume] = useState(50);
+  const [wallpaper, setWallpaper] = useState<string | null>(() => localStorage.getItem("vv_focus_wallpaper"));
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const wallpaperInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isRunning) return;
@@ -31,9 +33,7 @@ const TimerMode = () => {
   }, [isRunning, seconds]);
 
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume / 100;
-    }
+    if (audioRef.current) audioRef.current.volume = volume / 100;
   }, [volume]);
 
   const formatTime = (s: number) => {
@@ -42,15 +42,10 @@ const TimerMode = () => {
     return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
   };
 
-  const reset = () => {
-    setIsRunning(false);
-    setSeconds(initialTime * 60);
-  };
+  const reset = () => { setIsRunning(false); setSeconds(initialTime * 60); };
 
   const playTrack = (url: string) => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-    }
+    if (audioRef.current) audioRef.current.pause();
     const audio = new Audio(url);
     audio.loop = true;
     audio.volume = volume / 100;
@@ -68,30 +63,64 @@ const TimerMode = () => {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    playTrack(url);
+    playTrack(URL.createObjectURL(file));
+  };
+
+  const handleWallpaper = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setWallpaper(dataUrl);
+      try { localStorage.setItem("vv_focus_wallpaper", dataUrl); } catch {}
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearWallpaper = () => {
+    setWallpaper(null);
+    localStorage.removeItem("vv_focus_wallpaper");
   };
 
   const progress = initialTime > 0 ? ((initialTime * 60 - seconds) / (initialTime * 60)) * 100 : 0;
   const circumference = 2 * Math.PI * 140;
   const strokeDashoffset = circumference - (progress / 100) * circumference;
 
+  const bgStyle = wallpaper
+    ? { backgroundImage: `url(${wallpaper})`, backgroundSize: "cover", backgroundPosition: "center" }
+    : {};
+
   return (
-    <div className={cn("min-h-screen flex flex-col items-center justify-center p-6 transition-colors", "bg-background")}>
+    <div className={cn("min-h-screen flex flex-col items-center justify-center p-6 transition-colors relative")} style={bgStyle}>
+      {wallpaper && <div className="absolute inset-0 bg-black/40" />}
+      {!wallpaper && <div className="absolute inset-0 bg-background" />}
+
       {/* Top bar */}
       <div className="fixed top-4 left-4 right-4 flex justify-between items-center z-10">
         <Button variant="ghost" size="icon" onClick={() => { stopMusic(); navigate("/focus"); }}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <Button variant="ghost" size="icon" onClick={toggleTheme}>
-          {resolvedTheme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={() => wallpaperInputRef.current?.click()}>
+            <Image className="h-5 w-5" />
+          </Button>
+          {wallpaper && (
+            <Button variant="ghost" size="sm" onClick={clearWallpaper} className="text-xs font-body">
+              Clear BG
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" onClick={toggleTheme}>
+            {resolvedTheme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </Button>
+        </div>
+        <input ref={wallpaperInputRef} type="file" accept="image/*" className="hidden" onChange={handleWallpaper} />
       </div>
 
       {/* Timer circle */}
-      <div className="relative mb-10">
+      <div className="relative mb-10 z-[1]">
         <svg width="320" height="320" viewBox="0 0 320 320" className="transform -rotate-90">
-          <circle cx="160" cy="160" r="140" fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
+          <circle cx="160" cy="160" r="140" fill="none" stroke="hsl(var(--border))" strokeWidth="6" opacity={wallpaper ? 0.4 : 1} />
           <circle
             cx="160" cy="160" r="140" fill="none"
             stroke="hsl(var(--primary))" strokeWidth="6"
@@ -102,16 +131,16 @@ const TimerMode = () => {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-6xl font-heading font-extrabold tabular-nums">{formatTime(seconds)}</span>
-          <span className="text-sm text-muted-foreground font-body mt-2">
+          <span className={cn("text-6xl font-heading font-extrabold tabular-nums", wallpaper && "text-white drop-shadow-lg")}>{formatTime(seconds)}</span>
+          <span className={cn("text-sm font-body mt-2", wallpaper ? "text-white/70" : "text-muted-foreground")}>
             {isRunning ? "Studying..." : "Ready"}
           </span>
         </div>
       </div>
 
-      {/* Duration picker (when not running) */}
+      {/* Duration picker */}
       {!isRunning && seconds === initialTime * 60 && (
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 z-[1]">
           {[15, 25, 45, 60].map((m) => (
             <button
               key={m}
@@ -130,7 +159,7 @@ const TimerMode = () => {
       )}
 
       {/* Controls */}
-      <div className="flex items-center gap-4 mb-10">
+      <div className="flex items-center gap-4 mb-10 z-[1]">
         <Button variant="outline" size="icon" onClick={reset} className="h-12 w-12 rounded-full">
           <RotateCcw className="h-5 w-5" />
         </Button>
@@ -144,7 +173,7 @@ const TimerMode = () => {
       </div>
 
       {/* Music section */}
-      <div className="w-full max-w-sm space-y-4">
+      <div className="w-full max-w-sm space-y-4 z-[1]">
         <div className="flex items-center gap-2 justify-center">
           <Music className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-body text-muted-foreground">Study Music</span>
@@ -170,26 +199,12 @@ const TimerMode = () => {
           >
             <Upload className="h-3 w-3" /> Your Music
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="audio/*"
-            className="hidden"
-            onChange={handleFileUpload}
-          />
+          <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={handleFileUpload} />
         </div>
-
-        {/* Volume */}
         {currentTrack && (
           <div className="flex items-center gap-3 px-4">
             <Volume2 className="h-4 w-4 text-muted-foreground shrink-0" />
-            <Slider
-              value={[volume]}
-              onValueChange={([v]) => setVolume(v)}
-              max={100}
-              step={1}
-              className="flex-1"
-            />
+            <Slider value={[volume]} onValueChange={([v]) => setVolume(v)} max={100} step={1} className="flex-1" />
           </div>
         )}
       </div>

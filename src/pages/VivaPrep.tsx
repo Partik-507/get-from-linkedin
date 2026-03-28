@@ -1057,7 +1057,7 @@ const VivaPrep = () => {
             </span>
           ))}
           <button
-            onClick={() => { setSelectedFrequency("All"); setSelectedCategory("All"); setSelectedProctor("All"); setSelectedDynamic({}); setSearch(""); }}
+            onClick={() => { setSelectedFrequency("All"); setSelectedCategory("All"); setSelectedProctor("All"); setSelectedTag("All"); setSelectedDynamic({}); setSearch(""); }}
             className="text-xs text-muted-foreground hover:text-foreground font-body"
           >
             Clear all
