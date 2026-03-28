@@ -833,7 +833,7 @@ const VivaPrep = () => {
     }
 
     return result;
-  }, [questions, selectedCategory, selectedFrequency, selectedProctor, selectedDynamic, debouncedSearch, sortBy]);
+  }, [questions, selectedCategory, selectedFrequency, selectedProctor, selectedTag, selectedDynamic, debouncedSearch, sortBy]);
 
   const filteredSubs = useMemo(() => {
     if (!subFilter) return submissions;
