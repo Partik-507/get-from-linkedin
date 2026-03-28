@@ -318,3 +318,39 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Premium button shimmer */
+.btn-premium {
+  @apply relative overflow-hidden;
+}
+
+.btn-premium::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsla(0, 0%, 100%, 0.15),
+    transparent
+  );
+  animation: shimmer 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  50% { left: 100%; }
+  100% { left: 100%; }
+}
+
+.btn-premium-glow {
+  box-shadow: 0 0 20px -4px hsla(263, 70%, 55%, 0.35);
+}
+
+.btn-premium-glow:hover {
+  box-shadow: 0 0 28px -4px hsla(263, 70%, 55%, 0.5);
+}
