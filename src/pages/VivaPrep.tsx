@@ -796,15 +796,17 @@ const VivaPrep = () => {
         });
       });
     });
+    if (selectedTag !== "All") chips.push({ label: `Tag: ${selectedTag}`, clear: () => setSelectedTag("All") });
     if (debouncedSearch) chips.push({ label: `"${debouncedSearch}"`, clear: () => { setSearch(""); setDebouncedSearch(""); } });
     return chips;
-  }, [selectedFrequency, selectedCategory, selectedProctor, selectedDynamic, debouncedSearch]);
+  }, [selectedFrequency, selectedCategory, selectedProctor, selectedDynamic, selectedTag, debouncedSearch]);
 
   const filtered = useMemo(() => {
     let result = questions.filter((q) => {
       if (selectedCategory !== "All" && q.category !== selectedCategory) return false;
       if (selectedFrequency !== "All" && q.frequency?.toLowerCase() !== selectedFrequency.toLowerCase()) return false;
       if (selectedProctor !== "All" && !q.proctors?.includes(selectedProctor)) return false;
+      if (selectedTag !== "All" && !(q as any).tags?.includes(selectedTag)) return false;
       // Dynamic custom field filters
       for (const [key, vals] of Object.entries(selectedDynamic)) {
         if (vals.size > 0 && (!q.customFields || !vals.has(q.customFields[key]))) return false;
