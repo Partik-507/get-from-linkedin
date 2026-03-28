@@ -674,6 +674,7 @@ const VivaPrep = () => {
   const [selectedFrequency, setSelectedFrequency] = useState("All");
   const [selectedProctor, setSelectedProctor] = useState("All");
   const [selectedDynamic, setSelectedDynamic] = useState<Record<string, Set<string>>>({});
+  const [selectedTag, setSelectedTag] = useState("All");
   const [sortBy, setSortBy] = useState<typeof SORT_OPTIONS[number]>("Latest");
   const [subFilter, setSubFilter] = useState("");
   const [visibleSubs, setVisibleSubs] = useState(10);
