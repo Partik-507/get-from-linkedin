@@ -765,6 +765,16 @@ const VivaPrep = () => {
     return map;
   }, [questions]);
 
+  // Extract tags
+  const tags = useMemo(() => {
+    const set = new Set<string>();
+    questions.forEach((q) => {
+      const qAny = q as any;
+      if (Array.isArray(qAny.tags)) qAny.tags.forEach((t: string) => set.add(t));
+    });
+    return ["All", ...Array.from(set).sort()];
+  }, [questions]);
+
   const studiedCount = useMemo(() => questions.filter((q) => studiedIds.has(q.id)).length, [questions, studiedIds]);
 
   const activeFilters = useMemo(() => {
