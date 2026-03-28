@@ -945,8 +945,8 @@ const ManageNotes = () => {
     if (!form.title) { toast.error("Title is required"); return; }
     setAdding(true);
     try {
-      const ref = await addDoc(collection(db, "notes"), { ...form, createdAt: serverTimestamp() });
-      setNotes((prev) => [...prev, { id: ref.id, ...form }]);
+      const ref = await addDoc(collection(db, "notes"), { ...form, status: "approved", createdAt: serverTimestamp() });
+      setNotes((prev) => [...prev, { id: ref.id, ...form, status: "approved" }]);
       setForm({ title: "", type: "note", description: "", url: "" });
       toast.success("Note added!");
     } catch {
@@ -967,9 +967,53 @@ const ManageNotes = () => {
     }
   };
 
+  const handleApprove = async (id: string) => {
+    try {
+      await updateDoc(doc(db, "notes", id), { status: "approved" });
+      setNotes((prev) => prev.map((n) => n.id === id ? { ...n, status: "approved" } : n));
+      toast.success("Note approved!");
+    } catch {
+      toast.error("Failed to approve");
+    }
+  };
+
+  const pendingNotes = notes.filter((n) => n.status === "pending");
+  const approvedNotes = notes.filter((n) => n.status !== "pending");
+
   return (
     <div className="space-y-6 animate-fade-in">
       <h2 className="text-2xl font-bold font-heading">Manage Notes</h2>
+
+      {/* Pending submissions */}
+      {pendingNotes.length > 0 && (
+        <GlassCard hover={false}>
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            Pending Submissions
+            <Badge className="bg-destructive text-destructive-foreground">{pendingNotes.length}</Badge>
+          </h3>
+          <div className="space-y-3">
+            {pendingNotes.map((n) => (
+              <div key={n.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 gap-3">
+                <div className="min-w-0 flex-1">
+                  <span className="font-medium">{n.title}</span>
+                  <span className="text-xs text-muted-foreground ml-2 capitalize">{n.type}</span>
+                  {n.submittedBy && <span className="text-xs text-muted-foreground ml-2">by {n.submittedBy}</span>}
+                  {n.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{n.description}</p>}
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button size="sm" onClick={() => handleApprove(n.id)} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs">
+                    <CheckCircle2 className="h-3 w-3 mr-1" /> Approve
+                  </Button>
+                  <Button size="icon" variant="ghost" className="text-destructive h-8 w-8" onClick={() => handleDelete(n.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      )}
+
       <GlassCard hover={false}>
         <h3 className="font-semibold mb-4">Add Note</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -1002,11 +1046,11 @@ const ManageNotes = () => {
           Add Note
         </Button>
       </GlassCard>
-      {notes.length > 0 && (
+      {approvedNotes.length > 0 && (
         <GlassCard hover={false}>
-          <h3 className="font-semibold mb-4">Existing Notes ({notes.length})</h3>
+          <h3 className="font-semibold mb-4">Existing Notes ({approvedNotes.length})</h3>
           <div className="space-y-2">
-            {notes.map((n) => (
+            {approvedNotes.map((n) => (
               <div key={n.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
                 <div className="min-w-0 flex-1">
                   <span className="font-medium">{n.title}</span>

@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAdmin(!snap.empty);
     } catch {
       // Fallback: check hardcoded
-      setIsAdmin(email === "partik" || email === "kunal77x@gmail.com");
+      setIsAdmin(email === "partik" || email === "partik@mail.com" || email === "kunal77x@gmail.com");
     }
   };
 

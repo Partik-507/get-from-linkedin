@@ -86,27 +86,6 @@ const Auth = () => {
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         className="w-full max-w-md relative z-10"
       >
-        {/* Guest CTA - TOP, prominent */}
-        <button
-          onClick={handleGuest}
-          disabled={!!loading}
-          className="w-full group relative mb-6 overflow-hidden rounded-2xl p-[1px] transition-all duration-300 hover:shadow-lg hover:shadow-primary/20"
-        >
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary via-[hsl(280,70%,50%)] to-primary opacity-80 group-hover:opacity-100 transition-opacity" />
-          <div className="relative flex items-center justify-between rounded-[15px] bg-card px-6 py-5">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Zap className="h-5 w-5 text-primary" />
-              </div>
-              <div className="text-left">
-                <span className="block font-heading font-bold text-lg text-foreground">Browse as Guest</span>
-                <span className="block text-xs text-muted-foreground font-body">No account needed — jump right in</span>
-              </div>
-            </div>
-            <ArrowRight className="h-5 w-5 text-primary group-hover:translate-x-1 transition-transform" />
-          </div>
-        </button>
-
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-[hsl(280,70%,50%)] flex items-center justify-center text-primary-foreground font-bold text-2xl mb-4 shadow-lg shadow-primary/25">
@@ -224,6 +203,27 @@ const Auth = () => {
             ))}
           </Tabs>
         </div>
+
+        {/* Guest CTA - BOTTOM */}
+        <button
+          onClick={handleGuest}
+          disabled={!!loading}
+          className="w-full group relative mt-6 overflow-hidden rounded-2xl p-[1px] transition-all duration-300 hover:shadow-lg hover:shadow-primary/20"
+        >
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary via-[hsl(280,70%,50%)] to-primary opacity-80 group-hover:opacity-100 transition-opacity" />
+          <div className="relative flex items-center justify-between rounded-[15px] bg-card px-6 py-5">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Zap className="h-5 w-5 text-primary" />
+              </div>
+              <div className="text-left">
+                <span className="block font-heading font-bold text-lg text-foreground">Browse as Guest</span>
+                <span className="block text-xs text-muted-foreground font-body">No account needed — jump right in</span>
+              </div>
+            </div>
+            <ArrowRight className="h-5 w-5 text-primary group-hover:translate-x-1 transition-transform" />
+          </div>
+        </button>
       </motion.div>
 
       {/* Forgot Password Dialog */}

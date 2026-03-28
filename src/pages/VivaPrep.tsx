@@ -25,8 +25,11 @@ import {
   Search, ChevronDown, Heart, Pencil, Save, X, MessageSquare,
   Lightbulb, GraduationCap, Copy, Check, HelpCircle, Users, Plus, Loader2,
   ArrowUp, Share2, BookCheck, Bookmark, BookmarkCheck, SlidersHorizontal,
-  Sparkles, BookOpen,
+  Sparkles, BookOpen, StickyNote, Tag,
 } from "lucide-react";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -671,6 +674,7 @@ const VivaPrep = () => {
   const [selectedFrequency, setSelectedFrequency] = useState("All");
   const [selectedProctor, setSelectedProctor] = useState("All");
   const [selectedDynamic, setSelectedDynamic] = useState<Record<string, Set<string>>>({});
+  const [selectedTag, setSelectedTag] = useState("All");
   const [sortBy, setSortBy] = useState<typeof SORT_OPTIONS[number]>("Latest");
   const [subFilter, setSubFilter] = useState("");
   const [visibleSubs, setVisibleSubs] = useState(10);
@@ -761,6 +765,16 @@ const VivaPrep = () => {
     return map;
   }, [questions]);
 
+  // Extract tags
+  const tags = useMemo(() => {
+    const set = new Set<string>();
+    questions.forEach((q) => {
+      const qAny = q as any;
+      if (Array.isArray(qAny.tags)) qAny.tags.forEach((t: string) => set.add(t));
+    });
+    return ["All", ...Array.from(set).sort()];
+  }, [questions]);
+
   const studiedCount = useMemo(() => questions.filter((q) => studiedIds.has(q.id)).length, [questions, studiedIds]);
 
   const activeFilters = useMemo(() => {
@@ -782,15 +796,17 @@ const VivaPrep = () => {
         });
       });
     });
+    if (selectedTag !== "All") chips.push({ label: `Tag: ${selectedTag}`, clear: () => setSelectedTag("All") });
     if (debouncedSearch) chips.push({ label: `"${debouncedSearch}"`, clear: () => { setSearch(""); setDebouncedSearch(""); } });
     return chips;
-  }, [selectedFrequency, selectedCategory, selectedProctor, selectedDynamic, debouncedSearch]);
+  }, [selectedFrequency, selectedCategory, selectedProctor, selectedDynamic, selectedTag, debouncedSearch]);
 
   const filtered = useMemo(() => {
     let result = questions.filter((q) => {
       if (selectedCategory !== "All" && q.category !== selectedCategory) return false;
       if (selectedFrequency !== "All" && q.frequency?.toLowerCase() !== selectedFrequency.toLowerCase()) return false;
       if (selectedProctor !== "All" && !q.proctors?.includes(selectedProctor)) return false;
+      if (selectedTag !== "All" && !(q as any).tags?.includes(selectedTag)) return false;
       // Dynamic custom field filters
       for (const [key, vals] of Object.entries(selectedDynamic)) {
         if (vals.size > 0 && (!q.customFields || !vals.has(q.customFields[key]))) return false;
@@ -817,7 +833,7 @@ const VivaPrep = () => {
     }
 
     return result;
-  }, [questions, selectedCategory, selectedFrequency, selectedProctor, selectedDynamic, debouncedSearch, sortBy]);
+  }, [questions, selectedCategory, selectedFrequency, selectedProctor, selectedTag, selectedDynamic, debouncedSearch, sortBy]);
 
   const filteredSubs = useMemo(() => {
     if (!subFilter) return submissions;
@@ -873,18 +889,18 @@ const VivaPrep = () => {
 
         {/* Study Mode Buttons */}
         <div className="flex flex-wrap gap-3 mt-5">
-          <Button asChild className="font-body gap-2 bg-gradient-to-r from-primary to-[hsl(280,60%,50%)] text-primary-foreground shadow-md hover:shadow-lg hover:opacity-90 h-11 px-5 rounded-xl">
+          <Button asChild className="btn-premium btn-premium-glow font-body gap-2 bg-gradient-to-r from-primary to-[hsl(280,60%,50%)] text-primary-foreground shadow-md hover:shadow-lg hover:scale-105 active:scale-95 h-11 px-5 rounded-xl transition-all duration-200">
             <Link to={`/project/${projectId}/flashcards`}>
               <Sparkles className="h-4 w-4" /> Flashcard Mode
             </Link>
           </Button>
-          <Button asChild className="font-body gap-2 bg-gradient-to-r from-[hsl(38,92%,45%)] to-[hsl(30,90%,50%)] text-white shadow-md hover:shadow-lg hover:opacity-90 h-11 px-5 rounded-xl">
+          <Button asChild className="btn-premium font-body gap-2 bg-gradient-to-r from-[hsl(38,92%,45%)] to-[hsl(30,90%,50%)] text-white shadow-md hover:shadow-lg hover:scale-105 active:scale-95 h-11 px-5 rounded-xl transition-all duration-200">
             <Link to={`/project/${projectId}/quiz`}>
               <GraduationCap className="h-4 w-4" /> Quiz Mode
             </Link>
           </Button>
           <Button
-            className="font-body gap-2 bg-gradient-to-r from-[hsl(142,71%,40%)] to-[hsl(160,60%,38%)] text-white shadow-md hover:shadow-lg hover:opacity-90 h-11 px-5 rounded-xl"
+            className="btn-premium font-body gap-2 bg-gradient-to-r from-[hsl(142,71%,40%)] to-[hsl(160,60%,38%)] text-white shadow-md hover:shadow-lg hover:scale-105 active:scale-95 h-11 px-5 rounded-xl transition-all duration-200"
             onClick={() => {
               import("jspdf").then(({ default: jsPDF }) => {
                 const doc = new jsPDF();
@@ -924,9 +940,14 @@ const VivaPrep = () => {
           >
             <BookCheck className="h-4 w-4" /> Export PDF
           </Button>
-          <Button asChild variant="outline" className="font-body gap-2 h-11 px-5 rounded-xl border-[hsl(210,80%,50%)]/30 hover:border-[hsl(210,80%,50%)]/50">
+          <Button asChild variant="outline" className="font-body gap-2 h-11 px-5 rounded-xl border-[hsl(210,80%,50%)]/30 hover:border-[hsl(210,80%,50%)]/50 hover:scale-105 active:scale-95 transition-all duration-200">
             <Link to={`/project/${projectId}/resources`}>
               <BookOpen className="h-4 w-4 text-[hsl(210,80%,50%)]" /> Resources
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="font-body gap-2 h-11 px-5 rounded-xl border-[hsl(280,60%,50%)]/30 hover:border-[hsl(280,60%,50%)]/50 hover:scale-105 active:scale-95 transition-all duration-200">
+            <Link to="/notes">
+              <StickyNote className="h-4 w-4 text-[hsl(280,60%,50%)]" /> Notes
             </Link>
           </Button>
         </div>
@@ -980,47 +1001,50 @@ const VivaPrep = () => {
           </div>
         </div>
 
-        {/* Row 2: Category pills */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={cn(
-                "px-3.5 py-2 rounded-full text-xs font-body whitespace-nowrap transition-all duration-200 shrink-0",
-                selectedCategory === cat
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-[hsla(0,0%,100%,0.04)] text-muted-foreground hover:text-foreground hover:bg-accent"
-              )}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        {/* Row 3: Proctor filter */}
-        {proctors.length > 1 && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground font-body shrink-0">Proctor:</span>
-            <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
-              {proctors.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setSelectedProctor(p)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-xs font-body whitespace-nowrap transition-all duration-200 shrink-0 inline-flex items-center gap-1.5",
-                    selectedProctor === p
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-[hsla(0,0%,100%,0.04)] text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {p !== "All" && <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: hashColor(p) }} />}
-                  {p}
-                </button>
+        {/* Row 2: Dropdown filters for Category, Proctor, Tags */}
+        <div className="flex flex-wrap gap-3">
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-[160px] h-10 bg-secondary/20 border-border/30 font-body text-sm">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((cat) => (
+                <SelectItem key={cat} value={cat} className="font-body">{cat}</SelectItem>
               ))}
-            </div>
-          </div>
-        )}
+            </SelectContent>
+          </Select>
+
+          {proctors.length > 1 && (
+            <Select value={selectedProctor} onValueChange={setSelectedProctor}>
+              <SelectTrigger className="w-[160px] h-10 bg-secondary/20 border-border/30 font-body text-sm">
+                <SelectValue placeholder="Proctor" />
+              </SelectTrigger>
+              <SelectContent>
+                {proctors.map((p) => (
+                  <SelectItem key={p} value={p} className="font-body">
+                    {p}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {tags.length > 1 && (
+            <Select value={selectedTag} onValueChange={setSelectedTag}>
+              <SelectTrigger className="w-[160px] h-10 bg-secondary/20 border-border/30 font-body text-sm">
+                <div className="flex items-center gap-1.5">
+                  <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                  <SelectValue placeholder="Tag" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {tags.map((t) => (
+                  <SelectItem key={t} value={t} className="font-body">{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
 
       {/* Active filter chips */}
@@ -1033,7 +1057,7 @@ const VivaPrep = () => {
             </span>
           ))}
           <button
-            onClick={() => { setSelectedFrequency("All"); setSelectedCategory("All"); setSelectedProctor("All"); setSelectedDynamic({}); setSearch(""); }}
+            onClick={() => { setSelectedFrequency("All"); setSelectedCategory("All"); setSelectedProctor("All"); setSelectedTag("All"); setSelectedDynamic({}); setSearch(""); }}
             className="text-xs text-muted-foreground hover:text-foreground font-body"
           >
             Clear all
