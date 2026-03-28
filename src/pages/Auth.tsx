@@ -7,11 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2, Zap, ArrowRight, Mail, KeyRound } from "lucide-react";
+import { Eye, EyeOff, Loader2, Zap, ArrowRight, Mail, KeyRound, Shield } from "lucide-react";
 import { motion } from "framer-motion";
 
 const Auth = () => {
-  const { signInWithGoogle, signInWithGithub, signInWithEmail, signUpWithEmail, resetPassword, continueAsGuest } = useAuth();
+  const { signInWithGoogle, signInWithGithub, signInWithEmail, signUpWithEmail, resetPassword, continueAsGuest, adminShortcut } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,6 +19,8 @@ const Auth = () => {
   const [loading, setLoading] = useState<string | null>(null);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [adminPwd, setAdminPwd] = useState("");
 
   const handleGoogle = async () => {
     setLoading("google");
@@ -71,6 +73,17 @@ const Auth = () => {
     continueAsGuest();
     toast.success("Welcome! You're browsing as a guest.");
     navigate("/");
+  };
+
+  const handleAdminShortcut = () => {
+    if (adminShortcut(adminPwd)) {
+      toast.success("Admin access granted!");
+      setAdminOpen(false);
+      setAdminPwd("");
+      navigate("/admin");
+    } else {
+      toast.error("Incorrect password. Access denied.");
+    }
   };
 
   return (
