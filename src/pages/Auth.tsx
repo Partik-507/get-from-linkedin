@@ -7,11 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2, Zap, ArrowRight, Mail, KeyRound } from "lucide-react";
+import { Eye, EyeOff, Loader2, Zap, ArrowRight, Mail, KeyRound, Shield } from "lucide-react";
 import { motion } from "framer-motion";
 
 const Auth = () => {
-  const { signInWithGoogle, signInWithGithub, signInWithEmail, signUpWithEmail, resetPassword, continueAsGuest } = useAuth();
+  const { signInWithGoogle, signInWithGithub, signInWithEmail, signUpWithEmail, resetPassword, continueAsGuest, adminShortcut } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,6 +19,8 @@ const Auth = () => {
   const [loading, setLoading] = useState<string | null>(null);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [adminPwd, setAdminPwd] = useState("");
 
   const handleGoogle = async () => {
     setLoading("google");
@@ -71,6 +73,17 @@ const Auth = () => {
     continueAsGuest();
     toast.success("Welcome! You're browsing as a guest.");
     navigate("/");
+  };
+
+  const handleAdminShortcut = () => {
+    if (adminShortcut(adminPwd)) {
+      toast.success("Admin access granted!");
+      setAdminOpen(false);
+      setAdminPwd("");
+      navigate("/admin");
+    } else {
+      toast.error("Incorrect password. Access denied.");
+    }
   };
 
   return (
@@ -224,6 +237,15 @@ const Auth = () => {
             <ArrowRight className="h-5 w-5 text-primary group-hover:translate-x-1 transition-transform" />
           </div>
         </button>
+
+        {/* Admin Shortcut */}
+        <button
+          onClick={() => setAdminOpen(true)}
+          className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border/40 text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all font-body"
+        >
+          <Shield className="h-4 w-4" />
+          Admin Shortcut
+        </button>
       </motion.div>
 
       {/* Forgot Password Dialog */}
@@ -249,6 +271,35 @@ const Auth = () => {
             <Button onClick={handleForgotPassword} disabled={loading === "reset"} className="w-full font-body gap-2">
               {loading === "reset" ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
               Send Reset Link
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin Shortcut Dialog */}
+      <Dialog open={adminOpen} onOpenChange={(o) => { setAdminOpen(o); if (!o) setAdminPwd(""); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-heading flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" /> Admin Access
+            </DialogTitle>
+            <DialogDescription className="font-body">
+              Enter the admin password to access the dashboard.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              type="password"
+              placeholder="Enter admin password"
+              value={adminPwd}
+              onChange={(e) => setAdminPwd(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdminShortcut()}
+              className="h-11 bg-secondary/30 border-border/40 font-body"
+              autoFocus
+            />
+            <Button onClick={handleAdminShortcut} className="w-full font-body gap-2 bg-primary hover:bg-primary/90">
+              <Shield className="h-4 w-4" />
+              Unlock Admin
             </Button>
           </div>
         </DialogContent>

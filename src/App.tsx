@@ -26,7 +26,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const AuthGate = ({ children }: { children: React.ReactNode }) => {
-  const { user, isGuest, loading } = useAuth();
+  const { user, isGuest, isAdmin, loading } = useAuth();
 
   if (loading) {
     return (
@@ -36,7 +36,7 @@ const AuthGate = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  if (!user && !isGuest) {
+  if (!user && !isGuest && !isAdmin) {
     return <Auth />;
   }
 
