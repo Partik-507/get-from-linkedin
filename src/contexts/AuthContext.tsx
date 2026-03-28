@@ -22,6 +22,7 @@ interface AuthContextType {
   signUpWithEmail: (email: string, password: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   continueAsGuest: () => void;
+  adminShortcut: (password: string) => boolean;
   signOut: () => Promise<void>;
 }
 
@@ -47,9 +48,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const adminShortcut = (pwd: string): boolean => {
+    if (pwd === "#Qkecy@5739x") {
+      setIsAdmin(true);
+      setIsGuest(false);
+      sessionStorage.setItem("vivavault_admin_shortcut", "true");
+      sessionStorage.removeItem("vivavault_guest");
+      return true;
+    }
+    return false;
+  };
+
   useEffect(() => {
     const guestFlag = sessionStorage.getItem("vivavault_guest");
     if (guestFlag === "true") setIsGuest(true);
+
+    const adminFlag = sessionStorage.getItem("vivavault_admin_shortcut");
+    if (adminFlag === "true") {
+      setIsAdmin(true);
+      setLoading(false);
+    }
 
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
@@ -98,6 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsGuest(false);
     setIsAdmin(false);
     sessionStorage.removeItem("vivavault_guest");
+    sessionStorage.removeItem("vivavault_admin_shortcut");
   };
 
   return (
@@ -113,6 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signUpWithEmail,
         resetPassword,
         continueAsGuest,
+        adminShortcut,
         signOut,
       }}
     >
