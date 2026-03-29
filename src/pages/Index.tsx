@@ -1,17 +1,23 @@
 import { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/contexts/AuthContext";
 import { Layout } from "@/components/Layout";
 import { GridSkeleton } from "@/components/LoadingSkeleton";
 import { EmptyState } from "@/components/EmptyState";
+import { CourseCard, type CourseStatus } from "@/components/CourseCard";
+import { ShareDropdown } from "@/components/ShareDropdown";
+import { FeedbackModal } from "@/components/FeedbackModal";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, ExternalLink, FolderOpen, Brain, Flame } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BookOpen, Brain, Flame, FolderOpen, Search, Focus, StickyNote, Link2, Pencil, MessageSquare, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { getDueQuestions, getStudiedIds, loadStreak } from "@/lib/spacedRepetition";
+import { getUserEnrollments, enrollInCourse, getBranches, getLevels, type Branch, type Level } from "@/lib/firestoreSync";
 
 interface Project {
   id: string;
@@ -20,6 +26,11 @@ interface Project {
   description: string;
   color: string;
   photoUrl?: string;
+  branchId?: string;
+  levelId?: string;
+  type?: string;
+  status?: string;
+  isLocked?: boolean;
 }
 
 interface QuestionMeta {
@@ -27,45 +38,54 @@ interface QuestionMeta {
   projectId: string;
 }
 
-const PROJECT_COLORS = [
-  "from-primary to-[hsl(280,60%,45%)]",
-  "from-[hsl(210,80%,50%)] to-[hsl(230,70%,45%)]",
-  "from-[hsl(340,70%,50%)] to-[hsl(320,60%,45%)]",
-  "from-[hsl(160,70%,40%)] to-[hsl(180,60%,35%)]",
-  "from-[hsl(30,80%,50%)] to-[hsl(15,70%,45%)]",
-  "from-[hsl(190,70%,45%)] to-[hsl(210,60%,40%)]",
-];
-
 const Index = () => {
+  const { user, isGuest } = useAuth();
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [questionMeta, setQuestionMeta] = useState<QuestionMeta[]>([]);
   const [loading, setLoading] = useState(true);
+  const [enrollments, setEnrollments] = useState<Record<string, any>>({});
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [levels, setLevels] = useState<Level[]>([]);
+  const [search, setSearch] = useState("");
+  const [branchFilter, setBranchFilter] = useState("all");
+  const [levelFilter, setLevelFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [showEnrolled, setShowEnrolled] = useState(false);
+  const [sortBy, setSortBy] = useState("newest");
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const studied = useMemo(() => getStudiedIds(), []);
   const streak = useMemo(() => loadStreak(), []);
 
   useEffect(() => {
-    document.title = "VivaVault — IITM BS Viva Prep";
+    document.title = "VivaVault — IITM BS Study Hub";
     const fetchData = async () => {
       try {
-        const [projSnap, qSnap] = await Promise.all([
+        const [projSnap, qSnap, branchData, levelData] = await Promise.all([
           getDocs(collection(db, "projects")),
           getDocs(collection(db, "questions")),
+          getBranches(),
+          getLevels(),
         ]);
         setProjects(projSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Project)));
         setQuestionMeta(qSnap.docs.map((d) => ({ id: d.id, projectId: (d.data() as any).projectId })));
+        setBranches(branchData);
+        setLevels(levelData);
+        if (user) {
+          const enr = await getUserEnrollments(user.uid);
+          setEnrollments(enr);
+        }
       } catch {
-        toast.error("Failed to load projects");
+        toast.error("Failed to load data");
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, []);
+  }, [user]);
 
-  const dueCount = useMemo(() => {
-    return getDueQuestions(questionMeta.map((q) => q.id)).length;
-  }, [questionMeta]);
+  const dueCount = useMemo(() => getDueQuestions(questionMeta.map((q) => q.id)).length, [questionMeta]);
 
   const getProjectProgress = (projectId: string) => {
     const pQuestions = questionMeta.filter((q) => q.projectId === projectId);
@@ -74,110 +94,232 @@ const Index = () => {
     return { total: pQuestions.length, studied: studiedCount, percent: Math.round((studiedCount / pQuestions.length) * 100) };
   };
 
+  const getCourseStatus = (project: Project): CourseStatus => {
+    if (isGuest) return "guest";
+    if (project.status === "coming-soon") return "coming-soon";
+    if (project.isLocked) return "locked";
+    const prog = getProjectProgress(project.id);
+    if (enrollments[project.id]) {
+      return prog.percent >= 100 ? "completed" : "enrolled";
+    }
+    return "not-enrolled";
+  };
+
+  const handleEnroll = async (projectId: string) => {
+    if (!user) { navigate("/auth"); return; }
+    try {
+      await enrollInCourse(user.uid, projectId);
+      setEnrollments(prev => ({ ...prev, [projectId]: { courseId: projectId, progress: 0 } }));
+      toast.success("Enrolled! Start studying now.");
+    } catch {
+      toast.error("Failed to enroll");
+    }
+  };
+
+  const filteredProjects = useMemo(() => {
+    let result = [...projects];
+    if (search) {
+      const s = search.toLowerCase();
+      result = result.filter(p => p.code?.toLowerCase().includes(s) || p.name?.toLowerCase().includes(s));
+    }
+    if (branchFilter !== "all") result = result.filter(p => p.branchId === branchFilter);
+    if (levelFilter !== "all") result = result.filter(p => p.levelId === levelFilter);
+    if (typeFilter !== "all") result = result.filter(p => (p.type || "course") === typeFilter);
+    if (showEnrolled && user) result = result.filter(p => enrollments[p.id]);
+    if (sortBy === "a-z") result.sort((a, b) => (a.code || "").localeCompare(b.code || ""));
+    else if (sortBy === "questions") result.sort((a, b) => getProjectProgress(b.id).total - getProjectProgress(a.id).total);
+    return result;
+  }, [projects, search, branchFilter, levelFilter, typeFilter, showEnrolled, sortBy, enrollments, questionMeta, user]);
+
   return (
     <Layout>
-      <div className="mb-10 animate-fade-in">
-        <h1 className="text-4xl sm:text-5xl font-heading font-extrabold tracking-tight mb-3">
-          <span className="text-gradient">VivaVault</span>
-        </h1>
-        <p className="text-muted-foreground text-lg max-w-xl font-body">
-          Your premium preparation companion for IITM BS project vivas. Choose a project to begin.
-        </p>
+      {/* Top Section: Two columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-10">
+        {/* Left Panel */}
+        <div className="lg:col-span-7 space-y-5">
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+            <h1 className="text-3xl sm:text-4xl font-heading font-extrabold tracking-tight leading-tight">
+              <span className="text-gradient">VivaVault</span>
+            </h1>
+            <p className="text-muted-foreground text-base font-body mt-1.5">
+              {user
+                ? `Welcome back, ${user.displayName?.split(" ")[0] || "Student"}! Continue where you left off.`
+                : "Your premium preparation companion for IITM BS project vivas."}
+            </p>
+          </motion.div>
 
-        {/* Streak + Due Today */}
-        <div className="flex flex-wrap gap-3 mt-5">
-          {streak.current > 0 && (
-            <Badge variant="outline" className="gap-1.5 px-3 py-1.5 text-sm font-body border-[hsl(38,92%,50%)]/30">
-              <Flame className="h-3.5 w-3.5 text-[hsl(38,92%,50%)]" />
-              {streak.current} day streak
-            </Badge>
+          {/* Stats pills */}
+          {(streak.current > 0 || dueCount > 0) && (
+            <div className="flex flex-wrap gap-2">
+              {streak.current > 0 && (
+                <Badge variant="outline" className="gap-1.5 px-3 py-1.5 text-xs font-body border-[hsl(var(--streak))]/30 text-[hsl(var(--streak))]">
+                  <Flame className="h-3 w-3" /> {streak.current} day streak
+                </Badge>
+              )}
+              {dueCount > 0 && (
+                <Badge variant="outline" className="gap-1.5 px-3 py-1.5 text-xs font-body border-primary/30 text-primary">
+                  <Brain className="h-3 w-3" /> {dueCount} due for review
+                </Badge>
+              )}
+            </div>
           )}
-          {dueCount > 0 && (
-            <Button asChild variant="outline" size="sm" className="gap-2 font-body border-primary/30 hover:border-primary/50">
-              <Link to="/progress">
-                <Brain className="h-3.5 w-3.5 text-primary" />
-                {dueCount} questions due for review
-              </Link>
-            </Button>
-          )}
+
+          {/* Filters */}
+          <div className="flex flex-wrap gap-2">
+            {branches.length > 0 && (
+              <Select value={branchFilter} onValueChange={setBranchFilter}>
+                <SelectTrigger className="w-[140px] h-9 text-xs font-body bg-card border-border/60">
+                  <SelectValue placeholder="All Branches" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="font-body text-xs">All Branches</SelectItem>
+                  {branches.map(b => <SelectItem key={b.id} value={b.id} className="font-body text-xs">{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+            {levels.length > 0 && (
+              <Select value={levelFilter} onValueChange={setLevelFilter}>
+                <SelectTrigger className="w-[140px] h-9 text-xs font-body bg-card border-border/60">
+                  <SelectValue placeholder="All Levels" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="font-body text-xs">All Levels</SelectItem>
+                  {levels.map(l => <SelectItem key={l.id} value={l.id} className="font-body text-xs">{l.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-[120px] h-9 text-xs font-body bg-card border-border/60">
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="font-body text-xs">All</SelectItem>
+                <SelectItem value="course" className="font-body text-xs">Courses</SelectItem>
+                <SelectItem value="project" className="font-body text-xs">Projects</SelectItem>
+              </SelectContent>
+            </Select>
+            {user && (
+              <Button
+                variant={showEnrolled ? "secondary" : "outline"}
+                size="sm"
+                className="h-9 text-xs font-body"
+                onClick={() => setShowEnrolled(!showEnrolled)}
+              >
+                {showEnrolled ? "Show All" : "Enrolled Only"}
+              </Button>
+            )}
+          </div>
         </div>
+
+        {/* Right Panel - Quick Actions */}
+        <div className="lg:col-span-5">
+          <div className="vv-card p-5 space-y-4 bg-primary/[0.02] dark:bg-primary/[0.03]">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search courses, projects..."
+                className="pl-9 h-9 text-sm rounded-lg bg-background border-border/50 font-body"
+              />
+            </div>
+
+            {/* Quick Action Grid 2x2 */}
+            <div className="grid grid-cols-2 gap-2.5">
+              {[
+                { icon: Link2, label: "Resources", sub: "Study materials", to: "/notes" },
+                { icon: Pencil, label: "Share Notes", sub: "Contribute notes", to: "/notes" },
+                { icon: Focus, label: "Focus Mode", sub: "Deep study", to: "/focus" },
+                { icon: StickyNote, label: "My Notes", sub: "Your workspace", to: "/notes" },
+              ].map((action) => (
+                <Link
+                  key={action.label}
+                  to={action.to}
+                  className="flex items-center gap-2.5 p-3 rounded-xl bg-background border border-border/40 hover:border-primary/30 hover:bg-primary/[0.03] transition-all group"
+                >
+                  <div className="h-8 w-8 rounded-lg bg-primary/8 flex items-center justify-center shrink-0 group-hover:bg-primary/12 transition-colors">
+                    <action.icon className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-body font-medium leading-tight">{action.label}</p>
+                    <p className="text-[10px] text-muted-foreground font-body">{action.sub}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {/* Bottom row */}
+            <div className="flex gap-2">
+              <ShareDropdown />
+              <Button variant="outline" size="sm" className="gap-2 font-body text-xs" onClick={() => setFeedbackOpen(true)}>
+                <MessageSquare className="h-3.5 w-3.5" /> Feedback
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Course Grid Section */}
+      <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-heading font-bold">
+            {showEnrolled ? "Enrolled Courses" : "All Courses & Projects"}
+          </h2>
+          <Badge variant="secondary" className="text-xs font-body">{filteredProjects.length} items</Badge>
+        </div>
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="w-[130px] h-8 text-xs font-body">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest" className="font-body text-xs">Newest</SelectItem>
+            <SelectItem value="a-z" className="font-body text-xs">A-Z</SelectItem>
+            <SelectItem value="questions" className="font-body text-xs">Most Questions</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {loading ? (
         <GridSkeleton />
-      ) : projects.length === 0 ? (
+      ) : filteredProjects.length === 0 ? (
         <EmptyState
           icon={FolderOpen}
-          title="No projects yet"
-          description="Projects will appear here once an admin adds them."
+          title="No courses found"
+          description={search ? "Try adjusting your search or filters." : "Projects will appear here once an admin adds them."}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map((project, i) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredProjects.map((project, i) => {
             const prog = getProjectProgress(project.id);
+            const status = getCourseStatus(project);
+            const branch = branches.find(b => b.id === project.branchId);
+            const level = levels.find(l => l.id === project.levelId);
+
             return (
-              <motion.div
+              <CourseCard
                 key={project.id}
-                initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                transition={{ delay: i * 0.08, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-              >
-                <div className="obsidian-card flex flex-col overflow-hidden h-full">
-                  {project.photoUrl && (
-                    <div className="h-40 w-full overflow-hidden">
-                      <img src={project.photoUrl} alt={project.name} className="w-full h-full object-cover" loading="lazy" />
-                    </div>
-                  )}
-                  <div className="p-6 flex flex-col flex-1">
-                    <div className="flex items-start gap-4 mb-4">
-                      <div className={`h-12 w-12 rounded-xl bg-gradient-to-br ${PROJECT_COLORS[i % PROJECT_COLORS.length]} flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-lg`}>
-                        {project.code?.slice(0, 2) || "P"}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h2 className="text-xl font-heading font-bold tracking-tight">{project.code}</h2>
-                        <p className="text-sm text-muted-foreground truncate font-body">{project.name}</p>
-                      </div>
-                      {prog.total > 0 && (
-                        <Badge variant="outline" className="text-[10px] font-body tabular-nums shrink-0">
-                          {prog.total} Q
-                        </Badge>
-                      )}
-                    </div>
-
-                    <p className="text-sm text-muted-foreground mb-4 flex-1 line-clamp-2 font-body">
-                      {project.description || "Prepare for your viva with curated questions and community experiences."}
-                    </p>
-
-                    {/* Progress bar */}
-                    {prog.total > 0 && (
-                      <div className="mb-4">
-                        <div className="flex items-center justify-between text-xs text-muted-foreground font-body mb-1">
-                          <span>{prog.studied} studied</span>
-                          <span>{prog.percent}%</span>
-                        </div>
-                        <Progress value={prog.percent} className="h-1" />
-                      </div>
-                    )}
-
-                    <div className="flex gap-3">
-                      <Button asChild className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-200 active:scale-[0.97] font-body">
-                        <Link to={`/project/${project.id}/viva`}>
-                          <BookOpen className="h-4 w-4 mr-1.5" /> Viva Prep
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline" className="transition-all duration-200 active:scale-[0.97] font-body border-border/50">
-                        <Link to={`/project/${project.id}/resources`}>
-                          <ExternalLink className="h-4 w-4 mr-1.5" /> Resources
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+                id={project.id}
+                code={project.code}
+                name={project.name}
+                description={project.description}
+                questionCount={prog.total}
+                status={status}
+                progress={prog.percent}
+                studiedCount={prog.studied}
+                index={i}
+                branchTag={branch?.name}
+                levelTag={level?.name}
+                photoUrl={project.photoUrl}
+                onEnroll={() => handleEnroll(project.id)}
+                onSignIn={() => navigate("/auth")}
+              />
             );
           })}
         </div>
       )}
+
+      <FeedbackModal open={feedbackOpen} onOpenChange={setFeedbackOpen} />
     </Layout>
   );
 };

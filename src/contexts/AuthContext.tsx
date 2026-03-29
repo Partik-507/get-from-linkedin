@@ -10,12 +10,14 @@ import {
 } from "firebase/auth";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { auth, googleProvider, githubProvider, db } from "@/lib/firebase";
+import { getUserProfile, createUserProfile, updateUserProfile as updateProfile, type UserProfile } from "@/lib/firestoreSync";
 
 interface AuthContextType {
   user: User | null;
   isGuest: boolean;
   isAdmin: boolean;
   loading: boolean;
+  userProfile: UserProfile | null;
   signInWithGoogle: () => Promise<void>;
   signInWithGithub: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -24,6 +26,7 @@ interface AuthContextType {
   continueAsGuest: () => void;
   adminShortcut: (password: string) => boolean;
   signOut: () => Promise<void>;
+  updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -35,6 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isGuest, setIsGuest] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   const checkAdmin = async (email: string | null) => {
     if (!email) { setIsAdmin(false); return; }
@@ -43,9 +47,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const snap = await getDocs(q);
       setIsAdmin(!snap.empty);
     } catch {
-      // Fallback: check hardcoded
       setIsAdmin(email === "partik" || email === "partik@mail.com" || email === "kunal77x@gmail.com");
     }
+  };
+
+  const loadProfile = async (u: User) => {
+    let profile = await getUserProfile(u.uid);
+    if (!profile) {
+      await createUserProfile(u.uid, {
+        name: u.displayName || "",
+        email: u.email || "",
+      });
+      profile = await getUserProfile(u.uid);
+    }
+    setUserProfile(profile);
   };
 
   const adminShortcut = (pwd: string): boolean => {
@@ -74,8 +89,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (u) {
         setIsGuest(false);
         await checkAdmin(u.email);
+        await loadProfile(u);
       } else {
         setIsAdmin(false);
+        setUserProfile(null);
       }
       setLoading(false);
     });
@@ -111,10 +128,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sessionStorage.setItem("vivavault_guest", "true");
   };
 
+  const handleUpdateProfile = async (data: Partial<UserProfile>) => {
+    if (!user) return;
+    await updateProfile(user.uid, data);
+    setUserProfile(prev => prev ? { ...prev, ...data } : null);
+  };
+
   const signOut = async () => {
     await firebaseSignOut(auth);
     setIsGuest(false);
     setIsAdmin(false);
+    setUserProfile(null);
     sessionStorage.removeItem("vivavault_guest");
     sessionStorage.removeItem("vivavault_admin_shortcut");
   };
@@ -126,6 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isGuest,
         isAdmin,
         loading,
+        userProfile,
         signInWithGoogle,
         signInWithGithub,
         signInWithEmail,
@@ -134,6 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         continueAsGuest,
         adminShortcut,
         signOut,
+        updateUserProfile: handleUpdateProfile,
       }}
     >
       {children}
