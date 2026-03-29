@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { saveFocusSession } from "@/lib/firestoreSync";
 import {
   Focus, Timer, Lock, X, Flame, ArrowRight, AlertTriangle,
   Sun, Moon, Music, Upload, Volume2, Image,
@@ -28,6 +30,7 @@ const BUILT_IN_MUSIC = [
 const FocusMode = () => {
   const navigate = useNavigate();
   const { resolvedTheme, toggleTheme } = useTheme();
+  const { user } = useAuth();
   const [mode, setMode] = useState<"choose" | "strict" | null>("choose");
   const [strictActive, setStrictActive] = useState(false);
   const [exitRequested, setExitRequested] = useState(false);
@@ -37,9 +40,11 @@ const FocusMode = () => {
   const [currentTrack, setCurrentTrack] = useState<string | null>(null);
   const [volume, setVolume] = useState(50);
   const [wallpaper, setWallpaper] = useState<string | null>(() => localStorage.getItem("vv_focus_wallpaper"));
+  const [controlsVisible, setControlsVisible] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wallpaperInputRef = useRef<HTMLInputElement>(null);
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!strictActive) return;
@@ -58,6 +63,26 @@ const FocusMode = () => {
     if (audioRef.current) audioRef.current.volume = volume / 100;
   }, [volume]);
 
+  // Auto-hide controls
+  const resetHideTimer = useCallback(() => {
+    setControlsVisible(true);
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    hideTimeoutRef.current = setTimeout(() => setControlsVisible(false), 3000);
+  }, []);
+
+  useEffect(() => {
+    if (!strictActive) return;
+    const handleMouseMove = () => resetHideTimer();
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("touchstart", handleMouseMove);
+    resetHideTimer();
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("touchstart", handleMouseMove);
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    };
+  }, [strictActive, resetHideTimer]);
+
   const startStrict = useCallback(() => {
     setMode(null);
     setStrictActive(true);
@@ -71,9 +96,17 @@ const FocusMode = () => {
     setExitCountdown(10);
   };
 
-  const confirmExit = () => {
+  const confirmExit = async () => {
     stopMusic();
     document.exitFullscreen?.().catch(() => {});
+    // Save session to Firestore
+    if (user && studyTimer > 10) {
+      await saveFocusSession(user.uid, {
+        duration: studyTimer,
+        mode: "strict",
+        date: new Date().toISOString().split("T")[0],
+      });
+    }
     setStrictActive(false);
     setExitRequested(false);
   };
@@ -131,20 +164,23 @@ const FocusMode = () => {
   // Strict mode fullscreen overlay
   if (strictActive) {
     return (
-      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center" style={bgStyle}>
+      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center" style={bgStyle} onMouseMove={resetHideTimer}>
         {wallpaper && <div className="absolute inset-0 bg-black/50" />}
         {!wallpaper && <div className="absolute inset-0 bg-background" />}
 
-        {/* Top bar controls */}
-        <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
-          <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-foreground/70 hover:text-foreground">
+        {/* Top bar controls - auto-hide */}
+        <div className={cn(
+          "absolute top-4 right-4 flex items-center gap-2 z-10 transition-opacity duration-300",
+          controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}>
+          <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-foreground/70 hover:text-foreground h-8 w-8">
             {resolvedTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => wallpaperInputRef.current?.click()} className="text-foreground/70 hover:text-foreground">
+          <Button variant="ghost" size="icon" onClick={() => wallpaperInputRef.current?.click()} className="text-foreground/70 hover:text-foreground h-8 w-8">
             <Image className="h-4 w-4" />
           </Button>
           {wallpaper && (
-            <Button variant="ghost" size="sm" onClick={clearWallpaper} className="text-foreground/70 hover:text-foreground text-xs font-body">
+            <Button variant="ghost" size="sm" onClick={clearWallpaper} className="text-foreground/70 hover:text-foreground text-xs font-body h-8">
               Clear BG
             </Button>
           )}
@@ -154,14 +190,8 @@ const FocusMode = () => {
         <div className="relative z-10 w-full max-w-md px-6">
           <AnimatePresence>
             {exitRequested ? (
-              <motion.div
-                key="exit"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-center"
-              >
-                <AlertTriangle className="h-12 w-12 text-[hsl(38,92%,50%)] mx-auto mb-4" />
+              <motion.div key="exit" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="text-center">
+                <AlertTriangle className="h-12 w-12 text-[hsl(var(--warning))] mx-auto mb-4" />
                 <h2 className="text-2xl font-heading font-bold mb-3 text-foreground">Wait! Don't go yet</h2>
                 <p className="text-muted-foreground font-body mb-6 leading-relaxed">{motivationalMsg}</p>
                 <p className="text-sm text-muted-foreground font-body mb-6">
@@ -187,24 +217,20 @@ const FocusMode = () => {
                   {formatTime(studyTimer)}
                 </div>
 
-                {/* Music controls */}
-                <div className="mb-6 space-y-3">
+                {/* Music controls - auto-hide */}
+                <div className={cn(
+                  "mb-6 space-y-3 transition-opacity duration-300",
+                  controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+                )}>
                   <div className="flex items-center gap-2 justify-center">
                     <Music className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-body text-muted-foreground">Study Music</span>
                   </div>
                   <div className="flex flex-wrap gap-2 justify-center">
                     {BUILT_IN_MUSIC.map((m) => (
-                      <button
-                        key={m.name}
-                        onClick={() => currentTrack === m.url ? stopMusic() : playTrack(m.url)}
-                        className={cn(
-                          "px-3 py-1.5 rounded-full text-xs font-body transition-all",
-                          currentTrack === m.url
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-secondary/60 text-muted-foreground hover:text-foreground"
-                        )}
-                      >
+                      <button key={m.name} onClick={() => currentTrack === m.url ? stopMusic() : playTrack(m.url)}
+                        className={cn("px-3 py-1.5 rounded-full text-xs font-body transition-all",
+                          currentTrack === m.url ? "bg-primary text-primary-foreground" : "bg-secondary/60 text-muted-foreground hover:text-foreground")}>
                         {currentTrack === m.url ? "⏸ " : "▶ "}{m.name}
                       </button>
                     ))}
@@ -221,12 +247,15 @@ const FocusMode = () => {
                   )}
                 </div>
 
-                <p className="text-sm text-muted-foreground font-body mb-4">
-                  Press Escape or click below to request exit
-                </p>
-                <Button variant="ghost" size="sm" onClick={requestExit} className="text-muted-foreground font-body">
-                  <X className="h-4 w-4 mr-1" /> End Session
-                </Button>
+                <div className={cn(
+                  "transition-opacity duration-300",
+                  controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+                )}>
+                  <p className="text-sm text-muted-foreground font-body mb-4">Press Escape or click below to request exit</p>
+                  <Button variant="ghost" size="sm" onClick={requestExit} className="text-muted-foreground font-body">
+                    <X className="h-4 w-4 mr-1" /> End Session
+                  </Button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -244,7 +273,6 @@ const FocusMode = () => {
           <p className="text-muted-foreground font-body text-lg">Choose your study intensity</p>
         </div>
 
-        {/* Wallpaper picker */}
         <div className="flex items-center justify-center gap-3 mb-8">
           <Button variant="outline" size="sm" onClick={() => wallpaperInputRef.current?.click()} className="font-body gap-2 text-xs">
             <Image className="h-3.5 w-3.5" /> {wallpaper ? "Change Wallpaper" : "Set Wallpaper"}
@@ -257,13 +285,9 @@ const FocusMode = () => {
           <input ref={wallpaperInputRef} type="file" accept="image/*" className="hidden" onChange={handleWallpaper} />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={startStrict}
-            className="text-left p-8 rounded-2xl border-2 border-primary/30 bg-card hover:border-primary/60 transition-all group"
-          >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={startStrict}
+            className="text-left p-7 rounded-2xl border-2 border-primary/30 bg-card hover:border-primary/60 transition-all group">
             <Lock className="h-8 w-8 text-primary mb-4" />
             <h3 className="text-xl font-heading font-bold mb-2">Strict Mode</h3>
             <p className="text-sm text-muted-foreground font-body leading-relaxed mb-4">
@@ -274,18 +298,14 @@ const FocusMode = () => {
             </span>
           </motion.button>
 
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => navigate("/timer")}
-            className="text-left p-8 rounded-2xl border-2 border-border/50 bg-card hover:border-primary/30 transition-all group"
-          >
-            <Timer className="h-8 w-8 text-[hsl(38,92%,50%)] mb-4" />
+          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => navigate("/timer")}
+            className="text-left p-7 rounded-2xl border-2 border-border/50 bg-card hover:border-primary/30 transition-all group">
+            <Timer className="h-8 w-8 text-[hsl(var(--warning))] mb-4" />
             <h3 className="text-xl font-heading font-bold mb-2">Normal Mode</h3>
             <p className="text-sm text-muted-foreground font-body leading-relaxed mb-4">
               A simple timer with ambient study music and wallpaper support. Minimal and distraction-free.
             </p>
-            <span className="inline-flex items-center gap-1.5 text-[hsl(38,92%,50%)] text-sm font-body font-medium">
+            <span className="inline-flex items-center gap-1.5 text-[hsl(var(--warning))] text-sm font-body font-medium">
               Open Timer <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
             </span>
           </motion.button>

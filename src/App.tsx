@@ -21,6 +21,7 @@ import Profile from "./pages/Profile";
 import FocusMode from "./pages/FocusMode";
 import TimerMode from "./pages/TimerMode";
 import Notes from "./pages/Notes";
+import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,7 +32,7 @@ const AuthGate = ({ children }: { children: React.ReactNode }) => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-[hsl(263,70%,55%)] animate-pulse" />
+        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-[hsl(240,70%,50%)] animate-pulse" />
       </div>
     );
   }
@@ -48,7 +49,7 @@ const LandingGate = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-[hsl(263,70%,55%)] animate-pulse" />
+        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-[hsl(240,70%,50%)] animate-pulse" />
       </div>
     );
   }
@@ -60,7 +61,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <TooltipProvider>
-        <Toaster richColors position="top-right" />
+        <Toaster richColors position="bottom-right" />
         <BrowserRouter>
           <AuthProvider>
             <ScrollToTop />
@@ -79,6 +80,7 @@ const App = () => (
               <Route path="/notes" element={<AuthGate><Notes /></AuthGate>} />
               <Route path="/focus" element={<AuthGate><FocusMode /></AuthGate>} />
               <Route path="/timer" element={<AuthGate><TimerMode /></AuthGate>} />
+              <Route path="/notifications" element={<AuthGate><Notifications /></AuthGate>} />
               <Route path="/admin" element={<AuthGate><Admin /></AuthGate>} />
               <Route path="/progress" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<NotFound />} />
