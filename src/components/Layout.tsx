@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
   LogOut, Shield, Home, ArrowLeft, LayoutDashboard, Sun, Moon,
-  Menu, X, Bookmark, Focus, User, Flame, StickyNote,
+  Menu, X, User, Flame, StickyNote, Timer, BookOpen, Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { NotificationBell } from "@/components/NotificationBell";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { loadStreak } from "@/lib/spacedRepetition";
@@ -23,7 +24,7 @@ interface LayoutProps {
 }
 
 export const Layout = ({ children, title, showBack }: LayoutProps) => {
-  const { user, isGuest, isAdmin, signOut } = useAuth();
+  const { user, isGuest, isAdmin, isDemo, demoTimeLeft, signOut } = useAuth();
   const { resolvedTheme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,21 +41,40 @@ export const Layout = ({ children, title, showBack }: LayoutProps) => {
 
   const navLinks = [
     { to: "/", label: "Home", icon: Home },
-    { to: "/notes", label: "Notes", icon: StickyNote },
-    { to: "/bookmarks", label: "Bookmarks", icon: Bookmark },
-    { to: "/focus", label: "Focus", icon: Focus },
+    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/study", label: "Study OS", icon: Timer },
+    { to: "/notes", label: "Notes OS", icon: StickyNote },
+    { to: "/notes", label: "Resources", icon: Link2 },
     ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: Shield }] : []),
   ];
+
+  const formatDemoTime = (ms: number) => {
+    const m = Math.floor(ms / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    return `${m}:${String(s).padStart(2, "0")}`;
+  };
 
   return (
     <div className="min-h-screen bg-background relative">
       {/* Guest banner */}
-      {isGuest && (
+      {isGuest && !isDemo && (
         <div className="bg-primary/8 border-b border-primary/15 px-4 py-2 text-center">
           <p className="text-sm font-body text-foreground/80">
             🎓 Sign in with your student email to save progress across devices.{" "}
             <button onClick={() => navigate("/auth")} className="underline font-semibold text-primary hover:text-primary/80">
               Sign In
+            </button>
+          </p>
+        </div>
+      )}
+
+      {/* Demo timer banner */}
+      {isDemo && (
+        <div className="bg-[hsl(var(--warning))]/10 border-b border-[hsl(var(--warning))]/20 px-4 py-2 text-center">
+          <p className="text-sm font-body text-foreground/80">
+            ⏱️ Demo Session: <span className="font-semibold text-[hsl(var(--warning))] tabular-nums">{formatDemoTime(demoTimeLeft)}</span> remaining.{" "}
+            <button onClick={() => navigate("/auth")} className="underline font-semibold text-primary hover:text-primary/80">
+              Sign In to save progress
             </button>
           </p>
         </div>
@@ -96,7 +116,7 @@ export const Layout = ({ children, title, showBack }: LayoutProps) => {
               const active = location.pathname === link.to;
               return (
                 <Button
-                  key={link.to}
+                  key={link.to + link.label}
                   variant="ghost"
                   size="sm"
                   asChild
@@ -190,7 +210,7 @@ export const Layout = ({ children, title, showBack }: LayoutProps) => {
           <div className="md:hidden border-t border-border/50 px-4 py-3 space-y-1 bg-card/95 backdrop-blur-xl">
             {navLinks.map((link) => (
               <Button
-                key={link.to}
+                key={link.to + link.label}
                 variant="ghost"
                 className={cn("w-full justify-start gap-2 font-body", location.pathname === link.to && "bg-primary/10 text-primary")}
                 asChild
@@ -204,8 +224,8 @@ export const Layout = ({ children, title, showBack }: LayoutProps) => {
             ))}
             {user && (
               <>
-                <Button variant="ghost" className="w-full justify-start gap-2 font-body" onClick={() => { navigate("/dashboard"); setMobileMenuOpen(false); }}>
-                  <LayoutDashboard className="h-4 w-4" /> Dashboard
+                <Button variant="ghost" className="w-full justify-start gap-2 font-body" onClick={() => { navigate("/profile"); setMobileMenuOpen(false); }}>
+                  <User className="h-4 w-4" /> Profile
                 </Button>
                 <Button variant="ghost" className="w-full justify-start gap-2 text-destructive font-body" onClick={() => { signOut(); setMobileMenuOpen(false); }}>
                   <LogOut className="h-4 w-4" /> Sign Out
