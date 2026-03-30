@@ -13,7 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BookOpen, Brain, Flame, FolderOpen, Search, Focus, StickyNote, Link2, Pencil, MessageSquare, ArrowRight } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { BookOpen, Brain, Flame, FolderOpen, Search, StickyNote, Link2, Pencil, MessageSquare, ArrowRight, Plus, HelpCircle, FileText, Timer, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { getDueQuestions, getStudiedIds, loadStreak } from "@/lib/spacedRepetition";
@@ -31,6 +34,7 @@ interface Project {
   type?: string;
   status?: string;
   isLocked?: boolean;
+  accessType?: string;
 }
 
 interface QuestionMeta {
@@ -39,7 +43,7 @@ interface QuestionMeta {
 }
 
 const Index = () => {
-  const { user, isGuest } = useAuth();
+  const { user, isGuest, isDemo } = useAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [questionMeta, setQuestionMeta] = useState<QuestionMeta[]>([]);
@@ -68,7 +72,9 @@ const Index = () => {
           getBranches(),
           getLevels(),
         ]);
-        setProjects(projSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Project)));
+        const allProjects = projSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Project));
+        // Filter out private courses for non-admin
+        setProjects(allProjects.filter(p => p.accessType !== "private" || false));
         setQuestionMeta(qSnap.docs.map((d) => ({ id: d.id, projectId: (d.data() as any).projectId })));
         setBranches(branchData);
         setLevels(levelData);
@@ -85,7 +91,17 @@ const Index = () => {
     fetchData();
   }, [user]);
 
+  // Cascading filter: reset level when branch changes
+  useEffect(() => {
+    setLevelFilter("all");
+  }, [branchFilter]);
+
   const dueCount = useMemo(() => getDueQuestions(questionMeta.map((q) => q.id)).length, [questionMeta]);
+
+  const filteredLevels = useMemo(() => {
+    if (branchFilter === "all") return levels;
+    return levels.filter(l => l.branchId === branchFilter);
+  }, [levels, branchFilter]);
 
   const getProjectProgress = (projectId: string) => {
     const pQuestions = questionMeta.filter((q) => q.projectId === projectId);
@@ -95,9 +111,9 @@ const Index = () => {
   };
 
   const getCourseStatus = (project: Project): CourseStatus => {
-    if (isGuest) return "guest";
+    if (isGuest || isDemo) return "guest";
     if (project.status === "coming-soon") return "coming-soon";
-    if (project.isLocked) return "locked";
+    if (project.isLocked || project.accessType === "premium") return "locked";
     const prog = getProjectProgress(project.id);
     if (enrollments[project.id]) {
       return prog.percent >= 100 ? "completed" : "enrolled";
@@ -133,15 +149,28 @@ const Index = () => {
 
   return (
     <Layout>
-      {/* Top Section: Two columns */}
+      {/* Global Search */}
+      <div className="mb-6">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search courses, projects, questions..."
+            className="pl-11 h-11 rounded-xl bg-card border-border/50 font-body text-sm shadow-sm"
+          />
+        </div>
+      </div>
+
+      {/* Top Section: Two columns - 40/60 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-10">
-        {/* Left Panel */}
-        <div className="lg:col-span-7 space-y-5">
+        {/* Left Panel - 40% */}
+        <div className="lg:col-span-5 space-y-5">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <h1 className="text-3xl sm:text-4xl font-heading font-extrabold tracking-tight leading-tight">
               <span className="text-gradient">VivaVault</span>
             </h1>
-            <p className="text-muted-foreground text-base font-body mt-1.5">
+            <p className="text-muted-foreground text-sm font-body mt-1.5">
               {user
                 ? `Welcome back, ${user.displayName?.split(" ")[0] || "Student"}! Continue where you left off.`
                 : "Your premium preparation companion for IITM BS project vivas."}
@@ -164,11 +193,11 @@ const Index = () => {
             </div>
           )}
 
-          {/* Filters */}
-          <div className="flex flex-wrap gap-2">
-            {branches.length > 0 && (
+          {/* Cascading Filters */}
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
               <Select value={branchFilter} onValueChange={setBranchFilter}>
-                <SelectTrigger className="w-[140px] h-9 text-xs font-body bg-card border-border/60">
+                <SelectTrigger className="w-[150px] h-9 text-xs font-body bg-card border-border/60">
                   <SelectValue placeholder="All Branches" />
                 </SelectTrigger>
                 <SelectContent>
@@ -176,33 +205,33 @@ const Index = () => {
                   {branches.map(b => <SelectItem key={b.id} value={b.id} className="font-body text-xs">{b.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-            )}
-            {levels.length > 0 && (
+
               <Select value={levelFilter} onValueChange={setLevelFilter}>
-                <SelectTrigger className="w-[140px] h-9 text-xs font-body bg-card border-border/60">
+                <SelectTrigger className="w-[150px] h-9 text-xs font-body bg-card border-border/60">
                   <SelectValue placeholder="All Levels" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" className="font-body text-xs">All Levels</SelectItem>
-                  {levels.map(l => <SelectItem key={l.id} value={l.id} className="font-body text-xs">{l.name}</SelectItem>)}
+                  {filteredLevels.map(l => <SelectItem key={l.id} value={l.id} className="font-body text-xs">{l.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-            )}
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[120px] h-9 text-xs font-body bg-card border-border/60">
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="font-body text-xs">All</SelectItem>
-                <SelectItem value="course" className="font-body text-xs">Courses</SelectItem>
-                <SelectItem value="project" className="font-body text-xs">Projects</SelectItem>
-              </SelectContent>
-            </Select>
+
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-[120px] h-9 text-xs font-body bg-card border-border/60">
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="font-body text-xs">All</SelectItem>
+                  <SelectItem value="course" className="font-body text-xs">Courses</SelectItem>
+                  <SelectItem value="project" className="font-body text-xs">Projects</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             {user && (
               <Button
                 variant={showEnrolled ? "secondary" : "outline"}
                 size="sm"
-                className="h-9 text-xs font-body"
+                className="h-8 text-xs font-body"
                 onClick={() => setShowEnrolled(!showEnrolled)}
               >
                 {showEnrolled ? "Show All" : "Enrolled Only"}
@@ -211,34 +240,23 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Right Panel - Quick Actions */}
-        <div className="lg:col-span-5">
+        {/* Right Panel - 60% */}
+        <div className="lg:col-span-7">
           <div className="vv-card p-5 space-y-4 bg-primary/[0.02] dark:bg-primary/[0.03]">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search courses, projects..."
-                className="pl-9 h-9 text-sm rounded-lg bg-background border-border/50 font-body"
-              />
-            </div>
-
             {/* Quick Action Grid 2x2 */}
             <div className="grid grid-cols-2 gap-2.5">
               {[
+                { icon: Timer, label: "Study OS", sub: "Plan & track sessions", to: "/study" },
+                { icon: StickyNote, label: "Notes OS", sub: "Knowledge workspace", to: "/notes" },
                 { icon: Link2, label: "Resources", sub: "Study materials", to: "/notes" },
-                { icon: Pencil, label: "Share Notes", sub: "Contribute notes", to: "/notes" },
-                { icon: Focus, label: "Focus Mode", sub: "Deep study", to: "/focus" },
-                { icon: StickyNote, label: "My Notes", sub: "Your workspace", to: "/notes" },
+                { icon: BookOpen, label: "Dashboard", sub: "Your progress", to: "/dashboard" },
               ].map((action) => (
                 <Link
                   key={action.label}
                   to={action.to}
                   className="flex items-center gap-2.5 p-3 rounded-xl bg-background border border-border/40 hover:border-primary/30 hover:bg-primary/[0.03] transition-all group"
                 >
-                  <div className="h-8 w-8 rounded-lg bg-primary/8 flex items-center justify-center shrink-0 group-hover:bg-primary/12 transition-colors">
+                  <div className="h-9 w-9 rounded-lg bg-primary/8 flex items-center justify-center shrink-0 group-hover:bg-primary/12 transition-colors">
                     <action.icon className="h-4 w-4 text-primary" />
                   </div>
                   <div className="min-w-0">
@@ -249,8 +267,27 @@ const Index = () => {
               ))}
             </div>
 
-            {/* Bottom row */}
+            {/* Contribution dropdown + share/feedback */}
             <div className="flex gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2 font-body text-xs flex-1 justify-between bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 hover:border-primary/40">
+                    <span className="flex items-center gap-1.5"><Plus className="h-3.5 w-3.5 text-primary" /> Contribute</span>
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuItem onClick={() => navigate("/submit-question")} className="gap-2 font-body text-xs">
+                    <HelpCircle className="h-3.5 w-3.5" /> Submit Questions
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/notes")} className="gap-2 font-body text-xs">
+                    <Pencil className="h-3.5 w-3.5" /> Share Notes
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/notes")} className="gap-2 font-body text-xs">
+                    <FileText className="h-3.5 w-3.5" /> Share Resources
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <ShareDropdown />
               <Button variant="outline" size="sm" className="gap-2 font-body text-xs" onClick={() => setFeedbackOpen(true)}>
                 <MessageSquare className="h-3.5 w-3.5" /> Feedback

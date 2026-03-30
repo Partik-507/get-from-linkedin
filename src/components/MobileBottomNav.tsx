@@ -1,12 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, StickyNote, Bookmark, Focus, User } from "lucide-react";
+import { Home, StickyNote, Timer, LayoutDashboard, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { to: "/", icon: Home, label: "Home" },
+  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/study", icon: Timer, label: "Study" },
   { to: "/notes", icon: StickyNote, label: "Notes" },
-  { to: "/bookmarks", icon: Bookmark, label: "Saved" },
-  { to: "/focus", icon: Focus, label: "Focus" },
   { to: "/profile", icon: User, label: "Profile" },
 ];
 

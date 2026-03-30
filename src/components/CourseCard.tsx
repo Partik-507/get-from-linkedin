@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { BookOpen, ExternalLink, Lock, Play, RotateCcw, LogIn, Clock } from "lucide-react";
+import { BookOpen, ExternalLink, Lock, Play, RotateCcw, LogIn, Clock, Crown } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -57,7 +57,7 @@ export const CourseCard = ({
         {isLocked && (
           <div className="absolute inset-0 z-10 bg-background/50 flex items-center justify-center rounded-2xl">
             <Badge className="gap-1.5 bg-muted text-muted-foreground font-body">
-              <Lock className="h-3 w-3" /> Access Restricted
+              <Crown className="h-3 w-3" /> Premium
             </Badge>
           </div>
         )}
@@ -113,14 +113,14 @@ export const CourseCard = ({
             </div>
           )}
 
-          {/* Footer buttons by status */}
-          <div className="flex gap-2.5 mt-auto">
+          {/* Footer buttons - 70/30 split */}
+          <div className="flex gap-2 mt-auto">
             {status === "not-enrolled" && (
               <>
-                <Button onClick={onEnroll} className="flex-1 font-body text-sm gap-1.5 active:scale-[0.97] transition-all">
+                <Button onClick={onEnroll} className="basis-[70%] font-body text-sm gap-1.5 active:scale-[0.97] transition-all">
                   + Enroll
                 </Button>
-                <Button asChild variant="outline" className="font-body text-sm active:scale-[0.97]">
+                <Button asChild variant="outline" className="basis-[30%] font-body text-sm active:scale-[0.97] justify-center">
                   <Link to={`/project/${id}/resources`}>
                     <ExternalLink className="h-3.5 w-3.5" />
                   </Link>
@@ -130,12 +130,12 @@ export const CourseCard = ({
 
             {status === "enrolled" && (
               <>
-                <Button asChild className="flex-1 font-body text-sm gap-1.5 active:scale-[0.97] transition-all">
+                <Button asChild className="basis-[70%] font-body text-sm gap-1.5 active:scale-[0.97] transition-all">
                   <Link to={`/project/${id}/viva`}>
                     <Play className="h-3.5 w-3.5" /> Continue
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="font-body text-sm active:scale-[0.97]">
+                <Button asChild variant="outline" className="basis-[30%] font-body text-sm active:scale-[0.97] justify-center">
                   <Link to={`/project/${id}/resources`}>
                     <ExternalLink className="h-3.5 w-3.5" />
                   </Link>
@@ -145,12 +145,12 @@ export const CourseCard = ({
 
             {status === "completed" && (
               <>
-                <Button asChild variant="outline" className="flex-1 font-body text-sm gap-1.5 text-[hsl(var(--success))] border-[hsl(var(--success))]/30 active:scale-[0.97]">
+                <Button asChild variant="outline" className="basis-[70%] font-body text-sm gap-1.5 text-[hsl(var(--success))] border-[hsl(var(--success))]/30 active:scale-[0.97]">
                   <Link to={`/project/${id}/viva`}>
                     <RotateCcw className="h-3.5 w-3.5" /> Review
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="font-body text-sm active:scale-[0.97]">
+                <Button asChild variant="outline" className="basis-[30%] font-body text-sm active:scale-[0.97] justify-center">
                   <Link to={`/project/${id}/resources`}>
                     <ExternalLink className="h-3.5 w-3.5" />
                   </Link>
@@ -159,7 +159,7 @@ export const CourseCard = ({
             )}
 
             {status === "locked" && (
-              <Button onClick={onRequestAccess} variant="outline" className="flex-1 font-body text-sm gap-1.5" disabled={isLocked}>
+              <Button onClick={onRequestAccess || onSignIn} variant="outline" className="flex-1 font-body text-sm gap-1.5">
                 <Lock className="h-3.5 w-3.5" /> Request Access
               </Button>
             )}

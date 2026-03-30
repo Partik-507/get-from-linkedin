@@ -183,6 +183,32 @@ export const getLevels = async (): Promise<Level[]> => {
   } catch { return []; }
 };
 
+export const createBranch = async (data: Omit<Branch, "id">) => {
+  const ref = await addDoc(collection(db, "branches"), { ...data, createdAt: serverTimestamp() });
+  return ref.id;
+};
+
+export const updateBranch = async (id: string, data: Partial<Branch>) => {
+  await updateDoc(doc(db, "branches", id), data);
+};
+
+export const deleteBranch = async (id: string) => {
+  await deleteDoc(doc(db, "branches", id));
+};
+
+export const createLevel = async (data: Omit<Level, "id">) => {
+  const ref = await addDoc(collection(db, "levels"), { ...data, createdAt: serverTimestamp() });
+  return ref.id;
+};
+
+export const updateLevel = async (id: string, data: Partial<Level>) => {
+  await updateDoc(doc(db, "levels", id), data);
+};
+
+export const deleteLevel = async (id: string) => {
+  await deleteDoc(doc(db, "levels", id));
+};
+
 // ============ FEEDBACK ============
 export const submitFeedback = async (feedback: { type: string; message: string; email?: string; userId?: string }) => {
   await addDoc(collection(db, "feedback"), {

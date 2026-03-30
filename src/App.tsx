@@ -18,8 +18,7 @@ import Bookmarks from "./pages/Bookmarks";
 import Flashcards from "./pages/Flashcards";
 import Quiz from "./pages/Quiz";
 import Profile from "./pages/Profile";
-import FocusMode from "./pages/FocusMode";
-import TimerMode from "./pages/TimerMode";
+import StudyMode from "./pages/StudyMode";
 import Notes from "./pages/Notes";
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
@@ -27,7 +26,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const AuthGate = ({ children }: { children: React.ReactNode }) => {
-  const { user, isGuest, isAdmin, loading } = useAuth();
+  const { user, isGuest, isAdmin, isDemo, loading } = useAuth();
 
   if (loading) {
     return (
@@ -37,7 +36,7 @@ const AuthGate = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  if (!user && !isGuest && !isAdmin) {
+  if (!user && !isGuest && !isAdmin && !isDemo) {
     return <Auth />;
   }
 
@@ -45,7 +44,7 @@ const AuthGate = ({ children }: { children: React.ReactNode }) => {
 };
 
 const LandingGate = () => {
-  const { user, isGuest, loading } = useAuth();
+  const { user, isGuest, isDemo, loading } = useAuth();
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -53,7 +52,7 @@ const LandingGate = () => {
       </div>
     );
   }
-  if (user || isGuest) return <Index />;
+  if (user || isGuest || isDemo) return <Index />;
   return <Landing />;
 };
 
@@ -78,8 +77,9 @@ const App = () => (
               <Route path="/project/:projectId/quiz" element={<AuthGate><Quiz /></AuthGate>} />
               <Route path="/bookmarks" element={<AuthGate><Bookmarks /></AuthGate>} />
               <Route path="/notes" element={<AuthGate><Notes /></AuthGate>} />
-              <Route path="/focus" element={<AuthGate><FocusMode /></AuthGate>} />
-              <Route path="/timer" element={<AuthGate><TimerMode /></AuthGate>} />
+              <Route path="/study" element={<AuthGate><StudyMode /></AuthGate>} />
+              <Route path="/focus" element={<Navigate to="/study" replace />} />
+              <Route path="/timer" element={<Navigate to="/study" replace />} />
               <Route path="/notifications" element={<AuthGate><Notifications /></AuthGate>} />
               <Route path="/admin" element={<AuthGate><Admin /></AuthGate>} />
               <Route path="/progress" element={<Navigate to="/dashboard" replace />} />
