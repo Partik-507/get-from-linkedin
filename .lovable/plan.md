@@ -1,160 +1,180 @@
 
 
-# VivaVault — Mega Feature Expansion Plan
+# VivaVault — Dynamic Schema-Driven Data Ingestion & Admin OS Plan
 
 ## Summary
 
-This plan covers 7 major workstreams built in parallel: (1) Notes OS — Notion/Obsidian-style workspace, (2) Study Mode — replacing Focus Mode with calendar + habit tracker + timer, (3) Dynamic academic hierarchy with cascading filters, (4) Homepage redesign with new layout, (5) Course access control (public/private/premium), (6) Demo/guest timer system, (7) Admin panel expansion + Bookmarks Firestore migration.
+Build a fully dynamic, schema-less data ingestion pipeline and expand the admin panel into a complete Admin OS. The system will analyze any uploaded JSON, let admin map fields interactively, normalize/deduplicate data, and only write to Firestore after explicit confirmation. Frontend filters will be generated dynamically from stored schema configs — no hardcoded keys.
 
 ---
 
-## 1. Notes OS (`src/pages/Notes.tsx` — full rewrite)
+## Architecture Overview
 
-**Left sidebar**: Folder/file tree with nested folders, drag-and-drop reorder, rename/delete/move context menu, search, expand-all/collapse-all, "New Folder" and "New Page" buttons.
-
-**Main editor**: TipTap block-based editor with slash command menu (`/` trigger) for: Heading 1/2/3, Paragraph, Bullet List, Numbered List, Checkbox, Quote, Code Block, Divider, Table, Image, Embed, Internal Link. Rich paste detection (preserve HTML from clipboard). Toolbar: bold, italic, underline, strikethrough, link, code, highlight.
-
-**Tab system**: Multiple notes open as tabs at top of editor area. Click tab to switch, X to close.
-
-**Note properties panel**: Branch, Level, Course, Tags, Created/Modified dates. Collapsible metadata section at top of each note.
-
-**Graph view** (`src/components/NotesGraph.tsx`): Visualize note links as an interactive node graph. Notes that reference each other are connected. Uses a simple force-directed layout with SVG/Canvas.
-
-**Canvas view**: Freeform board where user can place note cards, text blocks, images. Drag to position, resize. Stored as JSON layout in Firestore.
-
-**Version history**: Each note save creates a snapshot. User can view past versions and restore. Stored in Firestore subcollection `/users/{uid}/notes/{noteId}/versions/{versionId}`.
-
-**Import**: Support markdown (.md) and HTML file import via file picker. Parse and insert into editor.
-
-**Public/Private + Admin approval**: "Share publicly" button sends note to admin review. Admin approves from Admin panel. Public notes visible to all users.
-
-**Firestore storage**: All notes in `/users/{uid}/notes/{noteId}` with fields: title, content (HTML), folderId, parentFolderId, tags[], courseId, branchId, levelId, isPinned, isPublic, status (draft/pending/approved), createdAt, updatedAt. Folders in `/users/{uid}/noteFolders/{folderId}`.
-
----
-
-## 2. Study Mode (`src/pages/StudyMode.tsx` — NEW, replaces Focus Mode)
-
-**Route**: `/study` (replaces `/focus`). Update navbar: "Focus" → "Study OS".
-
-**Calendar view**: Day, Week, Month views. Central schedule area with time slots. Click to create study block. Drag to move/resize blocks.
-
-**Study block model**: title, description, branchId, levelId, courseId, projectId, topic, sessionType (study/review/quiz/flashcard/project), startTime, endTime, duration, repeatRule (none/daily/weekly), reminderMinutes, priority (low/normal/high), tags[], status (planned/in-progress/completed/missed).
-
-**Timer integration**: Each block has a "Play" button → starts countdown timer for that session's duration. Pause/resume/stop/complete controls. Records actual time studied.
-
-**Habit tracking section** (side panel): Daily check-in, current streak, consistency % (last 7/30 days), goals with completion %, missed sessions count.
-
-**Analytics**: Planned vs completed time chart (bar chart), weekly/monthly summaries, time-per-course breakdown.
-
-**Quick-add floating button**: "+" FAB in bottom-right → opens quick study block creation form.
-
-**Calendar toolbar**: Jump to today, switch views (day/week/month), filter by course/branch, search upcoming sessions.
-
-**Session drawer**: Click any block → opens side drawer with full details, edit, delete, start timer.
-
-**Includes existing Focus features**: Strict/Normal mode, music player, wallpaper picker, dark/light toggle — accessible from within a study session or standalone.
-
-**Firestore**: `/users/{uid}/studySessions/{id}`, `/users/{uid}/studyGoals/{id}`, `/users/{uid}/studyHabits/{id}`.
+```text
+JSON Upload/Paste
+       ↓
+  In-Memory Parse (jsonExtractor.ts — already exists)
+       ↓
+  Schema Detection Engine (NEW)
+  → scan all records, extract unique keys, infer types
+       ↓
+  Admin Mapping UI (NEW)
+  → assign roles: primary ID, question, answer, grouping, filters, search, sort
+  → mark filter types: dropdown, multi-select, range, date, hierarchical
+  → save as reusable schema template to Firestore /schema_templates/{id}
+       ↓
+  Normalization Layer (enhance jsonExtractor.ts)
+  → standardize keys per mapping, flatten nested, coerce types
+  → preserve raw data in _raw field
+       ↓
+  Deduplication Engine (NEW)
+  → normalized hash of primary content fields
+  → detect dupes across dataset AND existing DB records
+  → merge multi-value fields (proctors, tags)
+  → produce clean dataset + dedup report
+       ↓
+  Preview & Validation (in-memory only)
+  → show counts: new / duplicate / invalid / total
+  → admin reviews before any DB write
+       ↓
+  Batched Atomic Write (on confirm)
+  → Firestore batch writes (max 500 per batch)
+  → store normalized records in /questions
+  → generate & store filter indexes in /filter_indexes/{projectId}
+  → record import metadata in /import_logs/{id} (file hash, counts, schema used)
+  → file hash check prevents re-import of same dataset
+       ↓
+  Dynamic Frontend Rendering
+  → VivaPrep.tsx fetches /filter_indexes/{projectId} + /schema_templates
+  → renders filters dynamically: dropdowns, chips, ranges, dates
+  → no hardcoded filter keys
+```
 
 ---
 
-## 3. Dynamic Academic Hierarchy
+## Phase 1: Schema Detection Engine
 
-### Admin side (`Admin.tsx` — new sections):
-- **Branch Management**: CRUD for branches (name, shortName, color). Stored in `/branches/{id}`.
-- **Level Management**: CRUD for levels within a branch (name, branchId, order). Stored in `/levels/{id}`.
-- **Course creation form**: Must select branch + level + type (course/project) + access type (public/private/premium). Fields: title, abbreviation, description, iconColor, status, accessType, unlockConditions.
+**New file**: `src/lib/schemaEngine.ts`
 
-### Homepage cascading dropdowns (`Index.tsx`):
-- Branch dropdown → on change, Level dropdown filters to only levels with matching `branchId` → on change, course grid filters.
-- Level dropdown options are dependent on selected branch.
-- All filtering is instant, no page reload.
+- `detectSchema(records: any[])` → scans all records, returns:
+  - `fields`: array of `{ key, path (for nested), type (string|number|boolean|date|array|object), sampleValues (first 5 unique), uniqueCount, isMultiValue, isNested }`
+- Handles nested keys by flattening with dot notation (e.g., `meta.proctor`)
+- Type inference: check all records, pick majority type, flag inconsistencies
+- Detect arrays vs single values, dates (ISO string patterns), booleans
 
-### Firestore sync (`firestoreSync.ts`):
-- Add CRUD functions for branches, levels.
-- Add `createBranch`, `updateBranch`, `deleteBranch`, `createLevel`, `updateLevel`, `deleteLevel`.
+## Phase 2: Schema Mapping UI
 
----
+**New admin section**: "Schema & Import" in Admin sidebar
 
-## 4. Homepage Redesign (`Index.tsx`)
+### Mapping Interface:
+- After JSON parse, show a table of all detected fields
+- Each field row has:
+  - Field name (from JSON)
+  - Detected type (auto)
+  - Sample values (3-5 shown)
+  - **Role dropdown**: Primary ID, Display Title, Question, Answer, Description, Grouping Key, Filterable, Searchable, Sortable, Metadata, Skip
+  - **Filter type** (when Filterable): Dropdown, Multi-Select Chips, Range Slider, Date Picker, Hierarchical
+  - **Rename to** (optional): e.g., `asked_by` → `proctor`
+- Auto-suggest mappings based on key names (reuse existing logic from `mapToQuestionSchema`)
+- "Save as Template" button → stores config in `/schema_templates/{id}` with: name, fieldMappings[], createdAt, createdBy
+- "Load Template" dropdown → auto-applies saved mapping to new import
 
-**Layout change**:
-- Left section (40%): App branding ("VivaVault" + description), cascading dropdown filters (Branch → Level → Type)
-- Right section (60%): Global search bar (full width, searches courses/notes/resources/questions), feature box with quick access cards for Study OS, Notes OS, Resources, and a "Contribution" dropdown button (Submit Questions, Share Notes, Share Resources)
+### Firestore schema for templates:
+```
+/schema_templates/{id}
+  - name: string
+  - fieldMappings: [{ sourceKey, targetKey, role, filterType, isMultiSelect, isHierarchical, isRange }]
+  - createdAt, createdBy
+```
 
-**Navbar update** (`Layout.tsx`):
-- Links: Home, Dashboard, Study OS, Notes OS, Resources, Profile
-- Remove "Focus" and "Bookmarks" from top nav (accessible via dashboard/profile)
-- Dashboard is a primary nav item
+## Phase 3: Normalization & Deduplication
 
-**Course card CTA update** (`CourseCard.tsx`):
-- Primary button (Continue/Enroll): 70% width, dominant styling
-- Secondary button (Resources): 30% width, subtle outline
+**Enhance**: `src/lib/jsonExtractor.ts`
 
----
+### Normalization:
+- New function `normalizeRecords(records, mapping)`:
+  - Renames fields per mapping config
+  - Flattens nested structures
+  - Coerces types (string numbers → numbers, comma-strings → arrays)
+  - Standardizes to internal schema while keeping `_raw` for traceability
 
-## 5. Course Access Control
+### Deduplication:
+- New function `deduplicateRecords(records, existingHashes?, primaryFields?)`:
+  - Generate fingerprint: lowercase + trim + remove punctuation of primary content fields → MD5-like hash (use simple string hash)
+  - Compare against provided existing hashes (fetched from DB before import)
+  - When duplicate found: merge multi-value fields (proctors, tags) into arrays
+  - Return: `{ clean: Record[], duplicates: Record[], merged: Record[], invalid: Record[] }`
 
-### Course model extension:
-- Add `accessType: "public" | "private" | "premium"` field
-- Add `unlockConditions: { loginRequired: boolean, subscriptionRequired: boolean }`
+## Phase 4: Filter Index Generation
 
-### Frontend behavior:
-- **Public**: Fully visible and accessible
-- **Private**: Hidden from all non-admin users (filtered out on frontend, not returned for non-admins)
-- **Premium**: Visible as locked card with lock icon. Click → check conditions → if not logged in: "Sign in to access" prompt. If logged in but no subscription: "Upgrade" prompt. If conditions met: unlock and behave as normal.
+**New Firestore collection**: `/filter_indexes/{projectId}`
 
-### Admin panel:
-- Access type selector in course creation/edit form
-- Toggle between public/private/premium per course
+- After import, for each field marked as "Filterable" in the mapping:
+  - Extract all unique values across records
+  - Count occurrences
+  - Store as: `{ fieldKey, fieldLabel, filterType, values: [{ value, count }], updatedAt }`
+- On subsequent imports, merge new values into existing index
+- Function: `generateFilterIndexes(records, mapping, projectId)` → writes to Firestore
 
----
+## Phase 5: Import Metadata & Duplicate Prevention
 
-## 6. Demo/Guest Access System
+**New collection**: `/import_logs/{id}`
+- Fields: fileHash (SHA-256 of raw content), projectId, recordCount, duplicatesSkipped, mergedCount, invalidCount, schemaTemplateId, importedBy, importedAt
+- Before import: check if fileHash already exists → warn admin "This exact file was already imported on [date]"
 
-### Auth page (`Auth.tsx`):
-- Two options: "Sign In" and "Try Demo"
-- Demo starts a 10-minute session
+## Phase 6: Dynamic Filter Rendering (VivaPrep.tsx)
 
-### Demo session:
-- `sessionStorage` tracks demo start time
-- Persistent countdown timer in navbar (visible as "Demo: 9:42 remaining")
-- Limited permissions: can browse courses (public only), view questions (limited), no bookmarks/notes/submissions
-- All content cards show "Sign in to access" for restricted features
-- When timer expires: warning modal → redirect to `/auth`
-- No Firestore writes for demo users
+**Major change to** `src/pages/VivaPrep.tsx`:
 
-### Backend enforcement:
-- `AuthContext` has `isDemo` flag
-- `AuthGate` checks demo expiry on every route change
+- On mount, fetch `/filter_indexes/{projectId}` alongside questions
+- Replace hardcoded Category/Proctor/Tags dropdowns with dynamic rendering:
+  - For each filter index entry, render the appropriate UI control based on `filterType`:
+    - `dropdown` → `<Select>` with unique values
+    - `multi-select` → chip/pill toggles
+    - `range` → slider (for numeric fields)
+    - `date` → date picker
+    - `hierarchical` → nested tree select
+  - All filter state stored in a generic `Record<string, string | string[]>` object
+  - Filtering logic uses a generic combiner: for each active filter, check if record's field matches
+- Keep frequency pills as quick toggles (they're UX, not schema-driven)
+- Preserve existing bookmark, edit, share, upvote functionality untouched
 
----
+## Phase 7: Admin Panel Expansion
 
-## 7. Admin Panel Expansion + Bookmarks Migration
+**Expand** `src/pages/Admin.tsx` sidebar with new sections:
 
-### Admin sidebar navigation (`Admin.tsx`):
-- Sections: Overview, Branches & Levels, Courses, Questions Import, Notes Management, Resources, Notifications, User Submissions, Access Requests, Admin Management
+| Section | Purpose |
+|---------|---------|
+| Overview | Stats dashboard: total users, courses, questions, pending items |
+| Branches & Levels | Full CRUD (already partially built in firestoreSync) |
+| Courses & Projects | Enhanced CRUD: add accessType, branchId, levelId, iconColor, status, unlockConditions |
+| Schema & Import | The new mapping UI + import pipeline |
+| Questions | Existing import (now using schema engine) |
+| Notes Management | Existing + enhanced |
+| Resources | Existing |
+| Notifications | Compose & send (already in firestoreSync) |
+| Submissions | Existing approval workflows |
+| Access Requests | List/approve locked course requests |
+| Admin Management | Existing |
+| Audit Log | New: view all admin actions with timestamps |
 
-### Admin Overview dashboard:
-- Stats cards: total users, courses, questions, pending submissions
-- Quick action buttons
+### Audit Logging:
+- New helper: `logAdminAction(uid, action, entityType, entityId, details)`
+- Writes to `/audit_logs/{id}`: userId, action (create/update/delete/import), entityType, entityId, details, timestamp
+- Admin can view audit log in a dedicated section
 
-### Branch/Level CRUD:
-- Create/edit/delete branches with color picker
-- Create/edit/delete levels with branch selector and order
+## Phase 8: Full CRUD for All Entities
 
-### Course CRUD:
-- Full form: title, abbreviation, type, branch, level, description, iconColor, status, accessType, unlockConditions, guestPreviewFields
-- Lock/unlock toggle
+Expand `firestoreSync.ts` with complete CRUD for:
+- Courses/Projects: create, update, delete with full metadata (accessType, branchId, levelId, status, iconColor, unlockConditions)
+- Questions: individual CRUD (not just bulk import)
+- Resources: CRUD + approval status
+- Flashcards: deck CRUD
+- Quizzes: CRUD
+- Notifications: compose, list, delete
+- Users: list, update role, delete
 
-### Notifications composer:
-- Title, message, target (All/specific course), send button
-- History list
-
-### Bookmarks migration (`Bookmarks.tsx`):
-- Replace `localStorage` with Firestore via `saveBookmarksToFirestore`/`loadBookmarksFromFirestore`
-- Fallback to localStorage for guests
-- Update `VivaPrep.tsx` bookmark save/load to use Firestore when user is signed in
+Each write operation calls `logAdminAction()` for audit trail.
 
 ---
 
@@ -162,46 +182,30 @@ This plan covers 7 major workstreams built in parallel: (1) Notes OS — Notion/
 
 | File | Purpose |
 |------|---------|
-| `src/pages/StudyMode.tsx` | Calendar + habit tracker + timer workspace |
-| `src/components/NotesGraph.tsx` | Graph view for note relationships |
-| `src/components/NotesCanvas.tsx` | Freeform canvas for notes |
-| `src/components/StudyCalendar.tsx` | Calendar component for study blocks |
-| `src/components/StudySessionDrawer.tsx` | Side drawer for session details |
+| `src/lib/schemaEngine.ts` | Schema detection, normalization, deduplication, index generation |
 
 ## Files to Heavily Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/Notes.tsx` | Complete rewrite — Notion-style workspace |
-| `src/pages/Index.tsx` | New layout (40/60), cascading filters, contribution dropdown |
-| `src/pages/Admin.tsx` | Sidebar nav, branch/level CRUD, course CRUD, notifications, overview |
-| `src/pages/Auth.tsx` | Add "Try Demo" option with 10-min session |
-| `src/pages/Bookmarks.tsx` | Firestore migration |
-| `src/pages/Dashboard.tsx` | Firestore data source for streaks/activity |
-| `src/pages/VivaPrep.tsx` | Firestore bookmarks, course sidebar |
-| `src/components/Layout.tsx` | Updated nav links (Dashboard, Study OS, Notes OS, Resources), demo timer |
-| `src/components/CourseCard.tsx` | 70/30 button split, premium/private states |
-| `src/components/MobileBottomNav.tsx` | Updated nav items |
-| `src/lib/firestoreSync.ts` | Branch/Level CRUD, study session CRUD, notes CRUD |
-| `src/contexts/AuthContext.tsx` | Add `isDemo`, demo timer logic |
-| `src/App.tsx` | Add `/study` route, remove `/focus` + `/timer`, add redirects |
-
-## Dependencies to Add
-- None new — existing TipTap, framer-motion, Firebase, react-markdown cover everything. Graph view uses SVG with basic force simulation (no external lib needed).
+| `src/pages/Admin.tsx` | Add Schema & Import section with mapping UI, Overview dashboard, Branches/Levels CRUD UI, Course CRUD with full fields, Notifications composer, Audit Log viewer, Access Requests |
+| `src/lib/jsonExtractor.ts` | Integrate with schemaEngine for normalization step |
+| `src/lib/firestoreSync.ts` | Add CRUD for courses, questions, resources, flashcards, quizzes, notifications, audit log, filter indexes, schema templates, import logs |
+| `src/pages/VivaPrep.tsx` | Replace hardcoded filters with dynamic filter rendering from filter_indexes |
+| `src/pages/Index.tsx` | Use enhanced course data (accessType, status fields) |
+| `src/components/CsvMapper.tsx` | Integrate with schema templates for auto-mapping |
 
 ---
 
 ## Technical Notes
 
-**Cascading dropdowns**: When branch changes, reset level to "all". Filter `levels` array by `branchId` before rendering level dropdown options. Course grid re-renders via `useMemo`.
+**Batched writes**: Firestore batches max 500 operations. For large imports, chunk into multiple batches and commit sequentially. Wrap each batch in try/catch — if one fails, log which records failed and continue.
 
-**Notes folder tree**: Recursive component rendering. Each folder node has children (sub-folders and notes). Drag-and-drop via HTML5 drag API (`onDragStart`, `onDragOver`, `onDrop`). Update `parentFolderId` in Firestore on drop.
+**File hash**: Use a simple hash function (same pattern as existing `hashColor` but for content) to generate a fingerprint of the uploaded file content. Store in import_logs for dedup.
 
-**Study calendar**: Custom grid layout. Day view = 24 hour rows. Week view = 7 columns × 24 rows. Month view = traditional calendar grid with event dots. Blocks rendered as absolutely positioned divs within the grid.
+**Filter index performance**: Each project gets one filter_indexes document (or subcollection if many filters). On VivaPrep load, fetch once and cache in state. No repeated reads.
 
-**Demo timer**: `sessionStorage.setItem("vv_demo_start", Date.now())`. On every route change and every 30 seconds, check if 10 minutes elapsed. If yes, clear session and redirect.
+**Backward compatibility**: Existing questions without schema mapping continue to work — VivaPrep falls back to hardcoded Category/Proctor/Tags filters when no filter_indexes exist for a project. New imports that use the schema engine generate indexes; old data is unaffected.
 
-**Graph view**: Simple force-directed layout. Parse note content for `[[note-title]]` patterns to detect links. Nodes = notes, edges = links between them. Render with SVG circles and lines. Basic spring physics for positioning.
-
-**Course card 70/30 split**: Primary button gets `basis-[70%]`, secondary gets `basis-[30%]` within `flex` container.
+**No localStorage for critical data**: All schema templates, import logs, filter indexes, and audit logs go to Firestore. Only UI state (which admin tab is active, preview data before import) stays in component state.
 
