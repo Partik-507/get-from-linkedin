@@ -1,3 +1,5 @@
+
+
 # VivaVault — Admin OS & Dynamic Filters Expansion
 
 ## What Gets Built
@@ -29,38 +31,30 @@ Expand the sidebar from 7 sections to 12:
 - Step 5: "Save as Template" stores config to Firestore; "Load Template" dropdown restores saved mappings
 - Step 6: File hash check — warns if same file was already imported
 - Step 7: Normalization + dedup preview — shows counts (new, duplicate, merged, invalid)
-- Step 8: Select target project → "Confirm Import" → batched atomic write via `batchWriteQuestions()` + filter index generation + import log + audit log
+- Step 8: Select target project → "Confirm Import" → batched atomic write + filter index generation + import log + audit log
 
 ### 2. VivaPrep Dynamic Filter Rendering (`src/pages/VivaPrep.tsx`)
 
-Replace the hardcoded Category/Proctor/Tags filter system with a schema-driven approach:
+Replace hardcoded Category/Proctor/Tags filters with schema-driven approach:
 
-- On mount, fetch `/filter_indexes/{projectId}` from Firestore alongside questions
-- If filter indexes exist: render each filter dynamically based on `filterType`:
-  - `dropdown` → Select component
-  - `multi_select` → chip/pill toggles (like current category pills)
-  - `range` → Slider component
-  - `date_picker` → date input
-- If no filter indexes exist: fall back to current hardcoded Category/Proctor/Tags filters (backward compatibility)
-- Filter state stored as `Record<string, string | string[]>` — generic, not field-specific
-- Filtering logic uses a generic combiner matching any active filter against question fields + customFields
-- Keep existing: frequency pills, search, sort, bookmarks, upvotes, studied tracking, submission cards
+- On mount, fetch `/filter_indexes/{projectId}` from Firestore
+- If filter indexes exist: render each filter dynamically based on `filterType` (dropdown → Select, multi_select → chip toggles, range → Slider, date_picker → date input)
+- If no filter indexes: fall back to current hardcoded filters (backward compat)
+- Generic filter state as `Record<string, string | string[]>`
+- Keep all existing features: frequency pills, search, sort, bookmarks, upvotes, studied tracking
 
 ### 3. StudyMode Calendar Enhancement (`src/pages/StudyMode.tsx`)
 
-- Add year view alongside existing day/week/month
-- Clickable time slots that pre-fill the creation modal with correct date/time
-- Drag support for event repositioning (HTML5 drag API)
-- Session drawer (Sheet component) for viewing/editing block details without modal
-- Connect study blocks to enrolled courses (fetch from Firestore)
-- Record completed sessions with actual vs planned time comparison
+- Year view, clickable time slots pre-filling creation modal, drag-to-reposition events
+- Session drawer for viewing/editing block details
+- Connect study blocks to enrolled courses from Firestore
+- Planned vs actual time tracking
 
 ### 4. Notes OS Polish (`src/pages/Notes.tsx`)
 
-- Ensure slash command menu works with TipTap (already partially built)
-- Add version history: on save, snapshot current content to `/users/{uid}/notes/{noteId}/versions/{versionId}`
-- File import: button to import .md/.html files via FileReader, parse and insert into editor
-- Graph view: parse `[[note-title]]` patterns from note content, render SVG force-directed graph
+- Version history snapshots on save
+- .md/.html file import
+- Graph view parsing `[[note-title]]` links
 
 ---
 
@@ -68,20 +62,10 @@ Replace the hardcoded Category/Proctor/Tags filter system with a schema-driven a
 
 | File | Changes |
 |------|---------|
-| `src/pages/Admin.tsx` | Complete rewrite — 12 sections, schema mapping UI, overview dashboard, branch/level CRUD, course CRUD with access control, notifications composer, audit log viewer |
-| `src/pages/VivaPrep.tsx` | Dynamic filter rendering from filter_indexes, generic filter state, backward-compatible fallback |
+| `src/pages/Admin.tsx` | 12 sections, schema mapping UI, overview, branch/level CRUD, course CRUD with access control, notifications, audit log |
+| `src/pages/VivaPrep.tsx` | Dynamic filter rendering from filter_indexes with backward-compatible fallback |
 | `src/pages/StudyMode.tsx` | Year view, clickable slots, session drawer, course integration |
-| `src/pages/Notes.tsx` | Version history, file import, graph view improvements |
+| `src/pages/Notes.tsx` | Version history, file import, graph view |
 
-## No New Files Needed
+No new files needed — all required utility functions already exist in `schemaEngine.ts` and `firestoreSync.ts`.
 
-All logic integrates into existing files. `schemaEngine.ts` and `firestoreSync.ts` already have all the required functions.
-
-## Technical Notes
-
-- Schema mapping UI renders a `<Table>` where each row = detected field, columns = Field Name, Type, Samples, Role (Select), Filter Type (Select, shown only when role=filterable), Rename (Input)
-- Template save/load uses `saveSchemaTemplate`/`getSchemaTemplates` from firestoreSync
-- Dedup report card shows 4 counts with colored badges before import confirmation
-- VivaPrep backward compat: check `filterIndexes.length > 0` — if false, render old hardcoded filters
-- Batched writes use existing `batchWriteQuestions()` which chunks at 450 records per batch
-- Audit log table fetches via `getAuditLogs()`, renders with timestamp formatting and action badges
