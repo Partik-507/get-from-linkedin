@@ -128,7 +128,7 @@ const Notes = () => {
       Highlight.configure({ multicolor: true }),
       Link.configure({ openOnClick: false, HTMLAttributes: { class: "text-primary underline" } }),
       Image.configure({ inline: false }),
-      Table.configure({ resizable: true }),
+      TiptapTable.configure({ resizable: true }),
       TableRow,
       TableCell,
       TableHeader,
