@@ -25,8 +25,8 @@ const commands: SlashCommand[] = [
   { label: "Quote", description: "Block quote", icon: Quote, keywords: ["quote", "blockquote"], action: (e) => e.chain().focus().toggleBlockquote().run() },
   { label: "Code Block", description: "Code snippet", icon: Code, keywords: ["code", "pre", "snippet"], action: (e) => e.chain().focus().toggleCodeBlock().run() },
   { label: "Divider", description: "Horizontal rule", icon: Minus, keywords: ["divider", "hr", "line"], action: (e) => e.chain().focus().setHorizontalRule().run() },
-  { label: "Table", description: "Insert table", icon: Table, keywords: ["table", "grid"], action: (e) => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
-  { label: "Image", description: "Embed image by URL", icon: Image, keywords: ["image", "picture", "img"], action: (e) => { const url = prompt("Image URL:"); if (url) e.chain().focus().setImage({ src: url }).run(); } },
+  { label: "Table", description: "Insert table", icon: Table, keywords: ["table", "grid"], action: (e) => (e.chain().focus() as any).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
+  { label: "Image", description: "Embed image by URL", icon: Image, keywords: ["image", "picture", "img"], action: (e) => { const url = prompt("Image URL:"); if (url) (e.chain().focus() as any).setImage({ src: url }).run(); } },
 ];
 
 interface Props {
