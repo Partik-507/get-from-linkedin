@@ -22,6 +22,7 @@ import StudyMode from "./pages/StudyMode";
 import Notes from "./pages/Notes";
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
+import SharedNote from "./pages/SharedNote";
 
 const queryClient = new QueryClient();
 
@@ -83,6 +84,7 @@ const App = () => (
               <Route path="/notifications" element={<AuthGate><Notifications /></AuthGate>} />
               <Route path="/admin" element={<AuthGate><Admin /></AuthGate>} />
               <Route path="/progress" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/shared/:noteId" element={<SharedNote />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>
