@@ -170,51 +170,45 @@ export const NoteEditor = ({
             />
           </div>
 
-          {/* Bubble Menu */}
-          {editor && (
-            <BubbleMenu editor={editor} tippyOptions={{ duration: 150 }}
-              className="flex items-center gap-0.5 bg-popover border border-border rounded-lg shadow-lg p-1">
-              <button onClick={() => editor.chain().focus().toggleBold().run()}
-                className={cn("p-1.5 rounded hover:bg-accent/60 transition-colors", editor.isActive("bold") && "bg-accent text-primary")}>
-                <Bold className="h-3.5 w-3.5" />
+          {/* Inline formatting toolbar */}
+          <div className="flex items-center gap-0.5 mb-3 flex-wrap">
+            {[
+              { action: () => editor.chain().focus().toggleBold().run(), active: editor.isActive("bold"), icon: Bold, label: "Bold" },
+              { action: () => editor.chain().focus().toggleItalic().run(), active: editor.isActive("italic"), icon: Italic, label: "Italic" },
+              { action: () => editor.chain().focus().toggleUnderline().run(), active: editor.isActive("underline"), icon: UnderlineIcon, label: "Underline" },
+              { action: () => editor.chain().focus().toggleStrike().run(), active: editor.isActive("strike"), icon: Strikethrough, label: "Strike" },
+              { action: () => editor.chain().focus().toggleCode().run(), active: editor.isActive("code"), icon: Code, label: "Code" },
+              { action: () => editor.chain().focus().toggleHighlight().run(), active: editor.isActive("highlight"), icon: Highlighter, label: "Highlight" },
+            ].map(b => (
+              <button key={b.label} onClick={b.action} title={b.label}
+                className={cn("p-1.5 rounded-md hover:bg-accent/60 transition-colors", b.active && "bg-accent text-primary")}>
+                <b.icon className="h-3.5 w-3.5" />
               </button>
-              <button onClick={() => editor.chain().focus().toggleItalic().run()}
-                className={cn("p-1.5 rounded hover:bg-accent/60 transition-colors", editor.isActive("italic") && "bg-accent text-primary")}>
-                <Italic className="h-3.5 w-3.5" />
-              </button>
-              <button onClick={() => editor.chain().focus().toggleUnderline().run()}
-                className={cn("p-1.5 rounded hover:bg-accent/60 transition-colors", editor.isActive("underline") && "bg-accent text-primary")}>
-                <UnderlineIcon className="h-3.5 w-3.5" />
-              </button>
-              <button onClick={() => editor.chain().focus().toggleStrike().run()}
-                className={cn("p-1.5 rounded hover:bg-accent/60 transition-colors", editor.isActive("strike") && "bg-accent text-primary")}>
-                <Strikethrough className="h-3.5 w-3.5" />
-              </button>
-              <button onClick={() => editor.chain().focus().toggleCode().run()}
-                className={cn("p-1.5 rounded hover:bg-accent/60 transition-colors", editor.isActive("code") && "bg-accent text-primary")}>
-                <Code className="h-3.5 w-3.5" />
-              </button>
-              <button onClick={() => editor.chain().focus().toggleHighlight().run()}
-                className={cn("p-1.5 rounded hover:bg-accent/60 transition-colors", editor.isActive("highlight") && "bg-accent text-primary")}>
-                <Highlighter className="h-3.5 w-3.5" />
-              </button>
-              <div className="w-px h-4 bg-border mx-0.5" />
-              <button onClick={() => editor.chain().focus().setTextAlign("left").run()}
-                className={cn("p-1.5 rounded hover:bg-accent/60 transition-colors", editor.isActive({ textAlign: "left" }) && "bg-accent text-primary")}>
-                <AlignLeft className="h-3.5 w-3.5" />
-              </button>
-              <button onClick={() => editor.chain().focus().setTextAlign("center").run()}
-                className={cn("p-1.5 rounded hover:bg-accent/60 transition-colors", editor.isActive({ textAlign: "center" }) && "bg-accent text-primary")}>
-                <AlignCenter className="h-3.5 w-3.5" />
-              </button>
-              <button onClick={() => {
-                const url = window.prompt("Link URL:");
-                if (url) editor.chain().focus().setLink({ href: url }).run();
-              }} className={cn("p-1.5 rounded hover:bg-accent/60 transition-colors", editor.isActive("link") && "bg-accent text-primary")}>
-                <LinkIcon className="h-3.5 w-3.5" />
-              </button>
-            </BubbleMenu>
-          )}
+            ))}
+            <div className="w-px h-4 bg-border/30 mx-1" />
+            <button onClick={() => editor.chain().focus().setTextAlign("left").run()} title="Align left"
+              className={cn("p-1.5 rounded-md hover:bg-accent/60 transition-colors", editor.isActive({ textAlign: "left" }) && "bg-accent text-primary")}>
+              <AlignLeft className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={() => editor.chain().focus().setTextAlign("center").run()} title="Align center"
+              className={cn("p-1.5 rounded-md hover:bg-accent/60 transition-colors", editor.isActive({ textAlign: "center" }) && "bg-accent text-primary")}>
+              <AlignCenter className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={() => {
+              const url = window.prompt("Link URL:");
+              if (url) editor.chain().focus().setLink({ href: url }).run();
+            }} title="Link"
+              className={cn("p-1.5 rounded-md hover:bg-accent/60 transition-colors", editor.isActive("link") && "bg-accent text-primary")}>
+              <LinkIcon className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={() => {
+              const url = window.prompt("Image URL:");
+              if (url) (editor.chain().focus() as any).setImage({ src: url }).run();
+            }} title="Image"
+              className="p-1.5 rounded-md hover:bg-accent/60 transition-colors">
+              <ImageIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
 
           {/* TipTap Editor */}
           <div className="tiptap-editor relative prose-notes">
