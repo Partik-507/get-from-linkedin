@@ -1,79 +1,37 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { FileText, BookOpen, Calendar, Target, Lightbulb } from "lucide-react";
+import { BookOpen, FileText, Calendar, Lightbulb, Network, Sparkles } from "lucide-react";
 
-interface NoteTemplate {
-  id: string;
-  title: string;
-  icon: React.ElementType;
-  content: string;
-  tags: string[];
-}
-
-const TEMPLATES: NoteTemplate[] = [
-  {
-    id: "meeting",
-    title: "Meeting Notes",
-    icon: Calendar,
-    tags: ["meeting"],
-    content: `<h2>Meeting Notes</h2><p><strong>Date:</strong> </p><p><strong>Attendees:</strong> </p><h3>Agenda</h3><ul><li></li></ul><h3>Discussion</h3><p></p><h3>Action Items</h3><ul class="task-list"><li data-type="taskItem" data-checked="false">Task 1</li></ul>`,
-  },
-  {
-    id: "study",
-    title: "Study Notes",
-    icon: BookOpen,
-    tags: ["study"],
-    content: `<h2>Study Notes</h2><h3>Topic</h3><p></p><h3>Key Concepts</h3><ul><li></li></ul><h3>Questions</h3><ol><li></li></ol><h3>Summary</h3><p></p>`,
-  },
-  {
-    id: "project",
-    title: "Project Plan",
-    icon: Target,
-    tags: ["project"],
-    content: `<h2>Project Plan</h2><h3>Objective</h3><p></p><h3>Milestones</h3><ul class="task-list"><li data-type="taskItem" data-checked="false">Milestone 1</li><li data-type="taskItem" data-checked="false">Milestone 2</li></ul><h3>Resources</h3><ul><li></li></ul><h3>Timeline</h3><p></p>`,
-  },
-  {
-    id: "journal",
-    title: "Daily Journal",
-    icon: FileText,
-    tags: ["journal"],
-    content: `<h2>Daily Journal</h2><p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p><h3>Today's Goals</h3><ul class="task-list"><li data-type="taskItem" data-checked="false">Goal 1</li></ul><h3>Reflections</h3><p></p><h3>Tomorrow's Plan</h3><p></p>`,
-  },
-  {
-    id: "reading",
-    title: "Reading Notes",
-    icon: Lightbulb,
-    tags: ["reading"],
-    content: `<h2>Reading Notes</h2><p><strong>Source:</strong> </p><p><strong>Author:</strong> </p><h3>Key Ideas</h3><ul><li></li></ul><h3>Quotes</h3><blockquote><p></p></blockquote><h3>My Thoughts</h3><p></p>`,
-  },
+const TEMPLATES = [
+  { id:"blank",title:"Blank Page",description:"Start from scratch",icon:FileText,color:"text-muted-foreground",content:"",tags:[] },
+  { id:"study",title:"Study Notes",description:"Structured study template",icon:BookOpen,color:"text-primary",
+    content:`<h1>📚 Topic Name</h1><h2>Overview</h2><p>Brief overview...</p><h2>Key Concepts</h2><ul><li>Concept 1</li><li>Concept 2</li></ul><h2>Important Formulas</h2><p><code>Formula</code></p><h2>Practice Questions</h2><ul data-type="taskList"><li data-type="taskItem" data-checked="false">Q1</li></ul><h2>Summary</h2><p>Key takeaways...</p>`,tags:["study"] },
+  { id:"project",title:"Project Report",description:"Academic project",icon:Sparkles,color:"text-purple-500",
+    content:`<h1>🎯 Project Title</h1><h2>Objective</h2><p></p><h2>Methodology</h2><p></p><h2>Results</h2><p></p><h2>Conclusion</h2><p></p>`,tags:["project"] },
+  { id:"meeting",title:"Meeting Notes",description:"Agenda & action items",icon:Calendar,color:"text-blue-500",
+    content:`<h1>📋 Meeting Notes</h1><p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p><h2>Agenda</h2><ul><li>Topic 1</li></ul><h2>Action Items</h2><ul data-type="taskList"><li data-type="taskItem" data-checked="false">Action 1</li></ul>`,tags:["meeting"] },
+  { id:"journal",title:"Daily Journal",description:"Daily reflection",icon:Lightbulb,color:"text-amber-500",
+    content:`<h1>📝 ${new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</h1><h2>🎯 Goals</h2><ul data-type="taskList"><li data-type="taskItem" data-checked="false">Goal 1</li></ul><h2>💭 Thoughts</h2><p></p>`,tags:["journal"] },
+  { id:"concept",title:"Concept Map",description:"Connected concepts",icon:Network,color:"text-green-500",
+    content:`<h1>🧠 Main Concept</h1><blockquote><p>💡 Core Idea: ...</p></blockquote><h2>Sub-Concepts</h2><h3>A</h3><p>...</p><h3>B</h3><p>...</p>`,tags:["concept-map"] },
 ];
 
-interface Props {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSelect: (template: { title: string; content: string; tags: string[] }) => void;
-}
+interface Props { open: boolean; onClose: () => void; onSelect: (t: { title: string; content: string; tags: string[] }) => void; }
 
-export const TemplatePickerModal = ({ open, onOpenChange, onSelect }: Props) => {
+export const TemplatePickerModal = ({ open, onClose, onSelect }: Props) => {
+  const [hovered, setHovered] = useState<string|null>(null);
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="font-heading">New from Template</DialogTitle>
-          <DialogDescription className="font-body">Choose a template to get started</DialogDescription>
-        </DialogHeader>
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader><DialogTitle className="font-heading">Choose a Template</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3 mt-2">
-          {TEMPLATES.map(t => (
-            <button
-              key={t.id}
-              onClick={() => {
-                onSelect({ title: t.title, content: t.content, tags: t.tags });
-                onOpenChange(false);
-              }}
-              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border/60 hover:border-primary/40 hover:bg-accent/30 transition-all group text-center"
-            >
-              <t.icon className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
-              <span className="text-sm font-body font-medium">{t.title}</span>
+          {TEMPLATES.map(t=>(
+            <button key={t.id} onClick={()=>{onSelect({title:t.id==="blank"?"Untitled":t.title,content:t.content,tags:t.tags});onClose();}}
+              onMouseEnter={()=>setHovered(t.id)} onMouseLeave={()=>setHovered(null)}
+              className={cn("flex items-start gap-3 p-4 rounded-xl border text-left transition-all",hovered===t.id?"border-primary/40 bg-primary/5":"border-border/30 hover:border-border/60")}>
+              <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center shrink-0 bg-accent/30",t.color)}><t.icon className="h-4 w-4"/></div>
+              <div><p className="text-sm font-body font-medium">{t.title}</p><p className="text-[10px] text-muted-foreground/60 font-body mt-0.5">{t.description}</p></div>
             </button>
           ))}
         </div>

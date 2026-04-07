@@ -1,92 +1,59 @@
-import { FileText, ArrowLeft, Link2 } from "lucide-react";
-import { cn } from "@/lib/utils";
-
-interface NoteRef {
-  id: string;
-  title: string;
-  content: string;
-}
+import { useMemo } from "react";
+import { Link2, ArrowUpRight } from "lucide-react";
+import type { NoteMetadata } from "@/lib/notesFirestore";
 
 interface Props {
   currentNoteId: string;
-  notes: NoteRef[];
+  notes: NoteMetadata[];
+  contents: Record<string, string>;
   onSelectNote: (id: string) => void;
 }
 
-export const BacklinksPanel = ({ currentNoteId, notes, onSelectNote }: Props) => {
+export const BacklinksPanel = ({ currentNoteId, notes, contents, onSelectNote }: Props) => {
   const currentNote = notes.find(n => n.id === currentNoteId);
-
-  // Find notes that link TO this note via [[title]] pattern
-  const incomingLinks = notes.filter(n => {
-    if (n.id === currentNoteId || !n.content) return false;
-    const matches = n.content.match(/\[\[([^\]]+)\]\]/g) || [];
-    return matches.some(m => {
-      const title = m.replace(/\[\[|\]\]/g, "");
-      return currentNote && currentNote.title.toLowerCase() === title.toLowerCase();
+  const incomingLinks = useMemo(() => {
+    if (!currentNote) return [];
+    return notes.filter(n => {
+      if (n.id === currentNoteId) return false;
+      const content = contents[n.id] || "";
+      return new RegExp(`\\[\\[${currentNote.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]\\]`, 'i').test(content);
     });
-  });
+  }, [currentNote, notes, contents, currentNoteId]);
 
-  // Find notes THIS note links to
-  const outgoingLinks: NoteRef[] = [];
-  if (currentNote?.content) {
-    const matches = currentNote.content.match(/\[\[([^\]]+)\]\]/g) || [];
+  const outgoingLinks = useMemo(() => {
+    if (!currentNote) return [];
+    const content = contents[currentNoteId] || "";
+    const matches = content.match(/\[\[([^\]]+)\]\]/g) || [];
+    const linked: NoteMetadata[] = [];
     matches.forEach(m => {
-      const title = m.replace(/\[\[|\]\]/g, "");
+      const title = m.replace(/\[\[|\]\]/g, "").trim();
       const target = notes.find(n => n.title.toLowerCase() === title.toLowerCase() && n.id !== currentNoteId);
-      if (target && !outgoingLinks.find(o => o.id === target.id)) outgoingLinks.push(target);
+      if (target && !linked.find(l => l.id === target.id)) linked.push(target);
     });
-  }
-
-  if (incomingLinks.length === 0 && outgoingLinks.length === 0) {
-    return (
-      <div className="p-4 text-center">
-        <Link2 className="h-6 w-6 text-muted-foreground/30 mx-auto mb-2" />
-        <p className="text-xs text-muted-foreground font-body">No links yet</p>
-        <p className="text-[10px] text-muted-foreground/60 font-body mt-1">Use [[Note Title]] to link notes</p>
-      </div>
-    );
-  }
+    return linked;
+  }, [currentNote, notes, contents, currentNoteId]);
 
   return (
-    <div className="space-y-4 p-3">
-      {incomingLinks.length > 0 && (
-        <div>
-          <h4 className="text-[10px] font-body font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
-            <ArrowLeft className="h-3 w-3" /> Incoming ({incomingLinks.length})
-          </h4>
-          <div className="space-y-1">
-            {incomingLinks.map(n => (
-              <button
-                key={n.id}
-                onClick={() => onSelectNote(n.id)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent/50 transition-colors text-left"
-              >
-                <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
-                <span className="text-xs font-body truncate">{n.title}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-      {outgoingLinks.length > 0 && (
-        <div>
-          <h4 className="text-[10px] font-body font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
-            <Link2 className="h-3 w-3" /> Outgoing ({outgoingLinks.length})
-          </h4>
-          <div className="space-y-1">
-            {outgoingLinks.map(n => (
-              <button
-                key={n.id}
-                onClick={() => onSelectNote(n.id)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent/50 transition-colors text-left"
-              >
-                <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
-                <span className="text-xs font-body truncate">{n.title}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+    <div className="w-[260px] shrink-0 border-l border-border/30 bg-sidebar-background overflow-y-auto p-4 space-y-4">
+      <h3 className="text-xs font-heading font-semibold text-muted-foreground/60 uppercase tracking-widest flex items-center gap-1.5"><Link2 className="h-3.5 w-3.5" /> Backlinks</h3>
+      <div>
+        <p className="text-[10px] text-muted-foreground/40 font-body uppercase tracking-widest mb-2">Incoming ({incomingLinks.length})</p>
+        {incomingLinks.length === 0 ? <p className="text-[10px] text-muted-foreground/30 font-body italic">No notes link here</p> :
+          incomingLinks.map(n => (
+            <button key={n.id} onClick={() => onSelectNote(n.id)} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-accent/40 text-left transition-colors">
+              <ArrowUpRight className="h-3 w-3 text-primary/40 shrink-0" /><span className="text-xs font-body truncate">{n.title}</span>
+            </button>
+          ))}
+      </div>
+      <div>
+        <p className="text-[10px] text-muted-foreground/40 font-body uppercase tracking-widest mb-2">Outgoing ({outgoingLinks.length})</p>
+        {outgoingLinks.length === 0 ? <p className="text-[10px] text-muted-foreground/30 font-body italic">No links in this note</p> :
+          outgoingLinks.map(n => (
+            <button key={n.id} onClick={() => onSelectNote(n.id)} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-accent/40 text-left transition-colors">
+              <ArrowUpRight className="h-3 w-3 text-muted-foreground/40 shrink-0 rotate-180" /><span className="text-xs font-body truncate">{n.title}</span>
+            </button>
+          ))}
+      </div>
     </div>
   );
 };
