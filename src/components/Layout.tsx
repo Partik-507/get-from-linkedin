@@ -21,9 +21,11 @@ interface LayoutProps {
   children: React.ReactNode;
   title?: string;
   showBack?: boolean;
+  fullBleed?: boolean;
+  hideBottomNav?: boolean;
 }
 
-export const Layout = ({ children, title, showBack }: LayoutProps) => {
+export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: LayoutProps) => {
   const { user, isGuest, isAdmin, isDemo, demoTimeLeft, signOut } = useAuth();
   const { resolvedTheme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -241,12 +243,18 @@ export const Layout = ({ children, title, showBack }: LayoutProps) => {
         )}
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 md:pb-8">
-        {children}
-      </main>
+      {fullBleed ? (
+        <main className="flex-1 flex flex-col overflow-hidden">
+          {children}
+        </main>
+      ) : (
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 md:pb-8">
+          {children}
+        </main>
+      )}
 
       {/* Mobile bottom nav */}
-      {(user || isGuest || isAdmin) && <MobileBottomNav />}
+      {!hideBottomNav && (user || isGuest || isAdmin) && <MobileBottomNav />}
     </div>
   );
 };

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
+import { Layout } from "@/components/Layout";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -311,14 +312,17 @@ const Notes = () => {
 
   if (!user && !isGuest) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <EmptyState icon={FileText} title="Sign in to access Notes OS" description="Your personal knowledge workspace awaits." />
-      </div>
+      <Layout>
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <EmptyState icon={FileText} title="Sign in to access Notes OS" description="Your personal knowledge workspace awaits." />
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <Layout fullBleed hideBottomNav>
+    <div className="flex-1 flex flex-col bg-background overflow-hidden">
       {/* Top bar */}
       {!focusMode && (
         <div className="h-10 shrink-0 border-b border-border/30 flex items-center justify-between px-4 bg-card/30">
@@ -493,6 +497,7 @@ const Notes = () => {
 
       <ImportExportModal open={importOpen} onClose={() => setImportOpen(false)} onImport={handleImport} />
     </div>
+    </Layout>
   );
 };
 
