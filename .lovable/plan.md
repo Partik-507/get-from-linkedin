@@ -1,227 +1,154 @@
 
 
-# Notes OS — Complete Rebuild Plan
+# VivaVault — Notes OS Nav Integration, Editor Typography, & Study OS Complete Rebuild
 
 ## Summary
 
-Complete rebuild of the Notes OS into a dual-world system (My Workspace + Public Library) with a premium Notion/Obsidian-level editor, zero-cost architecture, and freemium monetization. The existing 937-line monolith and 11 component files are replaced with a modular, production-grade system.
-
-## Current State
-
-- `Notes.tsx`: 937-line monolith with basic TipTap editor, sidebar, tabs, graph/canvas/database views
-- 10 component files under `src/components/notes/` (SlashCommandMenu, GraphView, CanvasView, etc.)
-- Data stored flat in `users/{uid}/notes` with content inline (not separated)
-- No Public Library, no workspace toggle, no freemium gates, no focus mode, no cover images
-- Slash commands work but limited (no callout, math, toggle, YouTube, PDF, mention, [[link]])
-- SharedNote page exists but minimal
+Three major workstreams executed in parallel:
+1. **Notes OS navbar integration** — Connect Notes page to the main `<Layout>` navbar while keeping its full-bleed three-panel design
+2. **Editor typography & animations** — Add Lora serif font for note content, smooth sidebar/template/view transitions
+3. **Study OS complete rebuild** — Transform the 682-line StudyMode into a five-system productivity OS (Calendar, Tasks, Habits, Focus Engine, Analytics)
 
 ---
 
-## Phase 1: Data Layer & Core Architecture
+## Phase 1: Notes OS Navbar Integration
 
-**New data model with content separation:**
-- Split note metadata from content: metadata at `users/{uid}/notes/{noteId}`, content at `users/{uid}/notes/{noteId}/content/body`
-- Add fields: `coverImage`, `icon`, `wordCount`, `characterCount`, `lastOpenedAt`, `publishedNoteId`, `type` (document/canvas/table)
-- Folder model: add `color`, `icon`, `order` fields
-- Public Library: `publicNotes/{id}` with author info, likes/views/saves/forks counters, status (pending/approved/published), branch/level/subject
-- Public note interactions: `publicNotes/{id}/likes/{userId}`, `users/{uid}/savedPublicNotes/{id}`
-- Version snapshots: `users/{uid}/notes/{noteId}/versions/{timestamp}` (keep last 20)
+**Problem:** Notes.tsx renders `h-screen flex flex-col` with no `<Layout>` wrapper, so the main VivaVault navbar and mobile bottom nav are absent on the /notes route.
 
-**Caching strategy:**
-- Enable Firestore offline persistence via `enableIndexedDbPersistence(db)` in firebase.ts
-- localStorage secondary cache keyed by `note_{id}_{updatedAt}` for note content
-- Sidebar only fetches metadata documents, never content
-- Debounce saves to 1.5s of inactivity
+**Solution:** Wrap Notes content inside `<Layout>` but override the main area to be full-bleed (no max-w-7xl constraint, no py-6 padding). Add a `fullBleed` prop to Layout that skips the `max-w-7xl mx-auto px-4 py-6` wrapper on `<main>`.
 
-**Files created:** `src/lib/notesFirestore.ts` (all CRUD, caching, publish/fork/like helpers)
+**Files modified:**
+- `src/components/Layout.tsx` — Add `fullBleed?: boolean` prop. When true, render `<main className="flex-1 flex flex-col overflow-hidden">` instead of the padded container. Also add `hideBottomNav?: boolean` prop.
+- `src/pages/Notes.tsx` — Wrap return in `<Layout fullBleed hideBottomNav>`, remove the outer `h-screen` div, adjust to `flex-1 flex flex-col` so it fills the space below the navbar.
 
-## Phase 2: Page Shell & Dual-World Toggle
+## Phase 2: Editor Typography & Animations
 
-**Replace the Layout wrapper** with a full-bleed Notes OS layout:
-- Remove `<Layout>` wrapper, build custom full-height layout
-- Top bar: breadcrumb (left), "My Workspace / Public Library" toggle (right) with fade transition
-- Three-panel layout: sidebar (260px, collapsible), editor (flex), details panel (260px, slide-in on demand)
-- State machine for world switching: workspace vs library mode changes sidebar content, main area, and available actions
+**Add Lora font:**
+- `index.html` — Add Google Fonts link for Lora (400, 500, 600, 700)
+- `src/index.css` — Add `.font-editor { font-family: 'Lora', serif; }` utility class. Update `.tiptap-editor .ProseMirror` to use `font-family: 'Lora', serif` with `line-height: 1.75` and `font-size: 16px`. Update heading styles inside editor to use Lora bold. Add `letter-spacing: -0.01em` for readability.
 
-**Files modified:** `src/pages/Notes.tsx` (complete rewrite as shell/router)
+**Animations:**
+- `src/index.css` — Add keyframes and classes:
+  - `.sidebar-transition { transition: width 200ms ease, opacity 150ms ease; }`
+  - `.view-fade-enter { animation: fade-in 0.2s ease-out; }`
+  - Template picker: `@keyframes scale-up { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }`
+- `src/components/notes/NotesSidebar.tsx` — Add `transition-all duration-200` to sidebar width container
+- `src/components/notes/NoteEditor.tsx` — Apply `font-editor` class to the TipTap content area via the editor's `editorProps.attributes.class`
 
-## Phase 3: Sidebar — My Workspace
+## Phase 3: Study OS — Calendar System
 
-**Complete sidebar rebuild:**
-- Search input with live results dropdown (title + content snippet with highlighted match)
-- View mode buttons: Editor, Graph, Canvas, Table
-- Tag pills section with click-to-filter
-- Recent section (last 5 opened, from localStorage)
-- Pinned section
-- Full nested folder/file tree with unlimited depth
-- Right-click context menus: folder (new note, subfolder, rename, color picker, icon picker, move, duplicate, delete) and note (open in new tab, rename, duplicate, move, pin, copy link, publish, delete)
-- Drag-and-drop reordering between folders
-- Bottom: New Note (purple), New Folder (outlined), Import button
-- Collapsible to 0px with toggle button
-- Smooth width transition animation (200ms)
+**Complete rewrite of `src/pages/StudyMode.tsx`** into a Study OS shell with five-system sidebar navigation.
 
-**Files created:** `src/components/notes/NotesSidebar.tsx`, `src/components/notes/FolderTree.tsx`, `src/components/notes/SearchResults.tsx`
+**Layout:** Fixed 220px left sidebar with Calendar/Tasks/Habits/Focus/Analytics nav links, mini month calendar, and today's top 3 tasks. Top bar with date, search, streak, focus time, quick focus button. Main content area renders the active system view.
 
-## Phase 4: Rich Text Editor (Core Product)
+**Calendar features:**
+- Day view: vertical 24h timeline with hourly gridlines, current time red line (updates every minute via setInterval), click-drag to create events, drag to move/resize events
+- Week view: 7-column layout with vertical timelines (default view)
+- Month view: grid with event pills, "+X more" popover, click day → switch to day view
+- Agenda view: infinite scroll list of upcoming events grouped by date
 
-**TipTap editor with all block types:**
-- Keep existing extensions: StarterKit, TaskList, TaskItem, Highlight, Link, Image, Table suite
-- Add new extensions: `@tiptap/extension-underline`, `@tiptap/extension-text-align`, `@tiptap/extension-color`, `@tiptap/extension-text-style`, `@tiptap/extension-placeholder`, `@tiptap/extension-typography`
-- Custom extensions built inline:
-  - **Callout block**: custom Node with color + emoji attributes, rendered as colored box with icon
-  - **Toggle block**: custom Node with collapsible content using details/summary pattern
-  - **Math block**: custom Node rendering LaTeX via KaTeX (loaded from CDN, `katex` npm package)
-  - **YouTube embed**: custom Node accepting URL, rendering responsive iframe
-  - **PDF embed**: custom Node rendering inline viewer via `react-pdf` or iframe for Google Drive links
-  - **Note link `[[]]`**: custom Mark/Node that detects `[[` typing, opens suggest dropdown filtered by note titles, inserts styled clickable link, stores linked note ID for backlink computation
-  - **Mention `@`**: custom Node with suggest dropdown
+**Event model:** `CalendarEvent` interface with title, description, startTime/endTime (ISO UTC), allDay, eventType (study/assignment/exam/lecture/meeting/personal/break/custom), color, recurrenceRule, recurrenceExceptions, linkedTaskId, focusModeEnabled, focusMode (strict/normal), reminders[], locationOrUrl, createdAt, updatedAt
 
-**Floating bubble toolbar:** appears on text selection with Bold, Italic, Underline, Strikethrough, Code, Highlight (color picker), Text color, Link, Alignment options
+**Event creation:** Quick-create popover on click empty slot (title + Enter), double-click opens full modal with all fields, FAB button always opens full modal
 
-**Slash command menu rebuild:** expand from 12 to 18+ commands including all new block types, with icons, descriptions, keyboard hints, search-as-you-type, arrow key navigation
+**Recurrence:** Store rule object `{ frequency, interval, daysOfWeek, endDate }`, expand instances client-side with a `expandRecurrence()` utility function. Exceptions stored as override map keyed by date string.
 
-**Smart paste:** detect clipboard HTML (from Notion/Docs/ChatGPT), Markdown, or plain text and convert to appropriate TipTap blocks preserving formatting
+**Conflict detection:** On create/move, check for time overlap with existing events. Show orange border warning on conflicting events.
 
-**Note header area:** large editable title input (separate from TipTap), tag chips row, optional cover image (upload or gradient picker), emoji icon picker
+**Firestore:** `users/{userId}/calendarEvents/{eventId}` — all times stored as UTC ISO strings
 
-**Focus mode:** button that hides sidebar + navbar, centers editor at 720px max-width on clean background
+## Phase 4: Study OS — Tasks System
 
-**Files modified:** `src/components/notes/SlashCommandMenu.tsx` (rebuild with all blocks)
-**Files created:** `src/components/notes/NoteEditor.tsx`, `src/components/notes/BubbleToolbar.tsx`, `src/components/notes/NoteHeader.tsx`, `src/components/notes/FocusMode.tsx`, `src/components/notes/extensions/CalloutExtension.ts`, `src/components/notes/extensions/ToggleExtension.ts`, `src/components/notes/extensions/MathExtension.ts`, `src/components/notes/extensions/YoutubeExtension.ts`, `src/components/notes/extensions/NoteLinkExtension.ts`
+**Task model:** `Task` interface with title, description, dueDate, dueTime, priority (none/low/medium/high/urgent), status (todo/in_progress/done/cancelled), projectId, tags[], estimatedDuration, energyLevel (low/medium/high), subtasks[], recurrenceRule, linkedEventId, createdAt, completedAt, position
 
-## Phase 5: Graph View, Canvas, Table View, Backlinks
+**Views:** Today (due today + overdue), Inbox (no due date assigned), Projects (grouped by project with sections and progress bars), Upcoming (next 14 days chronological)
 
-**Graph View rebuild:**
-- Keep force-directed layout from existing GraphView.tsx
-- Enhance: folder-colored cluster boundaries, node size by link count, hover highlights connected edges, click opens note
-- Zoom (wheel) and pan (background drag) via SVG viewBox
-- Zero additional reads — uses already-fetched note data
+**Quick capture:** Press `T` anywhere in Study OS → floating input with natural language parsing. Parse "tomorrow", "next monday", "at 5pm", "high priority", "in [project]" using regex patterns.
 
-**Canvas View rebuild:**
-- Keep existing drag mechanics from CanvasView.tsx
-- Add: drop notes from sidebar, edge drawing for linked notes, text blocks and image cards (not just notes)
-- Canvas data persisted to `users/{uid}/canvases/{id}`
-- Canvas CRUD in sidebar under "Canvases" section
+**Schedule to calendar:** Button on any task opens scheduling panel showing free time slots for next 7 days. Recommends best slot based on task duration, priority, and user's peak hours from analytics. Creates linked calendar event.
 
-**Table View rebuild:**
-- All notes in sortable/filterable spreadsheet: Title, Folder, Tags, Word Count, Created, Modified, Status
-- Column sort, folder/tag filter dropdowns
-- Bulk select for move/tag/delete operations
-- Click row to open note
+**Firestore:** `users/{userId}/tasks/{taskId}`, `users/{userId}/projects/{projectId}`
 
-**Backlinks panel:**
-- Right sidebar showing incoming links (notes that contain `[[this note]]`)
-- Computed client-side from loaded notes
-- Click backlink to open that note
+## Phase 5: Study OS — Habit Tracker
 
-**Files modified:** `src/components/notes/GraphView.tsx`, `src/components/notes/CanvasView.tsx`, `src/components/notes/DatabaseView.tsx`, `src/components/notes/BacklinksPanel.tsx`
+**Habit model:** `Habit` with name, icon (emoji), color, frequency (daily/specific_days/x_per_week/x_per_month), daysOfWeek[], timesPerPeriod, timeOfDay, streakCount, longestStreak, archived, createdAt
 
-## Phase 6: Public Library
+**Habit logs:** Single document per day at `users/{userId}/habitLogs/{YYYY-MM-DD}` containing `{ [habitId]: boolean }` map. One read per day.
 
-**New world accessible via toggle:**
-- Browse interface replacing the three-panel editor layout
-- Search bar (title, tags, subject, author)
-- Filter chips for subjects and branches
-- Responsive card grid showing: cover image/gradient (hash-based unique gradient per note), title, description excerpt, author name+avatar, subject/branch tags, like count, view count, Read and Save buttons
-- "VivaVault Official" badge on admin-created notes
+**UI:** Scrollable list of habits with icon, name, streak (🔥 for 7+ days), last-7-days circles (filled/empty). Click today's circle to complete. 24h retroactive window for yesterday.
 
-**Read view:** full-width clean reading layout at 720px max-width, TipTap rendered content, author profile header, like/save/fork buttons, related notes sidebar
+**Morning check-in:** Modal on first daily open — mark yesterday's habits, set today's top 3 tasks from inbox. Store `lastCheckinDate` in localStorage.
 
-**Publishing flow:** right-click note → Publish → modal for description, subject, branch, level, tags → submits with status "pending" → admin approves in Admin panel → appears in Public Library
+**Streak freezes:** 2 per month on paid plans. Track in habit document.
 
-**Fork:** copies public note into user's private workspace as new editable note
+**Calendar integration:** Habits show as colored dot markers on calendar month/week views below date numbers.
 
-**Files created:** `src/components/notes/PublicLibrary.tsx`, `src/components/notes/PublicNoteCard.tsx`, `src/components/notes/PublicNoteReader.tsx`, `src/components/notes/PublishModal.tsx`
+## Phase 6: Study OS — Focus Engine
 
-## Phase 7: Templates, Version History, Import/Export, Search
+**Entry points:** Calendar event with focusMode → notification → click opens focus. Click any focus-enabled event → "Start Focus" button. Quick Focus button in top bar → ad-hoc session.
 
-**Templates:**
-- Template picker modal on new note creation (dismissible for blank)
-- 6 built-in templates: Study Notes, Project Report, Meeting Notes, Daily Journal, Concept Map, Blank
-- Templates stored in code (zero Firestore reads)
-- User custom templates saved to `users/{uid}/noteTemplates/{id}`
+**Fullscreen interface:** Uses `document.documentElement.requestFullscreen()`. Three layers:
+- Background: wallpaper with dark overlay (preloaded on Study OS mount)
+- Middle: ambient audio player with presets (Lo-fi, Brown noise, Rain, Café, Forest, Ocean, Binaural, Classical) — plays via `<audio>` element with `loop`
+- Foreground: session title, timer (3 display styles: Minimal digits, Ring progress SVG, Flip clock CSS), linked task checkbox, action buttons (Skip 5min, Pause [normal only], End), session counter
 
-**Version History:**
-- Keep existing VersionHistory.tsx pattern
-- Save snapshot on auto-save when content differs by >50 chars from last version
-- Keep last 20 versions per note
-- Preview and restore UI in slide-in panel
-- Side-by-side diff view (simple HTML diff highlighting)
+**Timer styles:** User picks default in settings. Minimal: large monospace digits. Ring: SVG circle with `stroke-dasharray/dashoffset` animation. Flip: CSS flip animation on digit change using `transform: rotateX()`.
 
-**Import:**
-- Markdown (.md): parse to TipTap blocks
-- HTML (.html): direct TipTap parse
-- Plain text (.txt): paragraphs
-- Notion export (.zip): extract HTML files, convert, recreate folder structure
+**Strict mode:** Intercept Escape, show 15s countdown overlay with curated motivational messages (40 messages, 5 themes), then show Return/End buttons. Record abandoned sessions.
 
-**Export:**
-- Markdown (free): TipTap HTML → Markdown conversion
-- PDF (paid): browser print-to-PDF with clean stylesheet
-- HTML (paid): self-contained HTML with inline styles
+**Post-session summary:** Duration, task completed?, mood (3 emojis: struggled/okay/flow), quick note text field.
 
-**Search:**
-- Sidebar search: Firestore title query + Fuse.js local index over cached content
-- Results dropdown with title + snippet + highlighted match
-- Debounced 150ms
+**Break enforcement:** After 25min (Pomodoro) or 50min (long), auto-pause with break screen showing breathing exercise (animated circle), movement prompt, or mindfulness moment. Not skippable in strict mode.
 
-**Files modified:** `src/components/notes/TemplatePickerModal.tsx` (add custom templates, more built-ins), `src/components/notes/VersionHistory.tsx` (diff view)
-**Files created:** `src/components/notes/ImportExport.tsx`
+**Firestore:** `users/{userId}/focusSessions/{sessionId}` with linkedEventId, linkedTaskId, startTime, endTime, plannedDuration, actualDuration, mode, abandoned, moodRating, note, soundscape, wallpaper
 
-## Phase 8: Freemium, Monetization, Polish & Mobile
+## Phase 7: Study OS — Analytics Brain
 
-**Freemium gates (stored in user profile `plan` field):**
-- Free: 100 notes, 5 folders, basic blocks only, no version history, no graph (blurred with upgrade overlay), no publish, Markdown export only
-- Student (₹99/mo): unlimited notes/folders, all blocks, version history, graph, export PDF/HTML, can publish
-- Pro (₹199/mo): collaboration sharing, note analytics, custom templates, AI assistant
+**Five sections computed entirely client-side from cached data:**
 
-**Upgrade prompts:** inline tooltips on locked blocks, blurred graph overlay with upgrade card, limit counters in sidebar footer
+1. **Focus Heatmap:** GitHub-style 365-day grid. Colors: gray (0min), light purple (1-30), medium (30-90), deep (90-180), near-black (180+). Hover shows date + time + sessions.
 
-**UI polish:**
-- Serif font (Lora/Merriweather) for editor content, sans-serif (DM Sans) for UI chrome
-- Dark theme: sidebar slightly lighter than editor background, warm off-white text
-- Folder colors as subtle left-border accents
-- Slash command palette: dark floating card, smooth scale animation, icons + keyboard hints
-- Hash-based unique gradients for public note cards without custom covers
-- Smooth animations: sidebar collapse (200ms), version history slide-in, template picker scale-up, block insertion fade-in
+2. **Daily Patterns:** Bar chart showing avg focus time per hour across 30 days. One-sentence AI-free interpretation generated by simple rules (e.g., "You focus best between 9-11 AM").
 
-**Mobile:**
-- Single-panel layout on small screens
-- Sidebar as hamburger overlay
-- Details panel as bottom sheet
-- 44px minimum touch targets
-- Slash menu positioned above mobile keyboard
+3. **Task Completion Rate:** Weekly bars of created vs completed tasks. Alert if <60% for 2 consecutive weeks.
 
-**Keyboard shortcuts:**
-- Cmd+N: new note, Cmd+K: command palette, Cmd+S: force save, Cmd+Shift+F: focus search, Cmd+\: toggle sidebar, Cmd+G: graph view
+4. **Habit Consistency Matrix:** Table of habits × weeks with fill-based completion visualization.
 
-**Note statistics:** word count always visible top-right, click to expand full stats (words, chars, sentences, paragraphs, reading time)
+5. **Session Quality Trends:** Line chart of mood ratings over time vs focus time. Burnout detection when lines diverge.
 
-**Course integration:** when creating note inside an enrolled course folder, auto-tag with course name
+**Analytics cache:** `users/{userId}/analytics/cache` — single document updated on session complete with precomputed aggregates. Analytics view loads with 1 read.
 
-**Files created:** `src/components/notes/UpgradePrompt.tsx`, `src/components/notes/NoteStats.tsx`
-**Files modified:** `src/index.css` (editor typography, animations), `src/lib/firebase.ts` (enable offline persistence)
+## Phase 8: Study OS — Smart Scheduling, Morning Briefing, Settings
+
+**Smart Scheduling Engine:** Browser-side deterministic algorithm. Inputs: free calendar slots (next 7 days), peak hours (from analytics), unscheduled tasks with priority/duration. Algorithm: sort tasks by priority × urgency, place each in the best available slot that matches the user's energy pattern. Output: proposed event list shown in "Smart Week Plan" panel. Accept all or individual suggestions.
+
+**Morning Briefing:** 5-second overlay on first daily open. Shows: greeting, date, tasks due today, first session today, habits to complete, current streak. Skippable by keypress. Uses `lastBriefingDate` in localStorage.
+
+**Settings:** Stored at `users/{userId}/settings` — defaultFocusMode, defaultTimerStyle, workingHoursStart/End, dailyFocusGoalMinutes, morningBriefingEnabled, pomodoroMode, shortBreakDuration, longBreakDuration, sessionsBeforeLongBreak, defaultSoundscape, defaultWallpaper, timeZone.
+
+**Keyboard shortcuts:** `T` quick task capture, `Ctrl+K` search across all systems, `Ctrl+Shift+F` focus search, `1-5` switch between system views.
 
 ---
 
-## Total File Count
+## Files Modified
 
-| Action | Count | Files |
-|--------|-------|-------|
-| Complete rewrite | 1 | Notes.tsx |
-| Major rebuild | 6 | SlashCommandMenu, GraphView, CanvasView, DatabaseView, BacklinksPanel, TemplatePickerModal, VersionHistory |
-| New components | ~15 | NotesSidebar, FolderTree, SearchResults, NoteEditor, BubbleToolbar, NoteHeader, FocusMode, PublicLibrary, PublicNoteCard, PublicNoteReader, PublishModal, ImportExport, UpgradePrompt, NoteStats, 5 extensions |
-| Infrastructure | 2 | notesFirestore.ts, firebase.ts update |
-| Styles | 1 | index.css additions |
-| Dependencies | ~3 | katex, fuse.js, @tiptap/extension-underline + color + text-style |
+| File | Changes |
+|------|---------|
+| `src/components/Layout.tsx` | Add `fullBleed` and `hideBottomNav` props |
+| `src/pages/Notes.tsx` | Wrap in `<Layout fullBleed hideBottomNav>`, adjust height |
+| `src/pages/StudyMode.tsx` | Complete rewrite — 5-system Study OS with sidebar, calendar, tasks, habits, focus engine, analytics |
+| `src/index.css` | Add Lora font styles for editor, sidebar transition, view animations |
+| `index.html` | Add Lora Google Font import |
+| `src/components/notes/NoteEditor.tsx` | Apply `font-editor` class to TipTap content |
 
 ## Technical Notes
 
-- Content separation (metadata vs body) is the key cost optimization — sidebar browsing costs near-zero reads
-- Offline persistence + localStorage double-cache eliminates 80%+ of repeat reads
-- 1.5s debounce on saves reduces writes from thousands to ~10-20 per session
-- Public Library queries are read-heavy but cacheable — Firestore offline cache handles repeat visits
-- Graph/canvas/table views use already-fetched data, zero additional reads
-- Templates stored in code, not Firestore
-- All TipTap custom extensions use `Node.create()` / `Mark.create()` — no external deps beyond katex and fuse.js
-- Hash-based gradients generated client-side from note ID using simple hash-to-hue conversion
+- All Study OS data uses Firebase Firestore with offline persistence (already enabled)
+- Habit logs use one-doc-per-day pattern to minimize reads
+- Analytics cache is a single precomputed document
+- Recurrence expansion is pure JS — no backend needed
+- Focus Engine timer uses `requestAnimationFrame` for smooth ring animation
+- Smart scheduling is deterministic sorting + greedy slot filling — no AI API calls
+- Morning briefing and check-in modals use localStorage date tracking to show once per day
+- Study OS wraps in `<Layout>` normally (not full-bleed) since it has standard page structure
 
