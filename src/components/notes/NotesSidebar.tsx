@@ -203,7 +203,7 @@ export const NotesSidebar = ({
 
   if (collapsed) {
     return (
-      <div className="w-12 shrink-0 border-r border-border/30 flex flex-col items-center py-3 gap-2 bg-sidebar-background transition-all duration-200">
+      <div className="w-12 shrink-0 border-r border-border/30 flex flex-col items-center py-3 gap-2 bg-sidebar-background sidebar-transition">
         <button onClick={onToggleCollapse} className="p-2 rounded-lg hover:bg-accent/50 text-muted-foreground hover:text-foreground transition-colors">
           <PanelLeft className="h-4 w-4" />
         </button>
@@ -218,7 +218,7 @@ export const NotesSidebar = ({
   }
 
   return (
-    <div className="w-[260px] shrink-0 border-r border-border/30 flex flex-col bg-sidebar-background transition-all duration-200 overflow-hidden">
+    <div className="w-[260px] shrink-0 border-r border-border/30 flex flex-col bg-sidebar-background sidebar-transition overflow-hidden">
       {/* Header */}
       <div className="p-3 space-y-2">
         <div className="flex items-center justify-between">

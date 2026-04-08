@@ -167,6 +167,12 @@
     font-family: 'DM Sans', sans-serif;
   }
 
+  .font-editor {
+    font-family: 'Lora', Georgia, serif;
+    line-height: 1.75;
+    letter-spacing: -0.01em;
+  }
+
   .glass {
     @apply backdrop-blur-xl border rounded-2xl;
     background: hsla(var(--glass-bg));
@@ -261,17 +267,22 @@
 /* Tiptap editor styles */
 .tiptap-editor .ProseMirror {
   @apply outline-none min-h-[120px] text-foreground;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Lora', Georgia, serif;
+  font-size: 16px;
+  line-height: 1.75;
+  letter-spacing: -0.01em;
 }
 
 .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
   @apply text-muted-foreground pointer-events-none float-left h-0;
   content: attr(data-placeholder);
+  font-family: 'DM Sans', sans-serif;
 }
 
-.tiptap-editor .ProseMirror h1 { @apply text-2xl font-bold mt-6 mb-3; }
-.tiptap-editor .ProseMirror h2 { @apply text-xl font-semibold mt-5 mb-2; }
-.tiptap-editor .ProseMirror h3 { @apply text-lg font-medium mt-4 mb-2; }
+.tiptap-editor .ProseMirror h1 { @apply text-2xl font-bold mt-6 mb-3; font-family: 'Syne', sans-serif; }
+.tiptap-editor .ProseMirror h2 { @apply text-xl font-semibold mt-5 mb-2; font-family: 'Syne', sans-serif; }
+.tiptap-editor .ProseMirror h3 { @apply text-lg font-medium mt-4 mb-2; font-family: 'Syne', sans-serif; }
+.tiptap-editor .ProseMirror h4 { @apply text-base font-medium mt-3 mb-1.5; font-family: 'Syne', sans-serif; }
 .tiptap-editor .ProseMirror p { @apply mb-2 leading-relaxed; }
 .tiptap-editor .ProseMirror ul { @apply list-disc pl-6 mb-3; }
 .tiptap-editor .ProseMirror ol { @apply list-decimal pl-6 mb-3; }
@@ -293,6 +304,38 @@
 }
 .tiptap-editor .ProseMirror hr {
   @apply border-border my-6;
+}
+
+/* Sidebar transition */
+.sidebar-transition {
+  transition: width 200ms ease, opacity 150ms ease;
+}
+
+/* View fade animation */
+@keyframes view-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.view-fade-enter {
+  animation: view-fade-in 0.2s ease-out;
+}
+
+/* Template picker scale-up */
+@keyframes scale-up {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.animate-scale-up {
+  animation: scale-up 0.2s ease-out;
+}
+
+/* Focus mode transition */
+@keyframes focus-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-focus-fade {
+  animation: focus-fade 0.3s ease-out;
 }
 
 /* Scrollbar */
