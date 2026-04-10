@@ -433,7 +433,7 @@ const Notes = () => {
                     note={selectedNote}
                     content={contents[selectedNoteId!] || ""}
                     onContentChange={handleContentChange}
-                    onTitleChange={title => handleRenameNote(selectedNoteId!, title)}
+                    onTitleChange={(title: string) => handleRenameNote(selectedNoteId!, title)}
                     onAddTag={handleAddTag}
                     onRemoveTag={handleRemoveTag}
                     onTogglePin={() => handleTogglePin(selectedNoteId!)}
@@ -442,7 +442,6 @@ const Notes = () => {
                     onExportMd={handleExportMd}
                     onToggleBacklinks={() => setShowBacklinks(b => !b)}
                     showBacklinks={showBacklinks}
-                    allNotes={activeNotes}
                     focusMode={focusMode}
                     onToggleFocus={() => setFocusMode(f => !f)}
                   />

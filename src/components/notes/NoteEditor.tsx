@@ -403,32 +403,7 @@ export const NoteEditor = ({
             </div>
           )}
 
-          {/* Bubble Menu (appears on text selection) */}
-          {editor && !readOnly && (
-            <BubbleMenu editor={editor} tippyOptions={{ duration: 150 }}
-              className="flex items-center gap-0.5 bg-popover/98 backdrop-blur-xl border border-border/50 rounded-lg shadow-xl px-1 py-0.5">
-              <button onClick={() => editor.chain().focus().toggleBold().run()}
-                className={cn("p-1.5 rounded hover:bg-accent/60", editor.isActive("bold") && "bg-accent text-primary")}>
-                <Bold className="h-3.5 w-3.5" />
-              </button>
-              <button onClick={() => editor.chain().focus().toggleItalic().run()}
-                className={cn("p-1.5 rounded hover:bg-accent/60", editor.isActive("italic") && "bg-accent text-primary")}>
-                <Italic className="h-3.5 w-3.5" />
-              </button>
-              <button onClick={() => editor.chain().focus().toggleUnderline().run()}
-                className={cn("p-1.5 rounded hover:bg-accent/60", editor.isActive("underline") && "bg-accent text-primary")}>
-                <UnderlineIcon className="h-3.5 w-3.5" />
-              </button>
-              <button onClick={() => editor.chain().focus().toggleCode().run()}
-                className={cn("p-1.5 rounded hover:bg-accent/60", editor.isActive("code") && "bg-accent text-primary")}>
-                <Code className="h-3.5 w-3.5" />
-              </button>
-              <button onClick={() => editor.chain().focus().toggleHighlight().run()}
-                className={cn("p-1.5 rounded hover:bg-accent/60", editor.isActive("highlight") && "bg-accent text-primary")}>
-                <Highlighter className="h-3.5 w-3.5" />
-              </button>
-            </BubbleMenu>
-          )}
+          {/* Bubble menu removed - using inline toolbar above */}
 
           {/* TipTap Editor */}
           <div className="tiptap-editor relative prose-notes">
