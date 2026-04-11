@@ -1,155 +1,129 @@
 
 
-# Notes OS + Study OS — Complete Rebuild Plan
+# VivaVault — Study OS + Dashboard + Homepage Multi-Tenant Rebuild
 
-## Current State
-- **Notes.tsx** (504 lines): Firestore-only 2-world toggle (workspace/library), basic TipTap editor, working CRUD
-- **StudyMode.tsx** (1869 lines): Calendar with 4 views, tasks with NLP parsing, habits, focus engine with strict mode, basic analytics — functional but visually sparse
-- **NoteEditor.tsx** (222 lines): TipTap with StarterKit, limited formatting toolbar
-- **SlashCommandMenu.tsx** (192 lines): 18 commands, many use `prompt()` dialogs, no Page/Database blocks
-- **NotesSidebar.tsx** (351 lines): Folder tree, context menus, tag filter, view switchers
+## Summary
+
+Complete rebuild of three major modules: Study OS (1869-line monolith → modular 5-system OS with Google Calendar-quality interactions), Dashboard (398 lines → unified command center pulling data from all systems), and Homepage (multi-college tenant isolation). All built in parallel.
 
 ---
 
-## Phase 1: Notes OS — Local-First My Workspace via File System Access API
+## Phase 1: Study OS — Layout Shell & Sidebar
 
-My Workspace switches from Firestore to local filesystem. On first open, centered prompt to select a folder via `window.showDirectoryPicker()`. Store `FileSystemDirectoryHandle` in IndexedDB so it persists. All notes = `.md` files in that folder. Folders in the sidebar match real filesystem folders.
+Rewrite `StudyMode.tsx` outer structure. Fixed 220px sidebar (collapsible to 48px icon-only with tooltips). Sidebar: collapse toggle, 5 nav items with icons + shortcut badges + purple active pill, mini month calendar with event dots, "TODAY'S TASKS" section with top 3 checkable tasks. Top bar: date display, search input, streak badge, focus time badge, Quick Focus button (opens duration/mode modal before launching).
 
-- New `src/lib/localFileSystem.ts`: recursive directory read, file CRUD, `_assets/` subfolder for images, IndexedDB handle storage
-- Convert TipTap HTML to Markdown on save (via `turndown`), Markdown to HTML on load (via `marked`)
-- Sidebar shows real filesystem tree with infinite nesting, expand/collapse arrows
-- File/folder create, rename, delete, move all write to local filesystem
-- Add 3-mode toggle: My Workspace, Public Workspace, Public Library (Public Library untouched)
+**Key change from current:** Quick Focus now opens a pre-launch modal (25/50/90/custom + Normal/Strict cards) instead of launching immediately.
 
-**Dependencies**: `idb-keyval`, `turndown`, `marked`
+## Phase 2: Study OS — Calendar System (Google Calendar Quality)
 
-## Phase 2: Notes OS — Notion-Style Page System & Editor Header
+Complete calendar rebuild with 5 views: Day, Week, Month, Year, Agenda. View selector dropdown matches Google Calendar (Day/Week/Month/Year/Schedule/4 Days + Show weekends/declined/completed toggles).
 
-When user selects "Page" from slash commands: creates a sub-page (child file/subfolder locally, child Firestore doc in public workspace), adds to sidebar as nested child, opens it in editor.
+- **Week view (default):** 7 columns, hourly gridlines 12AM-11PM, red current-time line with dot, all-day events row above grid
+- **Day view:** single full-width column, overlapping events split proportionally
+- **Month view:** 6-row grid, event pills, "+X more" popover
+- **Agenda view:** infinite scroll grouped by date
+- **Event blocks:** 20% opacity bg, 3px left border, white text, hover brightens
+- **Inline quick-create:** Click empty slot → popover with Event/Task/Appointment tabs, title input, time pre-filled, More Options button
+- **Full event form (large modal):** Title, date/time with timezone + all-day + recurrence, Google Meet button, location, multiple reminder rows (type + number + unit), calendar selector, visibility, status, rich text description, guests panel
+- **Drag-and-drop:** Drag to move events, drag bottom edge to resize, Firestore update on drop
+- **Conflict detection:** Orange border on overlapping events
+- **Google Calendar sidebar:** MY CALENDARS section (Personal/Birthdays/Tasks with colored checkboxes), OTHER CALENDARS section with "+ Connect Google Account" (OAuth stub for now, functional UI)
 
-- Sidebar reflects page nesting like Notion: indented tree with expand/collapse arrows
-- Each page has: large editable title at top, emoji icon picker, optional cover image (gradient presets + upload stored in `_assets/`)
-- Breadcrumb navigation showing full path
-- Pages nest infinitely deep
+## Phase 3: Study OS — Tasks System
 
-## Phase 3: Notes OS — Complete TipTap Editor Rebuild
+Left sub-panel (200px) with Today/Inbox/Projects/Upcoming views. Right main panel.
 
-**Slash command fix**: Rebuild as TipTap Extension that reliably triggers on `/` at any new line start. Beautiful floating dark card positioned at cursor with icons, descriptions, keyboard hints, arrow key nav, Enter to select, type-to-filter.
+- **Today:** Overdue (red) + Today + Later Today sections, summary line "X tasks · estimated Y hours"
+- **Inbox:** Unscheduled tasks, quick-add input, Schedule button → date picker
+- **Projects:** Accordion sections with progress bars
+- **Upcoming:** 14-day chronological grouped by day
+- **Quick capture (T key):** Slide-down input with NLP parsing ("tomorrow 3pm high" → parsed fields)
+- **Task detail panel:** Right-side sheet with all editable fields, subtasks, "Schedule to Calendar" button showing free slots for next 7 days
+- **Task row:** Checkbox with strikethrough animation, priority color dot, due time, project tag, hover actions (play focus, delete)
 
-22+ slash commands all fully functional:
-- Paragraph, H1-H4, Bullet/Numbered/Task lists
-- Callout (custom Node with color + emoji picker)
-- Code Block (PrismJS highlighting, language dropdown with 20+ languages, copy button with checkmark animation, auto-detect language on paste)
-- Quote, Table, Image, YouTube embed, Divider
-- Toggle (collapsible details/summary)
-- Math (KaTeX LaTeX rendering)
-- Mention (@), Note Link ([[]])
-- Database (inline table), Page (creates sub-page)
+## Phase 4: Study OS — Habits + Daily Check-in
 
-**Floating bubble toolbar**: On text selection — Bold, Italic, Underline, Strikethrough, Code, Highlight (color picker), Text color, Link (inline popover, not prompt), Alignment
+- **Habit rows:** Icon in colored circle, name, streak (🔥 for 7+), 7-day circles (filled purple/outlined gray), today's circle larger with checkmark
+- **New Habit modal:** Name, emoji picker, 8 color swatches, frequency selector, time of day
+- **Daily check-in modal:** First open each day → full-screen overlay with greeting, yesterday's habits retroactive logging, today's habits, pick top 3 tasks, "Start My Day" button
+- **Calendar integration:** Habit completion dots on month/week views
 
-**Block interactions**: Drag handle on hover, right-click context menu (Turn into, Color, Duplicate, Move, Delete, Comment), multi-block selection with bulk toolbar
+## Phase 5: Study OS — Focus Engine (Full Rebuild)
 
-**Smart paste**: DOMParser converts clipboard HTML to correct TipTap blocks (headings, lists, code, tables, bold/italic, links, images)
+- **Entry:** requestFullscreen(), fixed z-[9999] overlay
+- **Layout:** Wallpaper bg (cover) + rgba(0,0,0,0.45) overlay + centered content
+- **Timer:** 3 styles (Minimal digits, Ring SVG arc, Flip CSS animation)
+- **Audio player:** Bottom-left compact player with soundscape selector popover (8 presets + upload)
+- **Wallpaper selector:** Bottom-right with category grid (Nature/Abstract/Minimal/Space/Dark/Light) + upload
+- **Auto-hide controls:** 3s mouse inactivity → fade to 0.1 opacity, 500ms transition
+- **Strict mode exit:** Full blocking overlay, 15s countdown, 40 motivational messages (5 themes), Return/End buttons after countdown
+- **Break screen:** After 25/50 min, breathing exercise (animated expand/contract circle), movement prompts, mindfulness moments. Non-skippable in strict.
+- **Post-session summary:** Duration, task status, 3 mood emojis, quick note field, save to Firestore
 
-**URL paste detection**: Popover with Dismiss / Bookmark / Embed
+## Phase 6: Study OS — Analytics Brain
 
-**Image paste**: Ctrl+V → instant insert with 12px rounded corners + shadow, click for resize handles + toolbar. Stored in local `_assets/`
+5 cards stacked vertically:
 
-**Font selector**: Toolbar dropdown with 15 Google Fonts, each name rendered in its own font
+1. **Focus Heatmap:** 52×7 grid (14px squares, 2px gap), purple intensity scale, hover tooltips with date/time/sessions, month labels
+2. **Daily Patterns:** 24-bar chart (hourly avg focus), peak hour interpretation sentence
+3. **Task Completion Rate:** 8-week grouped bar chart (created vs completed), percentage, burnout warning if <60% for 2 weeks
+4. **Habit Consistency Matrix:** Habits × 8 weeks table, colored fill cells, hover percentages
+5. **Session Quality Trends:** Dual-axis line chart (focus time purple, mood orange), burnout detection warning
 
-**Collapsible headings**: Hover shows collapse arrow, collapses content until next equal/higher heading
+All computed client-side from cached Firestore data.
 
-**Dependencies**: `katex`, `prismjs`
+## Phase 7: Dashboard Rebuild
 
-## Phase 4: Notes OS — Public Workspace + Sharing
+Complete rewrite of `Dashboard.tsx` as unified command center.
 
-Same UI as My Workspace but backed by Firestore. Check UID against `/publicWorkspace/settings/allowedEditors`. If allowed: full editor with real-time saves. If not: read-only mode with badge.
+- **Row 1:** 4 metric cards (Focus Time today with 7-day sparkline, Streak with longest, Tasks X/Y with progress bar, Habits X/Y with colored dots)
+- **Row 2:** Focus Heatmap (50%), Upcoming Events list (25%), Today's Habits with check buttons (25%)
+- **Row 3:** Per-Course Progress cards with progress bars + Continue button (60%), Recent Notes list (40%)
+- **Row 4:** Recent Activity Feed (full-width, 20 items, grouped by date)
+- **Max 5 Firestore reads:** user doc, today's habitLog, today's focusSessions, today's tasks, enrolled courses
 
-- Submit Note button: modal with title, content, subject, branch → `/publicWorkspace/submissions/{id}` with status "pending"
-- Admin approves/rejects in admin panel
-- Share button on every note → modal with URL `/shared/notes/{noteId}` → stores content snapshot in `/sharedNotes/{noteId}`
-- SharedNote page renders clean read-only view in dark theme
+## Phase 8: Homepage Multi-College + Global UI Polish
 
-## Phase 5: Notes OS — Version History, Graph, Table, Import/Export
+**Multi-tenant:**
+- Post-login college selection screen if no `selectedCollegeId` in user doc
+- College data at `/colleges/{collegeId}` with name, type, logoUrl, adminUIDs
+- Homepage filters scoped to `selectedCollegeId`
+- "Switch Institution" in profile dropdown
+- Admin panel scoped by college
 
-- **Version History**: IndexedDB snapshots for local workspace, Firestore for public. Slide-in panel, preview, restore.
-- **Graph View**: D3.js force-directed from `[[]]` links, folder-colored nodes, zoom/pan/click
-- **Table View**: Sortable spreadsheet (title, folder, tags, word count, dates)
-- **Import**: Markdown (.md), HTML (.html), Notion export (.zip) — each creates real editable notes
-- **Export**: Markdown (free), HTML, PDF (browser print with clean stylesheet)
+**Course cards:** Replace "View" with "Continue" (purple) + "Resources" (gray outlined)
 
-## Phase 6: Study OS — Calendar Rebuild (Google Calendar Quality)
-
-Complete visual rebuild with 5 view modes (Day, Week, Month, Year, Agenda).
-
-- Week view: 7 columns with hourly gridlines, current time red line updating every minute
-- Event blocks: 20% opacity event-color background, 3px left border, white text, hover brightens
-- Click empty slot → inline quick-create popover (title + time + Event/Task tabs + More Options)
-- Full event modal: title, date/time with timezone, all-day, recurrence, location/URL, multiple reminders with type selector, calendar selector, visibility, status, rich text description, guests panel
-- Drag to move/resize events
-- Conflict detection (orange border on overlaps)
-- Client-side recurrence expansion
-- Google Calendar OAuth integration: fetch calendars, sidebar toggle list, display alongside native events
-
-## Phase 7: Study OS — Tasks, Habits, Focus Engine Polish
-
-**Tasks**: Polish 4 views, schedule-to-calendar with free slot recommendation based on peak hours, drag tasks to calendar, subtask management
-
-**Habits**: Satisfying checkmark animation, daily check-in modal, habit dots on calendar, streak freezes
-
-**Focus Engine**: 
-- Quick Focus → modal asking duration (25/50/90/custom) + mode before launching
-- Wallpaper presets by category (Nature, Abstract, Minimal, Space, Dark, Light)
-- 8 soundscape presets
-- 40 motivational messages across 5 themes for strict mode
-- Break enforcement (breathing exercise screen after 25/50 min)
-- Study Together rooms with Firestore heartbeats
-
-## Phase 8: Analytics, Smart Week Plan, Global UI Polish
-
-**Analytics** (5 sections): Focus Heatmap (365-day purple grid), Daily Patterns (hourly bar chart + interpretation), Task Completion Rate (weekly bars + alert), Habit Consistency Matrix, Session Quality Trends (mood vs focus + burnout detection)
-
-**Smart Week Plan**: Analyze unscheduled tasks + free slots + peak hours → suggested schedule on mini week preview → accept all/individual/dismiss
-
-**Morning Briefing**: 5s full-screen overlay (greeting, date, tasks, habits, streak, first session)
-
-**Global UI Polish**:
-- Premium dark theme: sidebar lighter than editor, warm off-white text
-- Editor max-width 720px centered
-- Smooth 200ms fade transitions everywhere
-- Sidebar collapse animations
-- Event blocks with proper color accents
-- Deep purple-tinted shadows on modals
-- Hover states on all elements
-- Active indicators in sidebar nav
-- Mobile: single-panel, hamburger sidebar, bottom sheet
-- Google Fonts: Lora for editor content + 14 others for font selector
-- CSS animations for block insertions, template picker, version history slide-in
+**Global UI fixes:**
+- Remove box-in-box layouts, single border-radius 12-16px, single box-shadow per card
+- Consistent spacing (8px base, 20-24px card padding, 16-20px grid gaps, 32-40px section gaps)
+- Font scale: titles 28-32px, sections 18-20px, card titles 16px, body 14-15px, captions 12-13px
+- 200ms sidebar collapse, 150ms modal scale-up, 200ms tab fades, 100ms hover states
+- Toast: bottom-right, 4s auto-dismiss, colored left border, slide in/out
+- Loading skeletons with shimmer everywhere
+- Empty states with icon + message + CTA button
 
 ---
 
-## Files Summary
+## Files Modified/Created
 
 | File | Action |
 |------|--------|
-| `src/lib/localFileSystem.ts` | **New** — File System Access API helpers, IndexedDB handle storage |
-| `src/lib/publicWorkspace.ts` | **New** — Public workspace Firestore CRUD + permissions |
-| `src/components/notes/BubbleToolbar.tsx` | **New** — Floating selection toolbar |
-| `src/components/notes/BlockHandle.tsx` | **New** — Drag handle + context menu |
-| `src/pages/Notes.tsx` | **Rewrite** — 3-mode toggle, local filesystem, public workspace |
-| `src/pages/StudyMode.tsx` | **Rewrite** — Premium calendar, polished all 5 systems |
-| `src/components/notes/NoteEditor.tsx` | **Rebuild** — Bubble toolbar, block handles, smart paste, font selector |
-| `src/components/notes/SlashCommandMenu.tsx` | **Rebuild** — 22+ commands, reliable `/` trigger, Page block |
-| `src/components/notes/NotesSidebar.tsx` | **Rebuild** — Local file tree, Notion-style page nesting |
-| `src/components/notes/GraphView.tsx` | **Polish** |
-| `src/components/notes/DatabaseView.tsx` | **Polish** |
-| `src/components/notes/VersionHistory.tsx` | **Update** — IndexedDB for local |
-| `src/components/notes/ImportExport.tsx` | **Rebuild** — Working MD/HTML/Notion import |
-| `src/pages/SharedNote.tsx` | **Update** — Clean read-only view |
-| `src/index.css` | **Update** — Animations, typography, theme |
-| `index.html` | **Update** — Google Fonts |
-| `package.json` | **Update** — Add idb-keyval, turndown, marked, katex, fuse.js, prismjs |
+| `src/pages/StudyMode.tsx` | **Complete rewrite** — modular 5-system OS |
+| `src/pages/Dashboard.tsx` | **Complete rewrite** — unified command center |
+| `src/pages/Index.tsx` | **Update** — multi-college filter scoping |
+| `src/contexts/AuthContext.tsx` | **Update** — add selectedCollegeId check |
+| `src/lib/firestoreSync.ts` | **Update** — add college CRUD, scoped queries |
+| `src/index.css` | **Update** — animations, font scale, spacing system |
+| `src/components/Layout.tsx` | **Update** — global UI consistency |
 
-All 8 phases implemented in parallel in one go.
+## Technical Notes
+
+- StudyMode stays as single file but with extracted render functions for each system (renderCalendar, renderTasks, etc.) — same pattern as current but rebuilt
+- Calendar event blocks use inline styles for color theming (20% opacity bg, 3px left border)
+- Drag-and-drop uses native HTML drag events with pointer position calculation for time slot mapping
+- All analytics computed client-side from already-fetched Firestore data — zero additional reads
+- Multi-college filtering changes Index.tsx queries to scope by selectedCollegeId
+- Firestore offline persistence already enabled — dashboard loads from cache instantly
+- 40 motivational messages hardcoded in JS array (5 themes × 8 messages)
+- Timer flip animation uses CSS `transform: rotateX()` with `perspective`
 
