@@ -1,52 +1,58 @@
 import { useState, useEffect, useMemo } from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Layout } from "@/components/Layout";
-import { GlassCard } from "@/components/GlassCard";
 import { EmptyState } from "@/components/EmptyState";
 import { CardSkeleton } from "@/components/LoadingSkeleton";
-import { StarRating } from "@/components/StarRating";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
-  BarChart3, Bookmark, History, BookOpen, Target,
-  TrendingUp, CheckCircle2, Clock, User, Flame, Trophy,
-  Brain, Eye, Calendar, Check, Sparkles,
+  Clock, Flame, CheckSquare, Heart, BarChart3,
+  CalendarDays, StickyNote, BookOpen, Play,
+  User, Target, TrendingUp, ArrowRight, Zap,
 } from "lucide-react";
-import {
-  loadActivity, loadStreak, getStudiedIds, getDueQuestions, loadSM2,
-} from "@/lib/spacedRepetition";
+import { loadActivity, loadStreak, getStudiedIds, getDueQuestions } from "@/lib/spacedRepetition";
+import { format, subDays } from "date-fns";
+import { BarChart, Bar, ResponsiveContainer } from "recharts";
 
-interface Submission {
+interface FocusSession {
   id: string;
-  projectId: string;
-  name: string;
-  isAnonymous: boolean;
-  proctorId: string;
-  level: string;
+  duration: number;
+  mode: string;
   date: string;
-  duration: string;
-  questionsAsked: string;
-  tips: string;
-  difficultyRating: number;
-  friendlinessRating: number;
-  createdAt: any;
+  mood?: number;
+  abandoned?: boolean;
 }
 
-interface BookmarkItem {
+interface CalEvent {
   id: string;
-  questionId: string;
-  questionText: string;
-  projectId: string;
-  category: string;
-  createdAt: any;
+  title: string;
+  start: any;
+  end: any;
+  color: string;
+}
+
+interface HabitItem {
+  id: string;
+  name: string;
+  emoji: string;
+  color: string;
+}
+
+interface TaskItem {
+  id: string;
+  title: string;
+  status: string;
+  dueDate?: string;
+  priority: string;
 }
 
 interface ProjectStats {
@@ -56,73 +62,76 @@ interface ProjectStats {
   totalQuestions: number;
   studiedCount: number;
   progress: number;
+  color: string;
 }
 
-const STREAK_MESSAGES: Record<number, string> = {
-  1: "🎉 Day 1! Every journey starts with a single step. Keep it up!",
-  7: "🔥 One week streak! You're building a powerful study habit!",
-  14: "⚡ Two weeks strong! Consistency is your superpower!",
-  30: "🏆 30-day streak! You're a study machine! Incredible dedication!",
-  60: "💎 60 days! You're in the top tier of dedicated learners!",
-  100: "👑 100 DAYS! Absolute legend. Nothing can stop you!",
+const PRIORITY_COLORS: Record<string, string> = {
+  urgent: "#ef4444", high: "#f97316", medium: "#eab308", low: "#3b82f6", none: "#6b7280",
 };
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
-  const [projectStats, setProjectStats] = useState<ProjectStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [streakPopup, setStreakPopup] = useState<string | null>(null);
+  const [focusSessions, setFocusSessions] = useState<FocusSession[]>([]);
+  const [calEvents, setCalEvents] = useState<CalEvent[]>([]);
+  const [habits, setHabits] = useState<HabitItem[]>([]);
+  const [habitLogs, setHabitLogs] = useState<Record<string, boolean>>({});
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [projectStats, setProjectStats] = useState<ProjectStats[]>([]);
 
   const activity = useMemo(() => loadActivity(), []);
   const streak = useMemo(() => loadStreak(), []);
   const studied = useMemo(() => getStudiedIds(), []);
-  const sm2 = useMemo(() => loadSM2(), []);
-  const [questionMeta, setQuestionMeta] = useState<{ id: string; projectId: string }[]>([]);
+  const todayStr = format(new Date(), "yyyy-MM-dd");
 
-  const totalStudied = studied.size;
-  const totalDue = useMemo(() => getDueQuestions(questionMeta.map((q) => q.id)).length, [questionMeta]);
-  const totalActivity = useMemo(() => Object.values(activity).reduce((a, b) => a + b, 0), [activity]);
-  const totalFlagged = useMemo(() => Object.values(sm2).filter((d) => d.reps === 0 && d.interval === 1).length, [sm2]);
-  const totalQuestions = questionMeta.length;
-  const mastery = totalQuestions > 0 ? Math.round((totalStudied / totalQuestions) * 100) : 0;
+  const todayFocusMinutes = useMemo(() =>
+    focusSessions.filter(s => s.date === todayStr && !s.abandoned).reduce((sum, s) => sum + (s.duration || 0), 0),
+    [focusSessions, todayStr]
+  );
+
+  const todayTasks = useMemo(() => tasks.filter(t => t.dueDate === todayStr), [tasks, todayStr]);
+  const todayTasksDone = useMemo(() => todayTasks.filter(t => t.status === "done").length, [todayTasks]);
+  const habitsCompletedToday = useMemo(() => Object.values(habitLogs).filter(Boolean).length, [habitLogs]);
+
+  // Sparkline data for focus
+  const focusSparkline = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = format(subDays(new Date(), 6 - i), "yyyy-MM-dd");
+      return {
+        day: format(subDays(new Date(), 6 - i), "EEE"),
+        minutes: focusSessions.filter(s => s.date === d && !s.abandoned).reduce((sum, s) => sum + (s.duration || 0), 0),
+      };
+    });
+  }, [focusSessions]);
 
   useEffect(() => {
     document.title = "Dashboard — VivaVault";
-
-    // Check streak milestone popup
-    const milestones = [1, 7, 14, 30, 60, 100];
-    if (milestones.includes(streak.current)) {
-      const lastPopup = localStorage.getItem("vv_streak_popup_last");
-      const today = new Date().toISOString().slice(0, 10);
-      if (lastPopup !== `${streak.current}-${today}`) {
-        setStreakPopup(STREAK_MESSAGES[streak.current] || null);
-        localStorage.setItem("vv_streak_popup_last", `${streak.current}-${today}`);
-      }
-    }
-
     if (!user) { setLoading(false); return; }
 
     const fetchData = async () => {
       try {
-        const [subSnap, bmSnap, projSnap, qSnap] = await Promise.all([
-          getDocs(query(collection(db, "submissions"), where("userId", "==", user.uid))),
-          getDocs(query(collection(db, "bookmarks"), where("userId", "==", user.uid))),
+        const [focusSnap, eventSnap, habitSnap, taskSnap, projSnap, qSnap, logSnap] = await Promise.all([
+          getDocs(collection(db, "users", user.uid, "focusSessions")),
+          getDocs(collection(db, "users", user.uid, "calendarEvents")),
+          getDocs(collection(db, "users", user.uid, "habits")),
+          getDocs(collection(db, "users", user.uid, "tasks")),
           getDocs(collection(db, "projects")),
           getDocs(collection(db, "questions")),
+          getDoc(doc(db, "users", user.uid, "habitLogs", todayStr)),
         ]);
 
-        setSubmissions(subSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Submission)));
-        setBookmarks(bmSnap.docs.map((d) => ({ id: d.id, ...d.data() } as BookmarkItem)));
+        setFocusSessions(focusSnap.docs.map(d => ({ id: d.id, ...d.data() } as FocusSession)));
+        setCalEvents(eventSnap.docs.map(d => ({ id: d.id, ...d.data() } as CalEvent)));
+        setHabits(habitSnap.docs.map(d => ({ id: d.id, ...d.data() } as HabitItem)));
+        setTasks(taskSnap.docs.map(d => ({ id: d.id, ...d.data() } as TaskItem)));
+        if (logSnap.exists()) setHabitLogs(logSnap.data() as Record<string, boolean>);
 
-        const projects = projSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[];
-        const questions = qSnap.docs.map((d) => ({ id: d.id, projectId: (d.data() as any).projectId }));
-        setQuestionMeta(questions);
+        const projects = projSnap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+        const questions = qSnap.docs.map(d => ({ id: d.id, projectId: (d.data() as any).projectId }));
 
-        const stats: ProjectStats[] = projects.map((p) => {
-          const pqs = questions.filter((q) => q.projectId === p.id);
-          const sc = pqs.filter((q) => studied.has(q.id)).length;
+        const stats: ProjectStats[] = projects.map((p, i) => {
+          const pqs = questions.filter(q => q.projectId === p.id);
+          const sc = pqs.filter(q => studied.has(q.id)).length;
           return {
             projectId: p.id,
             projectCode: p.code || "—",
@@ -130,9 +139,9 @@ const Dashboard = () => {
             totalQuestions: pqs.length,
             studiedCount: sc,
             progress: pqs.length > 0 ? Math.round((sc / pqs.length) * 100) : 0,
+            color: p.color || "#7c3aed",
           };
-        }).filter((s) => s.totalQuestions > 0);
-
+        }).filter(s => s.totalQuestions > 0);
         setProjectStats(stats);
       } catch {
         toast.error("Failed to load dashboard data");
@@ -141,7 +150,7 @@ const Dashboard = () => {
       }
     };
     fetchData();
-  }, [user]);
+  }, [user, todayStr]);
 
   if (!user) {
     return (
@@ -149,7 +158,7 @@ const Dashboard = () => {
         <EmptyState
           icon={User}
           title="Sign in to view your dashboard"
-          description="Your preparation progress, bookmarks, and submissions will appear here."
+          description="Your preparation progress and study data will appear here."
           action={<Button asChild variant="outline"><Link to="/auth">Sign In</Link></Button>}
         />
       </Layout>
@@ -157,237 +166,250 @@ const Dashboard = () => {
   }
 
   return (
-    <Layout title="Dashboard" showBack>
-      <div className="max-w-5xl mx-auto space-y-8">
-        {/* Streak milestone popup */}
-        <Dialog open={!!streakPopup} onOpenChange={() => setStreakPopup(null)}>
-          <DialogContent className="max-w-sm text-center">
-            <DialogHeader>
-              <DialogTitle className="font-heading text-2xl">Streak Milestone!</DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              <Flame className="h-12 w-12 text-[hsl(38,92%,50%)] mx-auto mb-4" />
-              <p className="text-lg font-body leading-relaxed">{streakPopup}</p>
-            </div>
-            <Button onClick={() => setStreakPopup(null)} className="font-body">Keep Going! 🚀</Button>
-          </DialogContent>
-        </Dialog>
-
+    <Layout title="Dashboard">
+      <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+          <h1 className="text-2xl sm:text-3xl font-heading font-bold tracking-tight">
             Welcome back, <span className="text-gradient">{user.displayName?.split(" ")[0] || "Student"}</span>
           </h1>
-          <p className="text-muted-foreground font-body">Your complete study hub — track, review, and grow.</p>
+          <p className="text-sm text-muted-foreground font-body mt-1">Your command center — all systems at a glance.</p>
         </motion.div>
 
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => <CardSkeleton key={i} />)}
           </div>
         ) : (
           <>
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {[
-                { label: "Total Studied", value: totalStudied, icon: Check, color: "text-[hsl(142,71%,45%)]" },
-                { label: "Due Today", value: totalDue, icon: Target, color: "text-primary" },
-                { label: "Current Streak", value: `${streak.current}d`, icon: Flame, color: "text-[hsl(38,92%,50%)]" },
-                { label: "Total Reviews", value: totalActivity, icon: Brain, color: "text-[hsl(280,60%,55%)]" },
-              ].map((stat, i) => (
-                <motion.div key={stat.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}>
-                  <GlassCard hover={false} className="text-center py-5">
-                    <stat.icon className={`h-5 w-5 mx-auto mb-2 ${stat.color}`} />
-                    <p className="text-2xl font-heading font-bold tabular-nums">{stat.value}</p>
-                    <p className="text-xs text-muted-foreground font-body mt-1">{stat.label}</p>
-                  </GlassCard>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Secondary stats */}
-            <div className="grid grid-cols-3 gap-4">
-              <GlassCard hover={false} className="text-center py-5">
-                <Trophy className="h-5 w-5 mx-auto mb-2 text-[hsl(38,92%,50%)]" />
-                <p className="text-2xl font-heading font-bold">{streak.longest}d</p>
-                <p className="text-xs text-muted-foreground font-body mt-1">Longest Streak</p>
-              </GlassCard>
-              <GlassCard hover={false} className="text-center py-5">
-                <Eye className="h-5 w-5 mx-auto mb-2 text-destructive" />
-                <p className="text-2xl font-heading font-bold">{totalFlagged}</p>
-                <p className="text-xs text-muted-foreground font-body mt-1">Flagged</p>
-              </GlassCard>
-              <GlassCard hover={false} className="text-center py-5">
-                <TrendingUp className="h-5 w-5 mx-auto mb-2 text-primary" />
-                <p className="text-2xl font-heading font-bold">{mastery}%</p>
-                <p className="text-xs text-muted-foreground font-body mt-1">Mastery</p>
-              </GlassCard>
-            </div>
-
-            {/* Activity Heatmap */}
-            <GlassCard hover={false}>
-              <div className="flex items-center gap-2 mb-4">
-                <Calendar className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-heading font-bold">Study Activity</h2>
-              </div>
-              <ActivityHeatmap data={activity} />
-            </GlassCard>
-
-            {/* Active Projects + Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <GlassCard hover={false}>
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-primary/15 flex items-center justify-center">
-                    <BarChart3 className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold tabular-nums">{projectStats.length}</p>
-                    <p className="text-xs text-muted-foreground">Active Projects</p>
-                  </div>
+            {/* Row 1: Metric Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Focus Time */}
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }} className="rounded-2xl border border-border/50 bg-card p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Clock className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-body text-muted-foreground">Today's Focus</span>
                 </div>
-              </GlassCard>
-              <GlassCard hover={false}>
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-amber-500/15 flex items-center justify-center">
-                    <Bookmark className="h-5 w-5 text-amber-400" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold tabular-nums">{bookmarks.length}</p>
-                    <p className="text-xs text-muted-foreground">Bookmarked Questions</p>
-                  </div>
-                </div>
-              </GlassCard>
-              <GlassCard hover={false}>
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-emerald-500/15 flex items-center justify-center">
-                    <History className="h-5 w-5 text-emerald-400" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold tabular-nums">{submissions.length}</p>
-                    <p className="text-xs text-muted-foreground">Submissions</p>
-                  </div>
-                </div>
-              </GlassCard>
-            </div>
-
-            {/* Preparation Progress */}
-            <GlassCard hover={false}>
-              <div className="flex items-center gap-2 mb-5">
-                <Target className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold">Project Progress</h2>
-              </div>
-              {projectStats.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No projects with questions found.</p>
-              ) : (
-                <div className="space-y-4">
-                  {projectStats.map((ps) => (
-                    <div key={ps.projectId}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <Link to={`/project/${ps.projectId}/viva`} className="flex items-center gap-2 hover:text-primary transition-colors group">
-                          <BookOpen className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
-                          <span className="font-medium">{ps.projectCode}</span>
-                          <span className="text-sm text-muted-foreground hidden sm:inline">{ps.projectName}</span>
-                        </Link>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground tabular-nums">{ps.studiedCount}/{ps.totalQuestions}</span>
-                          <Badge variant="outline" className="text-[10px] tabular-nums">{ps.progress}%</Badge>
-                        </div>
-                      </div>
-                      <Progress value={ps.progress} className="h-1.5" />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </GlassCard>
-
-            {/* Bookmarked Questions */}
-            <GlassCard hover={false}>
-              <div className="flex items-center gap-2 mb-5">
-                <Bookmark className="h-5 w-5 text-amber-400" />
-                <h2 className="text-lg font-semibold">Bookmarked Questions</h2>
-              </div>
-              {bookmarks.length === 0 ? (
-                <div className="text-center py-6">
-                  <Bookmark className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">No bookmarks yet. Tap the bookmark icon on any question to save it.</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {bookmarks.slice(0, 8).map((bm) => (
-                    <div key={bm.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{bm.questionText}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{bm.category}</p>
-                      </div>
-                      <Button size="sm" variant="ghost" asChild>
-                        <Link to={`/project/${bm.projectId}/viva`}><BookOpen className="h-3.5 w-3.5" /></Link>
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </GlassCard>
-
-            {/* Submissions */}
-            <GlassCard hover={false}>
-              <div className="flex items-center gap-2 mb-5">
-                <History className="h-5 w-5 text-emerald-400" />
-                <h2 className="text-lg font-semibold">Your Submissions</h2>
-              </div>
-              {submissions.length === 0 ? (
-                <div className="text-center py-6">
-                  <History className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">You haven't shared any viva experiences yet.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {submissions.slice(0, 5).map((sub) => (
-                    <div key={sub.id} className="p-4 rounded-lg bg-secondary/30 space-y-2">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs bg-primary/10 text-primary/80 border-primary/20">
-                            {sub.projectId}
-                          </Badge>
-                          {sub.level && <span className="text-xs text-muted-foreground font-medium">{sub.level}</span>}
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          {sub.date && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {sub.date}</span>}
-                        </div>
-                      </div>
-                      {sub.questionsAsked && (
-                        <p className="text-sm text-muted-foreground line-clamp-2">{sub.questionsAsked}</p>
-                      )}
-                      <div className="flex gap-4">
-                        {sub.difficultyRating > 0 && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] uppercase tracking-wider text-red-400">Diff</span>
-                            <StarRating value={sub.difficultyRating} readonly size="sm" color="text-red-400" />
-                          </div>
-                        )}
-                        {sub.friendlinessRating > 0 && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] uppercase tracking-wider text-amber-400">Friendly</span>
-                            <StarRating value={sub.friendlinessRating} readonly size="sm" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </GlassCard>
-
-            {/* Due today CTA */}
-            {totalDue > 0 && (
-              <div className="text-center py-4">
-                <p className="text-muted-foreground font-body mb-3">
-                  You have <span className="text-primary font-semibold">{totalDue}</span> questions due for review
+                <p className="text-2xl font-heading font-bold tabular-nums">
+                  {Math.floor(todayFocusMinutes / 60)}h {todayFocusMinutes % 60}m
                 </p>
-                <Button asChild className="font-body gap-2">
-                  <Link to="/"><Brain className="h-4 w-4" /> Start Smart Review</Link>
-                </Button>
+                <div className="h-10 mt-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={focusSparkline}>
+                      <Bar dataKey="minutes" fill="hsl(263, 70%, 58%)" radius={[2, 2, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </motion.div>
+
+              {/* Streak */}
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="rounded-2xl border border-border/50 bg-card p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Flame className="h-4 w-4 text-[hsl(var(--streak))]" />
+                  <span className="text-xs font-body text-muted-foreground">Study Streak</span>
+                </div>
+                <p className="text-2xl font-heading font-bold tabular-nums">{streak.current}d</p>
+                <p className="text-xs text-muted-foreground font-body mt-1">Longest: {streak.longest}d</p>
+              </motion.div>
+
+              {/* Tasks */}
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-2xl border border-border/50 bg-card p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckSquare className="h-4 w-4 text-[hsl(var(--success))]" />
+                  <span className="text-xs font-body text-muted-foreground">Tasks Today</span>
+                </div>
+                <p className="text-2xl font-heading font-bold tabular-nums">{todayTasksDone} of {todayTasks.length}</p>
+                <Progress value={todayTasks.length > 0 ? (todayTasksDone / todayTasks.length) * 100 : 0} className="h-1.5 mt-2" />
+              </motion.div>
+
+              {/* Habits */}
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="rounded-2xl border border-border/50 bg-card p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Heart className="h-4 w-4 text-pink-500" />
+                  <span className="text-xs font-body text-muted-foreground">Habits Today</span>
+                </div>
+                <p className="text-2xl font-heading font-bold tabular-nums">{habitsCompletedToday} of {habits.length}</p>
+                <div className="flex gap-1 mt-2">
+                  {habits.map(h => (
+                    <div key={h.id} className="h-3 w-3 rounded-full" style={{ backgroundColor: habitLogs[h.id] ? h.color : `${h.color}30` }} />
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Row 2: Heatmap + Events + Habits */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              {/* Focus Heatmap */}
+              <div className="lg:col-span-6 rounded-2xl border border-border/50 bg-card p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <BarChart3 className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-heading font-bold">Study Activity</h3>
+                </div>
+                <ActivityHeatmap data={activity} />
               </div>
-            )}
+
+              {/* Upcoming Events */}
+              <div className="lg:col-span-3 rounded-2xl border border-border/50 bg-card p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <CalendarDays className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-heading font-bold">Upcoming</h3>
+                </div>
+                {calEvents.length === 0 ? (
+                  <p className="text-xs text-muted-foreground font-body">No upcoming events.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {calEvents.slice(0, 5).map(e => (
+                      <div key={e.id} className="flex items-center gap-2.5">
+                        <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: e.color || "#7c3aed" }} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-body font-medium truncate">{e.title}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <Link to="/study" className="text-xs text-primary font-body flex items-center gap-1 mt-3 hover:underline">
+                  View Calendar <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+
+              {/* Today's Habits */}
+              <div className="lg:col-span-3 rounded-2xl border border-border/50 bg-card p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Heart className="h-4 w-4 text-pink-500" />
+                  <h3 className="text-sm font-heading font-bold">Habits</h3>
+                </div>
+                {habits.length === 0 ? (
+                  <p className="text-xs text-muted-foreground font-body">No habits yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {habits.map(h => (
+                      <div key={h.id} className="flex items-center gap-2.5">
+                        <span className="text-sm">{h.emoji}</span>
+                        <span className="text-xs font-body flex-1 truncate">{h.name}</span>
+                        <div className={`h-5 w-5 rounded-full border flex items-center justify-center text-[10px] ${habitLogs[h.id] ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30"}`}>
+                          {habitLogs[h.id] && "✓"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <Link to="/study" className="text-xs text-primary font-body flex items-center gap-1 mt-3 hover:underline">
+                  Manage Habits <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Row 3: Course Progress + Recent Notes */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              {/* Per-Course Progress */}
+              <div className="lg:col-span-7 rounded-2xl border border-border/50 bg-card p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Target className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-heading font-bold">Course Progress</h3>
+                </div>
+                {projectStats.length === 0 ? (
+                  <p className="text-xs text-muted-foreground font-body">No courses with questions found.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {projectStats.slice(0, 5).map(ps => (
+                      <div key={ps.projectId}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+                              {ps.projectCode.slice(0, 2)}
+                            </div>
+                            <div>
+                              <p className="text-sm font-body font-medium">{ps.projectCode}</p>
+                              <p className="text-[10px] text-muted-foreground font-body">{ps.projectName}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground font-body tabular-nums">{ps.studiedCount}/{ps.totalQuestions}</span>
+                            <Badge variant="outline" className="text-[10px] tabular-nums">{ps.progress}%</Badge>
+                          </div>
+                        </div>
+                        <Progress value={ps.progress} className="h-1.5" />
+                      </div>
+                    ))}
+                    {projectStats.length > 5 && (
+                      <Link to="/" className="text-xs text-primary font-body flex items-center gap-1 hover:underline">
+                        View all {projectStats.length} courses <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Recent Notes */}
+              <div className="lg:col-span-5 rounded-2xl border border-border/50 bg-card p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <StickyNote className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-heading font-bold">Recent Notes</h3>
+                </div>
+                <div className="space-y-2.5">
+                  {/* This would pull from notes data - showing empty state for now */}
+                  <div className="text-center py-8">
+                    <StickyNote className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground font-body">Open Notes OS to see recent notes here.</p>
+                  </div>
+                </div>
+                <Link to="/notes" className="text-xs text-primary font-body flex items-center gap-1 mt-3 hover:underline">
+                  Open Notes OS <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Row 4: Activity Feed */}
+            <div className="rounded-2xl border border-border/50 bg-card p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-heading font-bold">Recent Activity</h3>
+              </div>
+              <div className="space-y-2">
+                {focusSessions.length === 0 && tasks.length === 0 ? (
+                  <div className="text-center py-8">
+                    <TrendingUp className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground font-body">Start studying to see your activity here.</p>
+                  </div>
+                ) : (
+                  <>
+                    {focusSessions.slice(-8).reverse().map(s => (
+                      <div key={s.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
+                        <Zap className="h-4 w-4 text-primary shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-body">
+                            {s.abandoned ? "Ended" : "Completed"} a {s.duration}-minute {s.mode} focus session
+                          </p>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground font-body shrink-0">{s.date}</span>
+                      </div>
+                    ))}
+                    {tasks.filter(t => t.status === "done").slice(-5).reverse().map(t => (
+                      <div key={t.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
+                        <CheckSquare className="h-4 w-4 text-[hsl(var(--success))] shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-body">Marked task "{t.title}" as done</p>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex gap-3 flex-wrap">
+              <Button asChild variant="outline" size="sm" className="font-body text-xs gap-1.5">
+                <Link to="/study"><Zap className="h-3.5 w-3.5" /> Open Study OS</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="font-body text-xs gap-1.5">
+                <Link to="/notes"><StickyNote className="h-3.5 w-3.5" /> Open Notes OS</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="font-body text-xs gap-1.5">
+                <Link to="/"><BookOpen className="h-3.5 w-3.5" /> Browse Courses</Link>
+              </Button>
+            </div>
           </>
         )}
       </div>

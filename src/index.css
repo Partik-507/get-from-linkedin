@@ -338,6 +338,54 @@
   animation: focus-fade 0.3s ease-out;
 }
 
+/* Calendar event block */
+.cal-event-block {
+  transition: filter 100ms ease;
+}
+.cal-event-block:hover {
+  filter: brightness(1.15);
+}
+
+/* Habit checkmark animation */
+@keyframes habit-check {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-habit-check {
+  animation: habit-check 0.3s ease-out;
+}
+
+/* Task strikethrough */
+@keyframes task-strike {
+  from { text-decoration-color: transparent; }
+  to { text-decoration-color: currentColor; }
+}
+.animate-task-strike {
+  animation: task-strike 0.3s ease-out forwards;
+  text-decoration: line-through;
+}
+
+/* Breathing animation for focus breaks */
+@keyframes breathe-in {
+  from { transform: scale(1); }
+  to { transform: scale(1.4); }
+}
+@keyframes breathe-out {
+  from { transform: scale(1.4); }
+  to { transform: scale(1); }
+}
+
+/* Flip timer digit */
+@keyframes flip-digit {
+  0% { transform: perspective(400px) rotateX(0deg); }
+  50% { transform: perspective(400px) rotateX(-90deg); }
+  100% { transform: perspective(400px) rotateX(0deg); }
+}
+.flip-digit {
+  animation: flip-digit 0.6s ease-in-out;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
