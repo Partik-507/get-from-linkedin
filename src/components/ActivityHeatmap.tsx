@@ -1,13 +1,14 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ActivityHeatmapProps {
   data: Record<string, number>; // "YYYY-MM-DD" -> count
-  days?: number;
+  defaultDays?: number;
 }
 
-export const ActivityHeatmap = ({ data, days = 365 }: ActivityHeatmapProps) => {
+export const ActivityHeatmap = ({ data, defaultDays = 365 }: ActivityHeatmapProps) => {
+  const [days, setDays] = useState(defaultDays);
   const cells = useMemo(() => {
     const result: { date: string; count: number; dayOfWeek: number }[] = [];
     const today = new Date();
@@ -76,9 +77,30 @@ export const ActivityHeatmap = ({ data, days = 365 }: ActivityHeatmapProps) => {
   }, [weeks]);
 
   return (
-    <div className="overflow-x-auto">
-      {/* Month labels */}
-      <div className="flex gap-[3px] mb-1 ml-7">
+    <div className="flex flex-col">
+      <div className="flex justify-end mb-2 mr-2">
+        <div className="flex bg-muted/50 rounded-lg p-0.5">
+          {[
+            { label: "3M", val: 90 },
+            { label: "6M", val: 180 },
+            { label: "1Y", val: 365 }
+          ].map(opt => (
+            <button
+              key={opt.val}
+              onClick={() => setDays(opt.val)}
+              className={cn(
+                "px-2.5 py-1 text-[10px] font-body font-medium rounded-md transition-colors",
+                days === opt.val ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="overflow-x-auto w-full">
+        {/* Month labels */}
+        <div className="flex gap-[3px] mb-1 ml-7">
         {months.map((m, i) => (
           <span
             key={i}
@@ -124,6 +146,7 @@ export const ActivityHeatmap = ({ data, days = 365 }: ActivityHeatmapProps) => {
             ))}
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

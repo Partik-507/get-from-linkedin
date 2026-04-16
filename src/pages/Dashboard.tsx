@@ -167,7 +167,7 @@ const Dashboard = () => {
 
   return (
     <Layout title="Dashboard">
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="w-full space-y-8">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           <h1 className="text-2xl sm:text-3xl font-heading font-bold tracking-tight">
@@ -185,7 +185,7 @@ const Dashboard = () => {
             {/* Row 1: Metric Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Focus Time */}
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }} className="rounded-2xl border border-border/50 bg-card p-5">
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }} className="vv-card p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Clock className="h-4 w-4 text-primary" />
                   <span className="text-xs font-body text-muted-foreground">Today's Focus</span>
@@ -203,7 +203,7 @@ const Dashboard = () => {
               </motion.div>
 
               {/* Streak */}
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="rounded-2xl border border-border/50 bg-card p-5">
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="vv-card p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Flame className="h-4 w-4 text-[hsl(var(--streak))]" />
                   <span className="text-xs font-body text-muted-foreground">Study Streak</span>
@@ -213,7 +213,7 @@ const Dashboard = () => {
               </motion.div>
 
               {/* Tasks */}
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-2xl border border-border/50 bg-card p-5">
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="vv-card p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <CheckSquare className="h-4 w-4 text-[hsl(var(--success))]" />
                   <span className="text-xs font-body text-muted-foreground">Tasks Today</span>
@@ -223,7 +223,7 @@ const Dashboard = () => {
               </motion.div>
 
               {/* Habits */}
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="rounded-2xl border border-border/50 bg-card p-5">
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="vv-card p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Heart className="h-4 w-4 text-pink-500" />
                   <span className="text-xs font-body text-muted-foreground">Habits Today</span>
@@ -240,7 +240,7 @@ const Dashboard = () => {
             {/* Row 2: Heatmap + Events + Habits */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
               {/* Focus Heatmap */}
-              <div className="lg:col-span-6 rounded-2xl border border-border/50 bg-card p-5">
+              <div className="lg:col-span-6 vv-card p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <BarChart3 className="h-4 w-4 text-primary" />
                   <h3 className="text-sm font-heading font-bold">Study Activity</h3>
@@ -249,7 +249,7 @@ const Dashboard = () => {
               </div>
 
               {/* Upcoming Events */}
-              <div className="lg:col-span-3 rounded-2xl border border-border/50 bg-card p-5">
+              <div className="lg:col-span-3 vv-card p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <CalendarDays className="h-4 w-4 text-primary" />
                   <h3 className="text-sm font-heading font-bold">Upcoming</h3>
@@ -274,7 +274,7 @@ const Dashboard = () => {
               </div>
 
               {/* Today's Habits */}
-              <div className="lg:col-span-3 rounded-2xl border border-border/50 bg-card p-5">
+              <div className="lg:col-span-3 vv-card p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <Heart className="h-4 w-4 text-pink-500" />
                   <h3 className="text-sm font-heading font-bold">Habits</h3>
@@ -303,7 +303,7 @@ const Dashboard = () => {
             {/* Row 3: Course Progress + Recent Notes */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
               {/* Per-Course Progress */}
-              <div className="lg:col-span-7 rounded-2xl border border-border/50 bg-card p-5">
+              <div className="lg:col-span-7 vv-card p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <Target className="h-4 w-4 text-primary" />
                   <h3 className="text-sm font-heading font-bold">Course Progress</h3>
@@ -342,7 +342,7 @@ const Dashboard = () => {
               </div>
 
               {/* Recent Notes */}
-              <div className="lg:col-span-5 rounded-2xl border border-border/50 bg-card p-5">
+              <div className="lg:col-span-5 vv-card p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <StickyNote className="h-4 w-4 text-primary" />
                   <h3 className="text-sm font-heading font-bold">Recent Notes</h3>
@@ -361,7 +361,7 @@ const Dashboard = () => {
             </div>
 
             {/* Row 4: Activity Feed */}
-            <div className="rounded-2xl border border-border/50 bg-card p-5">
+            <div className="vv-card p-5">
               <div className="flex items-center gap-2 mb-4">
                 <TrendingUp className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-heading font-bold">Recent Activity</h3>

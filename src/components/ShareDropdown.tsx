@@ -2,10 +2,11 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Share2, Copy, MessageCircle, Mail, Twitter } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const APP_URL = "https://vivavault.app";
 
-export const ShareDropdown = () => {
+export const ShareDropdown = ({ className }: { className?: string }) => {
   const handleCopy = async () => {
     await navigator.clipboard.writeText(APP_URL);
     toast.success("Link copied!");
@@ -26,7 +27,7 @@ export const ShareDropdown = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 font-body text-xs">
+        <Button variant="outline" size="sm" className={cn("gap-2 font-body text-xs", className)}>
           <Share2 className="h-3.5 w-3.5" /> Share
         </Button>
       </DropdownMenuTrigger>

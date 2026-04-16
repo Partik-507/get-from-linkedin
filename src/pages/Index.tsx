@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { getDueQuestions, getStudiedIds, loadStreak } from "@/lib/spacedRepetition";
 import { getUserEnrollments, enrollInCourse, getBranches, getLevels, type Branch, type Level } from "@/lib/firestoreSync";
+import { cn } from "@/lib/utils";
 
 interface Project {
   id: string;
@@ -147,6 +148,20 @@ const Index = () => {
     return result;
   }, [projects, search, branchFilter, levelFilter, typeFilter, showEnrolled, sortBy, enrollments, questionMeta, user]);
 
+  const getPrimaryProjectId = () => {
+    const enrolled = user ? Object.keys(enrollments || {}) : [];
+    if (enrolled.length > 0) return enrolled[0];
+    return filteredProjects[0]?.id || projects[0]?.id || null;
+  };
+
+  const openQuizPractice = () => {
+    window.open("https://quizpractice.space/", "_blank");
+  };
+
+  const openAceGrade = () => {
+    window.open("https://acegrade.in/", "_blank");
+  };
+
   return (
     <Layout>
       {/* Global Search */}
@@ -163,9 +178,9 @@ const Index = () => {
       </div>
 
       {/* Top Section: Two columns - 40/60 */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-10">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-10">
         {/* Left Panel - 40% */}
-        <div className="lg:col-span-5 space-y-5">
+        <div className="lg:col-span-4 space-y-5">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <h1 className="text-3xl sm:text-4xl font-heading font-extrabold tracking-tight leading-tight">
               <span className="text-gradient">VivaVault</span>
@@ -194,10 +209,10 @@ const Index = () => {
           )}
 
           {/* Cascading Filters */}
-          <div className="space-y-2">
-            <div className="flex flex-wrap gap-2">
+          <div className="space-y-2 ">
+            <div className="flex flex-wrap gap-2 mt-10">
               <Select value={branchFilter} onValueChange={setBranchFilter}>
-                <SelectTrigger className="w-[150px] h-9 text-xs font-body bg-card border-border/60">
+                <SelectTrigger className="w-[150px] h-12 text-md font-body  bg-card border-border/60">
                   <SelectValue placeholder="All Branches" />
                 </SelectTrigger>
                 <SelectContent>
@@ -207,7 +222,7 @@ const Index = () => {
               </Select>
 
               <Select value={levelFilter} onValueChange={setLevelFilter}>
-                <SelectTrigger className="w-[150px] h-9 text-xs font-body bg-card border-border/60">
+                <SelectTrigger className="w-[150px] h-12 text-md font-body bg-card border-border/60">
                   <SelectValue placeholder="All Levels" />
                 </SelectTrigger>
                 <SelectContent>
@@ -217,7 +232,7 @@ const Index = () => {
               </Select>
 
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-[120px] h-9 text-xs font-body bg-card border-border/60">
+                <SelectTrigger className="w-[120px] h-12 text-md font-body bg-card border-border/60">
                   <SelectValue placeholder="All Types" />
                 </SelectTrigger>
                 <SelectContent>
@@ -227,71 +242,111 @@ const Index = () => {
                 </SelectContent>
               </Select>
             </div>
-            {user && (
-              <Button
-                variant={showEnrolled ? "secondary" : "outline"}
-                size="sm"
-                className="h-8 text-xs font-body"
-                onClick={() => setShowEnrolled(!showEnrolled)}
-              >
-                {showEnrolled ? "Show All" : "Enrolled Only"}
-              </Button>
-            )}
+            
           </div>
         </div>
 
         {/* Right Panel - 60% */}
-        <div className="lg:col-span-7">
-          <div className="vv-card p-5 space-y-4 bg-primary/[0.02] dark:bg-primary/[0.03]">
-            {/* Quick Action Grid 2x2 */}
-            <div className="grid grid-cols-2 gap-2.5">
-              {[
-                { icon: Timer, label: "Study OS", sub: "Plan & track sessions", to: "/study" },
-                { icon: StickyNote, label: "Notes OS", sub: "Knowledge workspace", to: "/notes" },
-                { icon: Link2, label: "Resources", sub: "Study materials", to: "/notes" },
-                { icon: BookOpen, label: "Dashboard", sub: "Your progress", to: "/dashboard" },
-              ].map((action) => (
-                <Link
-                  key={action.label}
-                  to={action.to}
-                  className="flex items-center gap-2.5 p-3 rounded-xl bg-background border border-border/40 hover:border-primary/30 hover:bg-primary/[0.03] transition-all group"
-                >
-                  <div className="h-9 w-9 rounded-lg bg-primary/8 flex items-center justify-center shrink-0 group-hover:bg-primary/12 transition-colors">
-                    <action.icon className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-body font-medium leading-tight">{action.label}</p>
-                    <p className="text-[10px] text-muted-foreground font-body">{action.sub}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
+        <div className="lg:col-span-8">
+          <div className="vv-card p-5 bg-primary/[0.02] dark:bg-primary/[0.03]">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+              {/* Main 4 feature cards */}
+              <div className="xl:col-span-6">
+                <div className="grid grid-cols-2 gap-2.5">
+                  {[
+                    { icon: Timer, label: "Study OS", sub: "Plan & track sessions", to: "/study" },
+                    { icon: StickyNote, label: "Notes OS", sub: "Knowledge workspace", to: "/notes" },
+                    { icon: Link2, label: "Resources", sub: "Study materials", to: "/resources" },
+                    { icon: BookOpen, label: "Dashboard", sub: "Your progress", to: "/dashboard" },
+                  ].map((action) => (
+                    <Link
+                      key={action.label}
+                      to={action.to}
+                      className="flex items-center gap-2.5 p-3 rounded-xl bg-background border border-border/40 hover:border-primary/30 hover:bg-primary/[0.03] transition-all group"
+                    >
+                      <div className="h-9 w-9 rounded-lg bg-primary/8 flex items-center justify-center shrink-0 group-hover:bg-primary/12 transition-colors">
+                        <action.icon className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-body font-medium leading-tight">{action.label}</p>
+                        <p className="text-[10px] text-muted-foreground font-body">{action.sub}</p>
+                      </div>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/40 ml-auto shrink-0 group-hover:text-primary/60 transition-colors" />
+                    </Link>
+                  ))}
+                </div>
 
-            {/* Contribution dropdown + share/feedback */}
-            <div className="flex gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2 font-body text-xs flex-1 justify-between bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 hover:border-primary/40">
-                    <span className="flex items-center gap-1.5"><Plus className="h-3.5 w-3.5 text-primary" /> Contribute</span>
-                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                {/* Utility tiles */}
+                <div className="grid grid-cols-2 gap-2.5 mt-2.5">
+                  <button
+                    onClick={openQuizPractice}
+                    className="flex items-center gap-2.5 p-3 rounded-xl bg-background border border-border/40 hover:border-primary/30 hover:bg-primary/[0.03] transition-all group text-left"
+                  >
+                    <div className="h-9 w-9 rounded-lg bg-muted/20 flex items-center justify-center shrink-0 group-hover:bg-muted/30 transition-colors overflow-hidden">
+                      <img src="/img/quiz.png" alt="Quiz Practice" className="h-6 w-6 object-contain" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-body font-medium leading-tight">Quiz Practice</p>
+                      <p className="text-[10px] text-muted-foreground font-body">Timed quizzes & weak spots</p>
+                    </div>
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/40 ml-auto shrink-0 group-hover:text-primary/60 transition-colors" />
+                  </button>
+                  <button
+                    onClick={openAceGrade}
+                    className="flex items-center gap-2.5 p-3 rounded-xl bg-background border border-border/40 hover:border-primary/30 hover:bg-primary/[0.03] transition-all group text-left"
+                  >
+                    <div className="h-9 w-9 rounded-lg bg-muted/20 flex items-center justify-center shrink-0 group-hover:bg-muted/30 transition-colors overflow-hidden">
+                      <img src="/img/ace.png" alt="Ace Grade" className="h-6 w-6 object-contain" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-body font-medium leading-tight">Ace Grade</p>
+                      <p className="text-[10px] text-muted-foreground font-body">Flashcards & mastery loop</p>
+                    </div>
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/40 ml-auto shrink-0 group-hover:text-primary/60 transition-colors" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Right action stack */}
+              <div className="xl:col-span-6 flex gap-3">
+                <div className="flex-[5] rounded-2xl border border-border/40 bg-background p-3">
+                  <p className="text-[10px] font-body font-semibold text-muted-foreground/70 uppercase tracking-widest ">Contribute</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      { icon: HelpCircle, label: "Submit Questions", sub: "Help everyone practice", to: "/submit-question" },
+                      { icon: Pencil, label: "Share Notes", sub: "Publish your pages", to: "/notes" },
+                      { icon: FileText, label: "Share Resources", sub: "Add links & docs", to: "/resources" },
+                    ].map((a) => (
+                      <button
+                        key={a.label}
+                        onClick={() => navigate(a.to)}
+                        className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-muted/40 transition-colors text-left"
+                      >
+                        <div className="h-8 w-8 rounded-xl bg-muted/30 flex items-center justify-center">
+                          <a.icon className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-body font-medium leading-tight">{a.label}</p>
+                          <p className="text-[10px] text-muted-foreground font-body">{a.sub}</p>
+                        </div>
+                        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex-[2] flex flex-col gap-3">
+                  <ShareDropdown className="flex-1 w-full justify-center h-full text-xs py-3 rounded-2xl" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 w-full gap-2 font-body text-xs py-3 rounded-2xl"
+                    onClick={() => setFeedbackOpen(true)}
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" /> Feedback
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48">
-                  <DropdownMenuItem onClick={() => navigate("/submit-question")} className="gap-2 font-body text-xs">
-                    <HelpCircle className="h-3.5 w-3.5" /> Submit Questions
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/notes")} className="gap-2 font-body text-xs">
-                    <Pencil className="h-3.5 w-3.5" /> Share Notes
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/notes")} className="gap-2 font-body text-xs">
-                    <FileText className="h-3.5 w-3.5" /> Share Resources
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <ShareDropdown />
-              <Button variant="outline" size="sm" className="gap-2 font-body text-xs" onClick={() => setFeedbackOpen(true)}>
-                <MessageSquare className="h-3.5 w-3.5" /> Feedback
-              </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -305,6 +360,17 @@ const Index = () => {
           </h2>
           <Badge variant="secondary" className="text-xs font-body">{filteredProjects.length} items</Badge>
         </div>
+        <div  className="flex gap-2.5" >
+              {user && (
+              <Button
+                variant={showEnrolled ? "secondary" : "outline"}
+                size="sm"
+                className="h-8 text-xs font-body"
+                onClick={() => setShowEnrolled(!showEnrolled)}
+              >
+                {showEnrolled ? "Show All" : "Enrolled Only"}
+              </Button>
+            )}
         <Select value={sortBy} onValueChange={setSortBy}>
           <SelectTrigger className="w-[130px] h-8 text-xs font-body">
             <SelectValue />
@@ -315,6 +381,8 @@ const Index = () => {
             <SelectItem value="questions" className="font-body text-xs">Most Questions</SelectItem>
           </SelectContent>
         </Select>
+        </div>
+ 
       </div>
 
       {loading ? (
@@ -326,7 +394,7 @@ const Index = () => {
           description={search ? "Try adjusting your search or filters." : "Projects will appear here once an admin adds them."}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {filteredProjects.map((project, i) => {
             const prog = getProjectProgress(project.id);
             const status = getCourseStatus(project);

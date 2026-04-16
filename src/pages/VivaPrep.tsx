@@ -188,7 +188,7 @@ const QuestionCard = ({ q, onUpvote, isUpvoted, isStudied, onToggleStudied, book
 
   return (
     <div className={cn("obsidian-card overflow-hidden group", isStudied && "ring-1 ring-[hsl(142,71%,45%)]/30")} id={`q-${q.id}`}>
-      <button onClick={() => setExpanded(!expanded)} className="w-full text-left p-5 sm:p-6 flex items-start gap-3 transition-colors duration-200 hover:bg-accent/20">
+      <div onClick={() => setExpanded(!expanded)} className="w-full text-left p-5 sm:p-6 flex items-start gap-3 transition-colors duration-200 hover:bg-accent/20 cursor-pointer">
         <div className="flex-1 min-w-0">
           <p className="font-mono-dm font-medium leading-relaxed pr-2 text-foreground text-[15px] sm:text-base">{q.question}</p>
           <div className="flex flex-wrap gap-2 mt-3">
@@ -213,7 +213,7 @@ const QuestionCard = ({ q, onUpvote, isUpvoted, isStudied, onToggleStudied, book
           </button>
           <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-300", expanded && "rotate-180")} />
         </div>
-      </button>
+      </div>
 
       <AnimatePresence>
         {expanded && (

@@ -1,6 +1,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
+import { CalendarView, type CalViewEvent, type CalendarViewHandle, MiniCalendar, CalendarList } from "@/components/CalendarView";
 import { Layout } from "@/components/Layout";
+import { FocusSessionComplete } from "@/components/FocusSessionComplete";
+import { TimeWheelPicker } from "@/components/TimeWheelPicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,13 +22,13 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CalendarDays, CheckSquare, Flame, Zap, BarChart3,
-  ChevronLeft, ChevronRight, ChevronsLeft, Search, Clock,
+  ChevronLeft, ChevronRight, Search, Clock,
   Plus, MoreHorizontal, Trash2, Edit2, Play, Pause, X,
   Square, Volume2, Image, Maximize, Minimize,
   Sun, Moon, CloudRain, Coffee, TreePine, Waves,
   Music, Headphones, ArrowRight, GripVertical,
   Inbox, FolderKanban, CalendarRange, Circle,
-  Heart, Target, TrendingUp, AlertTriangle,
+  Heart, Target, TrendingUp, AlertTriangle, Menu, PanelLeftClose,
 } from "lucide-react";
 import {
   format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks,
@@ -201,9 +206,15 @@ function parseNaturalLanguageTask(input: string): Partial<Task> {
 // ============ MAIN COMPONENT ============
 const StudyMode = () => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
 
   // Layout state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    try { return parseInt(localStorage.getItem("vv_study_sidebar_width") || "220", 10); } catch { return 220; }
+  });
+  const [isResizing, setIsResizing] = useState(false);
   const [activeSection, setActiveSection] = useState<"calendar" | "tasks" | "habits" | "focus" | "analytics">("calendar");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -224,6 +235,9 @@ const StudyMode = () => {
   const [newEventRecurrence, setNewEventRecurrence] = useState("none");
   const [showWeekends, setShowWeekends] = useState(true);
   const [viewDropdownOpen, setViewDropdownOpen] = useState(false);
+
+  const [showHolidays, setShowHolidays] = useState(true);
+  const calendarRef = useRef<CalendarViewHandle>(null);
 
   // Task state
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -266,6 +280,49 @@ const StudyMode = () => {
   const [motMessageIndex] = useState(() => Math.floor(Math.random() * MOTIVATIONAL_MESSAGES.length));
 
   const todayStr = format(new Date(), "yyyy-MM-dd");
+
+  // ── Google Calendar integration ────────────────────────────────────────
+  // Compute a date range for the current view (±3 months)
+  const gcalRangeStart = useMemo(() => {
+    const d = new Date(currentDate);
+    d.setMonth(d.getMonth() - 1);
+    d.setDate(1);
+    return d;
+  }, [currentDate]);
+  const gcalRangeEnd = useMemo(() => {
+    const d = new Date(currentDate);
+    d.setMonth(d.getMonth() + 2);
+    d.setDate(0);
+    return d;
+  }, [currentDate]);
+
+  const {
+    connectionState: gcalState,
+    calendarStatus: gcalStatus,
+    googleEvents,
+    isSyncing: gcalSyncing,
+    lastSyncedAt: gcalLastSync,
+    connect: gcalConnect,
+    disconnect: gcalDisconnect,
+    refetch: gcalRefetch,
+    createEvent: gcalCreateEvent,
+    deleteEvent: gcalDeleteEvent,
+  } = useGoogleCalendar({
+    uid: user?.uid ?? null,
+    rangeStart: gcalRangeStart,
+    rangeEnd: gcalRangeEnd,
+  });
+
+
+
+  // Handle redirect back from Google OAuth (URL param gcal=connected)
+  useEffect(() => {
+    if (searchParams.get("gcal") === "connected") {
+      setActiveSection("calendar");
+    }
+  }, [searchParams]);
+
+
 
   useEffect(() => {
     document.title = "Study OS — VivaVault";
@@ -312,13 +369,34 @@ const StudyMode = () => {
     loadData();
   }, [user, todayStr]);
 
+  // Persist sidebar width
+  useEffect(() => {
+    localStorage.setItem("vv_study_sidebar_width", sidebarWidth.toString());
+  }, [sidebarWidth]);
+
+  // Resizable sidebar drag
+  useEffect(() => {
+    if (!isResizing) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      let w = e.clientX - 8;
+      if (w < 180) w = 180;
+      if (w > 480) w = 480;
+      setSidebarWidth(w);
+    };
+    const handleMouseUp = () => { setIsResizing(false); document.body.style.cursor = "default"; };
+    document.body.style.cursor = "col-resize";
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => { document.removeEventListener("mousemove", handleMouseMove); document.removeEventListener("mouseup", handleMouseUp); document.body.style.cursor = "default"; };
+  }, [isResizing]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (focusActive) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const keyMap: Record<string, typeof activeSection> = { "1": "calendar", "2": "tasks", "3": "habits", "4": "focus", "5": "analytics" };
-      if (keyMap[e.key]) setActiveSection(keyMap[e.key]);
+      if (keyMap[e.key]) { setActiveSection(keyMap[e.key]); setMobileDrawerOpen(false); }
       if (e.key === "t" || e.key === "T") { e.preventDefault(); setShowQuickCapture(true); }
     };
     window.addEventListener("keydown", handler);
@@ -379,23 +457,40 @@ const StudyMode = () => {
     return streak;
   }, [focusSessions, tasks]);
 
+
   // ============ HANDLERS ============
-  const handleCreateEvent = async () => {
-    if (!user || !newEventTitle.trim()) return;
-    const startDate = quickCreateSlot ? setMinutes(setHours(quickCreateSlot.date, quickCreateSlot.hour), 0) : new Date();
-    const endDate = quickCreateSlot ? setMinutes(setHours(quickCreateSlot.date, quickCreateSlot.hour + 1), 0) : addHours(new Date(), 1);
-    const eventData = { title: newEventTitle, start: startDate, end: endDate, color: newEventColor, allDay: newEventAllDay, description: newEventDesc, location: newEventLocation, recurrence: newEventRecurrence };
+
+  // Bridge for CalendarView's CreateEventData shape
+  const handleCreateEventFromModal = async (data: { title: string; start: Date; end: Date; allDay: boolean; color: string; description: string; location: string; recurrence: string; }) => {
+    if (!user) return;
+    const eventData = { title: data.title, start: data.start, end: data.end, color: data.color, allDay: data.allDay, description: data.description, location: data.location, recurrence: data.recurrence };
     try {
+      if (gcalState === "connected") {
+        await gcalCreateEvent({ summary: data.title, description: data.description, location: data.location, start: data.start, end: data.end, allDay: data.allDay });
+        toast.success("Event added to Google Calendar");
+        return;
+      }
       const ref = await addDoc(collection(db, "users", user.uid, "calendarEvents"), eventData);
       setEvents(prev => [...prev, { ...eventData, id: ref.id }]);
-      setNewEventTitle(""); setNewEventDesc(""); setNewEventLocation(""); setQuickCreateSlot(null); setShowEventModal(false);
       toast.success("Event created");
     } catch { toast.error("Failed to create event"); }
   };
 
   const handleDeleteEvent = async (eventId: string) => {
     if (!user) return;
-    try { await deleteDoc(doc(db, "users", user.uid, "calendarEvents", eventId)); setEvents(prev => prev.filter(e => e.id !== eventId)); toast.success("Event deleted"); } catch { toast.error("Failed to delete event"); }
+    try {
+      // Check if this is a Google Calendar event (id starts with "gcal_")
+      if (eventId.startsWith("gcal_")) {
+        const googleEventId = eventId.replace("gcal_", "");
+        await gcalDeleteEvent(googleEventId);
+        toast.success("Event removed from Google Calendar");
+        return;
+      }
+      // Local Firestore event
+      await deleteDoc(doc(db, "users", user.uid, "calendarEvents", eventId));
+      setEvents(prev => prev.filter(e => e.id !== eventId));
+      toast.success("Event deleted");
+    } catch { toast.error("Failed to delete event"); }
   };
 
   const handleCreateTask = async (parsed?: Partial<Task>) => {
@@ -446,9 +541,9 @@ const StudyMode = () => {
     if (user) setShowPostSession(true);
   };
 
-  const saveFocusSession = async () => {
+  const saveFocusSessionData = async (mood: number, note: string) => {
     if (!user) return;
-    const sessionData = { duration: focusDuration, mode: focusMode, date: todayStr, mood: sessionMood, note: sessionNote, abandoned: false, soundscape };
+    const sessionData = { duration: focusDuration, mode: focusMode, date: todayStr, mood, note, abandoned: false, soundscape };
     try { const ref = await addDoc(collection(db, "users", user.uid, "focusSessions"), sessionData); setFocusSessions(prev => [...prev, { ...sessionData, id: ref.id }]); setShowPostSession(false); setSessionMood(0); setSessionNote(""); toast.success("Session saved! Great work 🎉"); } catch { toast.error("Failed to save session"); }
   };
 
@@ -464,20 +559,10 @@ const StudyMode = () => {
     try { const ref = await addDoc(collection(db, "users", user.uid, "focusSessions"), { duration: focusDuration, mode: focusMode, date: todayStr, abandoned: true, soundscape }); setFocusSessions(prev => [...prev, { duration: focusDuration, mode: focusMode, date: todayStr, abandoned: true, soundscape, id: ref.id }]); toast("Session ended early"); } catch {}
   };
 
-  // ============ CALENDAR HELPERS ============
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
-  const weekDays = useMemo(() => {
-    const days = eachDayOfInterval({ start: weekStart, end: addDays(weekStart, 6) });
-    return showWeekends ? days : days.filter(d => d.getDay() !== 0 && d.getDay() !== 6);
-  }, [weekStart, showWeekends]);
-  const monthCalendarStart = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 0 });
-  const monthDays = useMemo(() => eachDayOfInterval({ start: monthCalendarStart, end: addDays(monthCalendarStart, 41) }), [monthCalendarStart]);
-  const getEventsForDay = useCallback((date: Date) => events.filter(e => isSameDay(e.start, date)), [events]);
-  const hours = Array.from({ length: 24 }, (_, i) => i);
   const formatTime = (seconds: number) => `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
-  const formatHour = (hour: number) => hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`;
 
-  const sidebarItems = [
+
+  const SECTION_TABS = [
     { id: "calendar" as const, icon: CalendarDays, label: "Calendar", shortcut: "1" },
     { id: "tasks" as const, icon: CheckSquare, label: "Tasks", shortcut: "2" },
     { id: "habits" as const, icon: Flame, label: "Habits", shortcut: "3" },
@@ -497,7 +582,7 @@ const StudyMode = () => {
     return data;
   }, [focusSessions]);
 
-  const dailyPatterns = useMemo(() => Array.from({ length: 24 }, (_, h) => ({ hour: h, label: formatHour(h), avgMinutes: Math.round(Math.random() * 30) })), []);
+  const dailyPatterns = useMemo(() => Array.from({ length: 24 }, (_, h) => ({ hour: h, label: h === 0 ? "12 AM" : h < 12 ? `${h} AM` : h === 12 ? "12 PM" : `${h - 12} PM`, avgMinutes: Math.round(Math.random() * 30) })), []);
 
   const taskCompletionData = useMemo(() => {
     return Array.from({ length: 8 }, (_, i) => {
@@ -506,227 +591,47 @@ const StudyMode = () => {
     });
   }, []);
 
+  const allCalendarEvents = useMemo<CalViewEvent[]>(() => [
+    ...events.map(e => ({ ...e, source: "local" as const })),
+    ...googleEvents.map(ge => ({
+      id: ge.id,
+      title: ge.title,
+      start: ge.start,
+      end: ge.end,
+      color: ge.color,
+      allDay: ge.allDay,
+      description: ge.description,
+      location: ge.location,
+      recurrence: ge.recurrence,
+      googleEventId: ge.googleEventId,
+      source: (ge.source || "google") as CalViewEvent["source"],
+    })),
+  ], [events, googleEvents]);
+
   // ============ RENDER: CALENDAR ============
-  const renderCalendar = () => (
-    <div className="flex-1 flex flex-col view-fade-enter">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
-            if (calendarView === "week") setCurrentDate(subWeeks(currentDate, 1));
-            else if (calendarView === "month") setCurrentDate(subMonths(currentDate, 1));
-            else setCurrentDate(subDays(currentDate, 1));
-          }}><ChevronLeft className="h-4 w-4" /></Button>
-          <Button variant="outline" size="sm" className="font-body text-xs h-8" onClick={() => setCurrentDate(new Date())}>Today</Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
-            if (calendarView === "week") setCurrentDate(addWeeks(currentDate, 1));
-            else if (calendarView === "month") setCurrentDate(addMonths(currentDate, 1));
-            else setCurrentDate(addDays(currentDate, 1));
-          }}><ChevronRight className="h-4 w-4" /></Button>
-          <h2 className="text-lg font-heading font-bold ml-2">
-            {calendarView === "week" && `${format(weekStart, "MMMM d")} – ${format(addDays(weekStart, 6), "d, yyyy")}`}
-            {calendarView === "month" && format(currentDate, "MMMM yyyy")}
-            {calendarView === "day" && format(currentDate, "EEEE, MMMM d, yyyy")}
-            {calendarView === "agenda" && "Upcoming Events"}
-            {calendarView === "year" && format(currentDate, "yyyy")}
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <Popover open={viewDropdownOpen} onOpenChange={setViewDropdownOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="font-body text-xs h-8 gap-1">
-                {calendarView.charAt(0).toUpperCase() + calendarView.slice(1)}
-                <ChevronLeft className="h-3 w-3 rotate-[-90deg]" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-52 p-2" align="end">
-              {[{ id: "day", label: "Day", key: "D" }, { id: "week", label: "Week", key: "W" }, { id: "month", label: "Month", key: "M" }, { id: "year", label: "Year", key: "Y" }, { id: "agenda", label: "Schedule", key: "A" }].map(v => (
-                <button key={v.id} className={cn("w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-body transition-colors", calendarView === v.id ? "bg-primary/10 text-primary" : "hover:bg-secondary")}
-                  onClick={() => { setCalendarView(v.id as any); setViewDropdownOpen(false); }}>
-                  <span>{v.label}</span>
-                  <kbd className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">{v.key}</kbd>
-                </button>
-              ))}
-              <div className="border-t border-border/50 mt-2 pt-2">
-                <label className="flex items-center gap-2 px-3 py-1.5 text-sm font-body cursor-pointer">
-                  <Checkbox checked={showWeekends} onCheckedChange={(c) => setShowWeekends(!!c)} />Show weekends
-                </label>
-              </div>
-            </PopoverContent>
-          </Popover>
-          <Button size="sm" className="h-8 gap-1 font-body text-xs" onClick={() => setShowEventModal(true)}><Plus className="h-3.5 w-3.5" /> Event</Button>
-        </div>
-      </div>
-      {calendarView === "week" && renderWeekView()}
-      {calendarView === "day" && renderDayView()}
-      {calendarView === "month" && renderMonthView()}
-      {calendarView === "agenda" && renderAgendaView()}
-      {calendarView === "year" && renderYearView()}
-    </div>
-  );
-
-  const renderWeekView = () => {
-    const now = new Date();
-    const currentMinute = getHours(now) * 60 + getMinutes(now);
+  const renderCalendar = () => {
     return (
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex border-b border-border/50">
-          <div className="w-16 shrink-0" />
-          {weekDays.map(day => (
-            <div key={day.toISOString()} className={cn("flex-1 text-center py-2 border-l border-border/30", isToday(day) && "bg-primary/5")}>
-              <p className="text-[10px] text-muted-foreground font-body uppercase">{format(day, "EEE")}</p>
-              <p className={cn("text-lg font-heading font-bold", isToday(day) && "text-primary")}>{format(day, "d")}</p>
-            </div>
-          ))}
-        </div>
-        <div className="flex-1 overflow-y-auto relative">
-          <div className="relative">
-            {hours.map(hour => (
-              <div key={hour} className="flex h-14 border-b border-border/20">
-                <div className="w-16 shrink-0 text-right pr-2 -mt-2"><span className="text-[10px] text-muted-foreground font-body">{formatHour(hour)}</span></div>
-                {weekDays.map(day => {
-                  const dayEventsAtHour = events.filter(e => !e.allDay && isSameDay(e.start, day) && getHours(e.start) === hour);
-                  return (
-                    <div key={`${day.toISOString()}-${hour}`} className={cn("flex-1 border-l border-border/20 relative cursor-pointer hover:bg-primary/[0.02] transition-colors", isToday(day) && "bg-primary/[0.02]")}
-                      onClick={() => { setQuickCreateSlot({ date: day, hour }); setNewEventTitle(""); }}>
-                      {dayEventsAtHour.map(event => {
-                        const dh = differenceInMinutes(event.end, event.start) / 60;
-                        return (
-                          <div key={event.id} className="absolute inset-x-0.5 z-10 rounded-md px-1.5 py-0.5 text-[11px] font-body cursor-pointer overflow-hidden group transition-all hover:brightness-110"
-                            style={{ backgroundColor: `${event.color}33`, borderLeft: `3px solid ${event.color}`, height: `${Math.max(dh * 56 - 2, 20)}px`, top: `${(getMinutes(event.start) / 60) * 56}px` }}
-                            onClick={(e) => { e.stopPropagation(); setEditingEvent(event); }}>
-                            <p className="text-foreground font-medium truncate text-[11px]">{event.title}</p>
-                            <p className="text-muted-foreground text-[9px]">{format(event.start, "h:mm a")} – {format(event.end, "h:mm a")}</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-            {weekDays.some(d => isToday(d)) && (
-              <div className="absolute left-16 right-0 z-20 pointer-events-none" style={{ top: `${(currentMinute / 60) * 56}px` }}>
-                <div className="flex items-center"><div className="h-3 w-3 rounded-full bg-destructive -ml-1.5" /><div className="flex-1 h-[2px] bg-destructive" /></div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <CalendarView
+        ref={calendarRef}
+        events={allCalendarEvents}
+        gcalState={gcalState}
+        gcalStatus={gcalStatus}
+        gcalSyncing={gcalSyncing}
+        gcalLastSync={gcalLastSync}
+        gcalConnected={gcalState === "connected"}
+        onGcalConnect={gcalConnect}
+        onGcalDisconnect={gcalDisconnect}
+        onGcalRefetch={gcalRefetch}
+        onCreateEvent={handleCreateEventFromModal}
+        onDeleteEvent={handleDeleteEvent}
+        onEditEvent={(ev) => setEditingEvent(ev as any)}
+        currentDate={currentDate}
+        onDateChange={setCurrentDate}
+        showHolidays={showHolidays}
+        onToggleHolidays={setShowHolidays}
+      />
     );
   };
-
-  const renderDayView = () => {
-    const now = new Date();
-    const currentMinute = getHours(now) * 60 + getMinutes(now);
-    return (
-      <div className="flex-1 overflow-y-auto">
-        <div className="relative">
-          {hours.map(hour => (
-            <div key={hour} className="flex h-14 border-b border-border/20">
-              <div className="w-16 shrink-0 text-right pr-2 -mt-2"><span className="text-[10px] text-muted-foreground font-body">{formatHour(hour)}</span></div>
-              <div className="flex-1 relative cursor-pointer hover:bg-primary/[0.02] transition-colors" onClick={() => { setQuickCreateSlot({ date: currentDate, hour }); setNewEventTitle(""); }}>
-                {events.filter(e => !e.allDay && isSameDay(e.start, currentDate) && getHours(e.start) === hour).map(event => {
-                  const dh = differenceInMinutes(event.end, event.start) / 60;
-                  return (
-                    <div key={event.id} className="absolute inset-x-1 z-10 rounded-md px-2 py-1 text-sm font-body cursor-pointer overflow-hidden hover:brightness-110 transition-all"
-                      style={{ backgroundColor: `${event.color}33`, borderLeft: `3px solid ${event.color}`, height: `${Math.max(dh * 56 - 2, 24)}px`, top: `${(getMinutes(event.start) / 60) * 56}px` }}
-                      onClick={(e) => { e.stopPropagation(); setEditingEvent(event); }}>
-                      <p className="font-medium">{event.title}</p>
-                      <p className="text-muted-foreground text-xs">{format(event.start, "h:mm a")} – {format(event.end, "h:mm a")}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-          {isToday(currentDate) && (
-            <div className="absolute left-16 right-0 z-20 pointer-events-none" style={{ top: `${(currentMinute / 60) * 56}px` }}>
-              <div className="flex items-center"><div className="h-3 w-3 rounded-full bg-destructive -ml-1.5" /><div className="flex-1 h-[2px] bg-destructive" /></div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const renderMonthView = () => (
-    <div className="flex-1 overflow-y-auto p-2">
-      <div className="grid grid-cols-7 gap-px bg-border/30 rounded-xl overflow-hidden">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
-          <div key={d} className="bg-secondary/30 p-2 text-center"><span className="text-[10px] font-body text-muted-foreground uppercase">{d}</span></div>
-        ))}
-        {monthDays.map(day => {
-          const dayEvents = getEventsForDay(day);
-          return (
-            <div key={day.toISOString()} className={cn("bg-card min-h-[80px] p-1.5 cursor-pointer hover:bg-primary/[0.02] transition-colors", !isSameMonth(day, currentDate) && "opacity-40", isToday(day) && "ring-1 ring-primary/30")}
-              onClick={() => { setCurrentDate(day); setCalendarView("day"); }}>
-              <span className={cn("text-xs font-body inline-flex h-6 w-6 items-center justify-center rounded-full", isToday(day) && "bg-primary text-primary-foreground font-bold")}>{format(day, "d")}</span>
-              <div className="mt-0.5 space-y-0.5">
-                {dayEvents.slice(0, 3).map(e => (
-                  <div key={e.id} className="text-[9px] font-body truncate rounded px-1 py-0.5" style={{ backgroundColor: `${e.color}33`, color: e.color }}>{e.title}</div>
-                ))}
-                {dayEvents.length > 3 && <span className="text-[9px] text-muted-foreground font-body">+{dayEvents.length - 3} more</span>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-
-  const renderAgendaView = () => {
-    const upcoming = events.filter(e => e.start >= startOfDay(new Date())).sort((a, b) => a.start.getTime() - b.start.getTime());
-    const grouped: Record<string, CalendarEvent[]> = {};
-    upcoming.forEach(e => { const key = format(e.start, "yyyy-MM-dd"); if (!grouped[key]) grouped[key] = []; grouped[key].push(e); });
-    return (
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {Object.entries(grouped).length === 0 ? (
-          <div className="text-center py-20">
-            <CalendarDays className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground font-body">No upcoming events</p>
-            <Button variant="outline" size="sm" className="mt-3 font-body text-xs" onClick={() => setShowEventModal(true)}><Plus className="h-3 w-3 mr-1" /> Create Event</Button>
-          </div>
-        ) : Object.entries(grouped).map(([dateStr, dayEvents]) => (
-          <div key={dateStr}>
-            <h3 className="text-xs font-body font-medium text-muted-foreground uppercase tracking-wider mb-2 sticky top-0 bg-background py-1">{format(new Date(dateStr), "EEEE, MMMM d")}</h3>
-            <div className="space-y-1.5">
-              {dayEvents.map(e => (
-                <div key={e.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => setEditingEvent(e)}>
-                  <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: e.color }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-body font-medium">{e.title}</p>
-                    <p className="text-xs text-muted-foreground font-body">{format(e.start, "h:mm a")} – {format(e.end, "h:mm a")}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const renderYearView = () => (
-    <div className="flex-1 overflow-y-auto p-4">
-      <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
-        {Array.from({ length: 12 }, (_, i) => {
-          const md = new Date(currentDate.getFullYear(), i, 1);
-          return (
-            <div key={i} className="cursor-pointer hover:bg-secondary/30 rounded-xl p-2 transition-colors" onClick={() => { setCurrentDate(md); setCalendarView("month"); }}>
-              <h4 className="text-xs font-body font-medium text-center mb-1">{format(md, "MMMM")}</h4>
-              <div className="grid grid-cols-7 gap-px">
-                {eachDayOfInterval({ start: startOfWeek(md), end: addDays(startOfWeek(endOfMonth(md)), 6) }).slice(0, 42).map(d => (
-                  <div key={d.toISOString()} className={cn("h-3 w-3 text-[6px] flex items-center justify-center rounded-sm", !isSameMonth(d, md) && "opacity-20", isToday(d) && "bg-primary text-primary-foreground", getEventsForDay(d).length > 0 && !isToday(d) && "bg-primary/20")}>
-                    {isSameMonth(d, md) ? format(d, "d") : ""}
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
 
   // ============ RENDER: TASKS ============
   const renderTasks = () => {
@@ -745,17 +650,17 @@ const StudyMode = () => {
     }
 
     return (
-      <div className="flex-1 flex view-fade-enter">
-        <div className="w-48 border-r border-border/50 p-3 space-y-0.5">
+      <div className="flex-1 flex flex-col md:flex-row view-fade-enter">
+        <div className="w-full md:w-48 border-b md:border-b-0 md:border-r border-border/50 p-2 md:p-3 flex md:flex-col overflow-x-auto scrollbar-none gap-2 shrink-0">
           {taskViews.map(v => (
-            <button key={v.id} onClick={() => setTaskView(v.id)} className={cn("w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-body transition-colors", taskView === v.id ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary/50")}>
-              <v.icon className="h-4 w-4" />{v.label}
-              {v.id === "today" && todayTasks.length > 0 && <Badge variant="secondary" className="ml-auto text-[10px] h-5 px-1.5">{todayTasks.length}</Badge>}
-              {v.id === "inbox" && inboxTasks.length > 0 && <Badge variant="secondary" className="ml-auto text-[10px] h-5 px-1.5">{inboxTasks.length}</Badge>}
+            <button key={v.id} onClick={() => setTaskView(v.id)} className={cn("md:w-full shrink-0 flex items-center gap-2 px-3 py-1.5 md:py-2 rounded-full md:rounded-lg text-sm font-body transition-colors", taskView === v.id ? "bg-primary/10 text-primary font-medium shadow-sm" : "text-muted-foreground hover:bg-secondary/50 border border-border/50 md:border-none")}>
+              <v.icon className="h-4 w-4 shrink-0" /><span>{v.label}</span>
+              {v.id === "today" && todayTasks.length > 0 && <Badge variant="secondary" className="ml-0.5 md:ml-auto text-[10px] h-5 px-1.5">{todayTasks.length}</Badge>}
+              {v.id === "inbox" && inboxTasks.length > 0 && <Badge variant="secondary" className="ml-0.5 md:ml-auto text-[10px] h-5 px-1.5">{inboxTasks.length}</Badge>}
             </button>
           ))}
         </div>
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="flex items-center justify-between mb-4">
             <p className="text-xs text-muted-foreground font-body">{displayTasks.length} tasks{taskView === "today" ? ` · est. ${Math.round(displayTasks.reduce((s, t) => s + (t.estimatedMinutes || 30), 0) / 60)}h` : ""}</p>
           </div>
@@ -843,26 +748,165 @@ const StudyMode = () => {
 
   // ============ RENDER: FOCUS ============
   const renderFocusSection = () => (
-    <div className="flex-1 overflow-y-auto p-6 view-fade-enter">
-      <div className="max-w-lg mx-auto text-center py-12">
-        <Zap className="h-12 w-12 text-primary mx-auto mb-4" />
-        <h2 className="text-2xl font-heading font-bold mb-2">Focus Engine</h2>
-        <p className="text-muted-foreground font-body text-sm mb-8">Deep work sessions with immersive wallpapers, soundscapes, and discipline tools.</p>
-        <Button size="lg" className="gap-2 font-body btn-premium" onClick={() => setShowQuickFocus(true)}><Zap className="h-4 w-4" /> Start Focus Session</Button>
+    <div className="flex-1 overflow-y-auto p-5 view-fade-enter">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-heading font-bold">Focus Engine</h2>
+          <p className="text-xs text-muted-foreground font-body mt-0.5">Deep work sessions with soundscapes, wallpapers &amp; discipline tools.</p>
+        </div>
         {focusSessions.length > 0 && (
-          <div className="mt-12 text-left">
-            <h3 className="text-sm font-heading font-semibold mb-3">Recent Sessions</h3>
-            <div className="space-y-2">
-              {focusSessions.slice(-5).reverse().map(s => (
-                <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50">
-                  <div className={cn("h-2.5 w-2.5 rounded-full", s.abandoned ? "bg-destructive" : "bg-[hsl(var(--success))]")} />
-                  <div className="flex-1 min-w-0"><p className="text-sm font-body">{s.duration} min · {s.mode}</p><p className="text-[10px] text-muted-foreground font-body">{s.date}</p></div>
-                  {s.mood && <span className="text-sm">{s.mood === 1 ? "😤" : s.mood === 2 ? "😊" : "🌊"}</span>}
+          <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-primary/5 border border-primary/10">
+            <Zap className="h-3 w-3 text-primary" />
+            <span className="text-xs font-body font-medium text-primary tabular-nums">{focusSessions.filter(s => !s.abandoned).length} sessions</span>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        {/* ── Left column: Session launcher ── */}
+        <div className="lg:col-span-3 space-y-4">
+
+          {/* Launcher card */}
+          <div className="vv-card p-5 bg-primary/[0.02]">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Zap className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-heading font-semibold">Start a Session</p>
+                <p className="text-[11px] text-muted-foreground font-body">Choose duration and mode</p>
+              </div>
+            </div>
+
+            {/* Duration presets */}
+            <p className="text-xs font-body font-medium text-muted-foreground mb-2">Duration</p>
+            <div className="flex gap-2 mb-3">
+              {[25, 50, 90].map(d => (
+                <button key={d} onClick={() => setFocusDuration(d)}
+                  className={cn("flex-1 h-9 rounded-xl text-xs font-body font-medium transition-all border",
+                    focusDuration === d
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-card border-border/50 text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                  )}>
+                  {d}m
+                </button>
+              ))}
+              <input type="number" min={5} max={240} value={focusDuration}
+                onChange={e => setFocusDuration(parseInt(e.target.value) || 25)}
+                className="w-16 h-9 text-xs font-body text-center bg-card border border-border/50 rounded-xl outline-none focus:border-primary/50 text-foreground"
+              />
+            </div>
+
+            {/* Mode selector */}
+            <p className="text-xs font-body font-medium text-muted-foreground mb-2">Mode</p>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {[{ id: "normal" as const, label: "Normal", desc: "Pause & exit freely", icon: "🌿" }, { id: "strict" as const, label: "Strict", desc: "Locked — exit penalty", icon: "🔒" }].map(m => (
+                <button key={m.id} onClick={() => setFocusMode(m.id)}
+                  className={cn("p-3 rounded-xl border-2 text-left transition-all",
+                    focusMode === m.id ? "border-primary bg-primary/5" : "border-border/40 hover:border-primary/30"
+                  )}>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-sm">{m.icon}</span>
+                    <p className="text-xs font-body font-semibold">{m.label}</p>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground font-body">{m.desc}</p>
+                </button>
+              ))}
+            </div>
+
+            <Button className="w-full font-body gap-2 btn-premium" size="lg" onClick={() => setShowQuickFocus(true)}>
+              <Zap className="h-4 w-4" /> Start Focus Session
+            </Button>
+          </div>
+
+          {/* Recent sessions */}
+          {focusSessions.length > 0 && (
+            <div className="vv-card p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart3 className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-heading font-semibold">Recent Sessions</h3>
+              </div>
+              <div className="space-y-1.5">
+                {focusSessions.slice(-6).reverse().map(s => (
+                  <div key={s.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                    <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center shrink-0", s.abandoned ? "bg-destructive/10" : "bg-[hsl(var(--success))]/10")}>
+                      {s.abandoned ? <X className="h-3.5 w-3.5 text-destructive" /> : <Zap className="h-3.5 w-3.5 text-[hsl(var(--success))]" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-body font-medium">{s.duration} min · <span className="text-muted-foreground capitalize">{s.mode}</span></p>
+                      <p className="text-[10px] text-muted-foreground font-body">{s.date}</p>
+                    </div>
+                    {s.mood && <span className="text-sm shrink-0">{s.mood === 1 ? "😤" : s.mood === 2 ? "😊" : "🌊"}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Right column: Tools ── */}
+        <div className="lg:col-span-2 space-y-4">
+
+          {/* Today's stats */}
+          <div className="vv-card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Target className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-heading font-semibold">Today</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: "Focus time", value: `${Math.floor(todayFocusMinutes / 60)}h ${todayFocusMinutes % 60}m`, icon: Clock },
+                { label: "Day streak", value: `${currentStreak}d`, icon: Flame },
+                { label: "Tasks done", value: `${tasks.filter(t => t.dueDate === todayStr && t.status === "done").length}`, icon: CheckSquare },
+                { label: "Total focus", value: `${focusSessions.filter(s => !s.abandoned).length} sessions`, icon: BarChart3 },
+              ].map(stat => (
+                <div key={stat.label} className="bg-secondary/30 rounded-xl p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <stat.icon className="h-3 w-3 text-primary" />
+                    <p className="text-[10px] text-muted-foreground font-body">{stat.label}</p>
+                  </div>
+                  <p className="text-sm font-heading font-bold tabular-nums">{stat.value}</p>
                 </div>
               ))}
             </div>
           </div>
-        )}
+
+          {/* Soundscape picker */}
+          <div className="vv-card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Volume2 className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-heading font-semibold">Soundscape</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {SOUNDSCAPES.map(s => (
+                <button key={s.id} onClick={() => setSoundscape(s.id)}
+                  className={cn("flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-body transition-all",
+                    soundscape === s.id ? "bg-primary/10 text-primary" : "hover:bg-secondary/50 text-muted-foreground hover:text-foreground"
+                  )}>
+                  <s.icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{s.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Wallpaper picker */}
+          <div className="vv-card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Image className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-heading font-semibold">Wallpaper</h3>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {WALLPAPER_PRESETS.map(wp => (
+                <button key={wp.id} onClick={() => setWallpaper(wp.id)}
+                  className={cn("h-12 rounded-xl transition-all", wallpaper === wp.id ? "ring-2 ring-primary ring-offset-2 ring-offset-card" : "opacity-70 hover:opacity-100")}
+                  style={{ background: wp.gradient }}
+                  title={wp.name}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1062,144 +1106,208 @@ const StudyMode = () => {
   // ============ POST-SESSION SUMMARY ============
   if (showPostSession) {
     return (
-      <div className="fixed inset-0 z-[9998] bg-background flex items-center justify-center animate-focus-fade">
-        <div className="max-w-sm w-full mx-4">
-          <div className="rounded-2xl border border-border/50 bg-card p-8 text-center modal-shadow">
-            <Zap className="h-10 w-10 text-primary mx-auto mb-4" />
-            <h2 className="text-xl font-heading font-bold mb-2">Session Complete!</h2>
-            <p className="text-muted-foreground font-body text-sm mb-6">{focusDuration} minutes · {focusMode} mode</p>
-            <div className="flex justify-center gap-4 mb-6">
-              {[{ emoji: "😤", label: "Struggled", value: 1 }, { emoji: "😊", label: "Okay", value: 2 }, { emoji: "🌊", label: "Flow State", value: 3 }].map(m => (
-                <button key={m.value} onClick={() => setSessionMood(m.value)} className={cn("flex flex-col items-center gap-1 p-3 rounded-xl transition-all", sessionMood === m.value ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-secondary/50")}>
-                  <span className="text-2xl">{m.emoji}</span><span className="text-[10px] font-body text-muted-foreground">{m.label}</span>
-                </button>
-              ))}
-            </div>
-            <Textarea placeholder="One sentence about this session..." value={sessionNote} onChange={e => setSessionNote(e.target.value)} className="mb-4 text-sm font-body resize-none" rows={2} />
-            <Button className="w-full font-body" onClick={saveFocusSession}>Save & Close</Button>
-          </div>
-        </div>
-      </div>
+      <FocusSessionComplete
+        focusDuration={focusDuration}
+        focusMode={focusMode}
+        onSave={saveFocusSessionData}
+      />
     );
   }
 
   // ============ MAIN LAYOUT ============
+  const selectSection = (id: typeof activeSection) => { setActiveSection(id); setMobileDrawerOpen(false); };
+
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full bg-sidebar overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 pt-3 pb-2 shrink-0">
+        <span className="text-[12px] font-body font-semibold text-muted-foreground uppercase tracking-widest">Study OS</span>
+        <button onClick={() => setSidebarCollapsed(true)}
+          className="hidden md:flex p-1.5 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-foreground transition-colors"
+          title="Collapse sidebar">
+          <PanelLeftClose className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Stats strip */}
+      <div className="flex items-center gap-3 px-3 py-2 border-b border-border/30 shrink-0">
+        <span className="text-xs font-body text-muted-foreground flex items-center gap-1">
+          <Zap className="h-3 w-3 text-primary" />{Math.floor(todayFocusMinutes / 60)}h{todayFocusMinutes % 60}m
+        </span>
+        {currentStreak > 0 && (
+          <span className="text-xs font-body flex items-center gap-1 text-[hsl(var(--streak))]">
+            <Flame className="h-3 w-3" />{currentStreak}d streak
+          </span>
+        )}
+      </div>
+
+      {/* Nav items */}
+      <div className="flex-1 overflow-y-auto py-2 px-2">
+        {SECTION_TABS.map(tab => (
+          <button key={tab.id} onClick={() => selectSection(tab.id)}
+            className={cn(
+              "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-body transition-all mb-0.5 group",
+              activeSection === tab.id
+                ? "bg-primary/10 text-primary font-medium"
+                : "text-foreground/70 hover:bg-sidebar-accent hover:text-foreground"
+            )}>
+            <tab.icon className="h-4 w-4 shrink-0" />
+            <span className="flex-1 text-left">{tab.label}</span>
+            <kbd className={cn("text-[9px] px-1.5 py-0.5 rounded font-mono leading-tight transition-opacity",
+              activeSection === tab.id ? "bg-primary/15 text-primary" : "bg-muted/60 text-muted-foreground/60 opacity-0 group-hover:opacity-100")}>
+              {tab.shortcut}
+            </kbd>
+          </button>
+        ))}
+
+        {activeSection === "calendar" && (
+          <div className="mt-6 space-y-4 px-1">
+
+
+            <div className="rounded-2xl border border-border/20 bg-muted/5 overflow-hidden">
+               <MiniCalendar 
+                 currentDate={currentDate} 
+                 onSelect={(d) => setCurrentDate(d)}
+                 events={allCalendarEvents}
+               />
+               <div className="border-t border-border/10 bg-muted/10">
+                 <CalendarList 
+                   gcalConnected={gcalState === "connected"}
+                   gcalEmail={gcalStatus?.email}
+                   showHolidays={showHolidays}
+                   onToggleHolidays={() => setShowHolidays(!showHolidays)}
+                 />
+               </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer action */}
+      <div className="p-2 border-t border-border/30 shrink-0">
+        <button onClick={() => { setShowQuickFocus(true); setMobileDrawerOpen(false); }}
+          className="w-full flex items-center justify-center gap-2 h-9 rounded-xl bg-primary text-primary-foreground text-xs font-body font-medium hover:bg-primary/90 transition-colors shadow-sm">
+          <Zap className="h-3.5 w-3.5" /> Start Focus
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <Layout fullBleed hideBottomNav>
-      <div className="flex h-[calc(100vh-57px)]">
-        {/* Sidebar */}
-        <div className={cn("shrink-0 border-r border-border/50 bg-card/50 flex flex-col sidebar-transition overflow-hidden", sidebarCollapsed ? "w-[48px]" : "w-[220px]")}>
-          <div className="p-2"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}><ChevronsLeft className={cn("h-4 w-4 transition-transform", sidebarCollapsed && "rotate-180")} /></Button></div>
-          <div className="px-2 space-y-0.5">
-            {sidebarItems.map(item => (
-              <Tooltip key={item.id}><TooltipTrigger asChild>
-                <button onClick={() => setActiveSection(item.id)} className={cn("w-full flex items-center gap-2.5 rounded-lg transition-all font-body text-sm", sidebarCollapsed ? "justify-center h-10 w-10 mx-auto" : "px-3 py-2", activeSection === item.id ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {!sidebarCollapsed && <><span className="flex-1 text-left">{item.label}</span><kbd className="text-[10px] text-muted-foreground/50 bg-secondary/80 px-1.5 py-0.5 rounded">{item.shortcut}</kbd></>}
-                </button>
-              </TooltipTrigger>{sidebarCollapsed && <TooltipContent side="right">{item.label}</TooltipContent>}</Tooltip>
-            ))}
-          </div>
-          {!sidebarCollapsed && (
-            <div className="px-2 mt-4">
-              <CalendarWidget mode="single" selected={currentDate} onSelect={d => { if (d) { setCurrentDate(d); setActiveSection("calendar"); } }} className="p-0 pointer-events-auto [&_.rdp-day]:h-7 [&_.rdp-day]:w-7 [&_.rdp-cell]:h-7 [&_.rdp-cell]:w-7 [&_.rdp-head_cell]:w-7 text-[11px]" />
-            </div>
+      <div className="flex overflow-hidden bg-transparent h-[100dvh] md:h-[calc(100dvh-57px)]">
+
+        {/* ── MOBILE OVERLAY DRAWER ── */}
+        <AnimatePresence>
+          {mobileDrawerOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-40 bg-black/40 md:hidden"
+                onClick={() => setMobileDrawerOpen(false)}
+              />
+              <motion.aside
+                initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }}
+                transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                className="fixed left-0 top-0 bottom-0 z-[110] w-[280px] bg-card border-r border-border flex flex-col md:hidden shadow-xl">
+                <SidebarContent />
+              </motion.aside>
+            </>
           )}
-          {!sidebarCollapsed && todayTasks.length > 0 && (
-            <div className="px-3 mt-4">
-              <p className="text-[10px] font-body font-semibold text-muted-foreground uppercase tracking-wider mb-2">Today's Tasks</p>
-              {todayTasks.slice(0, 3).map(task => (
-                <div key={task.id} className="flex items-center gap-2 py-1.5">
-                  <button className={cn("h-4 w-4 rounded-full border flex items-center justify-center shrink-0 transition-colors", task.status === "done" ? "bg-primary border-primary" : "border-muted-foreground/40")} onClick={() => handleToggleTask(task.id)}>
-                    {task.status === "done" && <CheckSquare className="h-2.5 w-2.5 text-primary-foreground" />}
-                  </button>
-                  <span className="text-[11px] font-body truncate">{task.title}</span>
-                  <div className="h-2 w-2 rounded-full ml-auto shrink-0" style={{ backgroundColor: PRIORITY_COLORS[task.priority] }} />
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex-1" />
+        </AnimatePresence>
+
+        {/* ── MOBILE TOP BAR ── */}
+        <div className="md:hidden flex items-center h-12 px-3 border-b border-border/40 bg-background/95 backdrop-blur-sm shrink-0 gap-3">
+          <button onClick={() => setMobileDrawerOpen(o => !o)}
+            className="p-2 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
+            <Menu className="h-4 w-4" />
+          </button>
+          <span className="text-sm font-body font-semibold capitalize">{activeSection}</span>
+          <button onClick={() => setShowQuickFocus(true)}
+            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-body text-primary bg-primary/10 hover:bg-primary/20 transition-colors">
+            <Zap className="h-3.5 w-3.5" /> Focus
+          </button>
         </div>
 
-        {/* Main content */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="h-12 border-b border-border/50 flex items-center justify-between px-4 shrink-0">
-            <p className="text-sm font-body font-medium">{format(new Date(), "EEEE, MMMM d")}</p>
-            <div className="flex-1 max-w-xs mx-4">
-              <Input placeholder="Search events, tasks, habits..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="h-8 text-xs font-body bg-secondary/30 border-border/30" />
-            </div>
-            <div className="flex items-center gap-3">
-              {currentStreak > 0 && <span className="text-xs font-body font-medium text-[hsl(var(--streak))] flex items-center gap-1"><Flame className="h-3 w-3" /> {currentStreak}</span>}
-              <span className="text-xs font-body text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> {Math.floor(todayFocusMinutes / 60)}h {todayFocusMinutes % 60}m</span>
-              <Button size="sm" className="h-8 gap-1.5 font-body text-xs btn-premium" onClick={() => setShowQuickFocus(true)}><Zap className="h-3.5 w-3.5" /> Quick Focus</Button>
-            </div>
+        {/* ── DESKTOP SIDEBAR ── */}
+        {!sidebarCollapsed ? (
+          <aside
+            style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}
+            className={cn(
+              "hidden md:flex shrink-0 overflow-hidden transition-none os-panel flex-col m-3 mr-1.5",
+              isResizing && "transition-none",
+              "w-[var(--sidebar-width,220px)]"
+            )}>
+            <SidebarContent />
+          </aside>
+        ) : (
+          <div className="hidden md:flex shrink-0 flex-col m-3 mr-1.5 w-14 os-panel items-center py-3 gap-2">
+            <button onClick={() => setSidebarCollapsed(false)}
+              className="p-2 rounded-xl hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+              title="Expand sidebar">
+              <Menu className="h-4 w-4" />
+            </button>
+            <div className="w-8 h-px bg-border/40 my-1" />
+            {SECTION_TABS.map(tab => (
+              <button key={tab.id} onClick={() => setActiveSection(tab.id)}
+                className={cn("p-2 rounded-xl transition-colors",
+                  activeSection === tab.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground")}
+                title={tab.label}>
+                <tab.icon className="h-4 w-4" />
+              </button>
+            ))}
           </div>
-          {activeSection === "calendar" && renderCalendar()}
-          {activeSection === "tasks" && renderTasks()}
-          {activeSection === "habits" && renderHabits()}
-          {activeSection === "focus" && renderFocusSection()}
-          {activeSection === "analytics" && renderAnalytics()}
-        </div>
+        )}
+
+        {/* ── RESIZER ── */}
+        {!sidebarCollapsed && (
+          <div
+            className="hidden md:block w-3 mx-[-6px] z-10 cursor-col-resize hover:bg-primary/10 transition-colors group relative"
+            onMouseDown={e => { e.preventDefault(); setIsResizing(true); }}>
+            <div className={cn(
+              "absolute inset-y-0 left-1/2 -translate-x-1/2 w-0.5 transition-colors duration-200",
+              isResizing ? "bg-primary/50" : "bg-transparent group-hover:bg-primary/30"
+            )} />
+          </div>
+        )}
+
+        <main className={cn(
+          "flex-1 flex flex-col overflow-hidden min-w-0 m-3 ml-1.5 os-panel",
+          "mt-[calc(0.75rem+44px)] md:mt-3"
+        )}>
+          <div className="flex-1 overflow-hidden flex flex-col">
+            {activeSection === "calendar" && renderCalendar()}
+            {activeSection === "tasks" && renderTasks()}
+            {activeSection === "habits" && renderHabits()}
+            {activeSection === "focus" && renderFocusSection()}
+            {activeSection === "analytics" && renderAnalytics()}
+          </div>
+        </main>
       </div>
 
       {/* MODALS */}
       <Dialog open={showQuickFocus} onOpenChange={setShowQuickFocus}>
-        <DialogContent className="max-w-md modal-shadow"><DialogHeader><DialogTitle className="font-heading text-xl">Start Focus Session</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-md modal-shadow" aria-describedby={undefined}><DialogHeader><DialogTitle className="font-heading text-xl">Start Focus Session</DialogTitle></DialogHeader>
           <div className="space-y-6 py-2">
-            <div><p className="text-sm font-body font-medium mb-3">Duration</p>
-              <div className="flex gap-2">{[25, 50, 90].map(d => <Button key={d} variant={focusDuration === d ? "default" : "outline"} size="sm" className="flex-1 font-body" onClick={() => setFocusDuration(d)}>{d} min</Button>)}
-                <Input type="number" min={5} max={240} value={focusDuration} onChange={e => setFocusDuration(parseInt(e.target.value) || 25)} className="w-20 h-9 text-sm font-body text-center" /></div></div>
             <div><p className="text-sm font-body font-medium mb-3">Mode</p>
               <div className="grid grid-cols-2 gap-3">{[{ id: "normal" as const, label: "Normal Mode", desc: "Pause and exit freely" }, { id: "strict" as const, label: "Strict Mode", desc: "Locked session with exit delay" }].map(m => (
                 <button key={m.id} onClick={() => setFocusMode(m.id)} className={cn("p-4 rounded-xl border-2 text-left transition-all", focusMode === m.id ? "border-primary bg-primary/5" : "border-border/50 hover:border-primary/30")}>
                   <p className="text-sm font-body font-semibold">{m.label}</p><p className="text-[11px] text-muted-foreground font-body mt-1">{m.desc}</p>
                 </button>))}</div></div>
-            <Button className="w-full font-body gap-2" size="lg" onClick={startFocusSession}><Zap className="h-4 w-4" /> Start Session</Button>
+            <TimeWheelPicker
+              initialMinutes={focusDuration}
+              onConfirm={(totalSeconds) => {
+                const mins = Math.round(totalSeconds / 60);
+                setFocusDuration(mins);
+                startFocusSession();
+              }}
+            />
           </div>
         </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!quickCreateSlot} onOpenChange={() => setQuickCreateSlot(null)}>
-        <DialogContent className="max-w-sm"><DialogHeader><DialogTitle className="font-heading">Quick Event</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            {quickCreateSlot && <p className="text-xs text-muted-foreground font-body">{format(quickCreateSlot.date, "EEEE, MMM d")} at {formatHour(quickCreateSlot.hour)}</p>}
-            <Input placeholder="Event title" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} onKeyDown={e => { if (e.key === "Enter") handleCreateEvent(); }} className="font-body" autoFocus />
-            <div className="flex gap-1.5">{EVENT_COLORS.slice(0, 6).map(c => <button key={c} className={cn("h-6 w-6 rounded-full transition-all", newEventColor === c && "ring-2 ring-offset-2 ring-primary")} style={{ backgroundColor: c }} onClick={() => setNewEventColor(c)} />)}</div>
-            <div className="flex gap-2"><Button className="flex-1 font-body" onClick={handleCreateEvent}>Save</Button><Button variant="outline" className="font-body" onClick={() => { setQuickCreateSlot(null); setShowEventModal(true); }}>More Options</Button></div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showEventModal} onOpenChange={setShowEventModal}>
-        <DialogContent className="max-w-lg modal-shadow"><DialogHeader><DialogTitle className="font-heading text-xl">Create Event</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
-            <Input placeholder="Add title" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} className="text-lg font-body border-0 border-b rounded-none px-0 focus-visible:ring-0" />
-            <div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-body text-muted-foreground">Start</label><Input type="datetime-local" value={newEventStart} onChange={e => setNewEventStart(e.target.value)} className="text-sm font-body mt-1" /></div>
-              <div><label className="text-xs font-body text-muted-foreground">End</label><Input type="datetime-local" value={newEventEnd} onChange={e => setNewEventEnd(e.target.value)} className="text-sm font-body mt-1" /></div></div>
-            <label className="flex items-center gap-2 text-sm font-body cursor-pointer"><Checkbox checked={newEventAllDay} onCheckedChange={c => setNewEventAllDay(!!c)} />All day</label>
-            <Select value={newEventRecurrence} onValueChange={setNewEventRecurrence}><SelectTrigger className="font-body text-sm"><SelectValue placeholder="Does not repeat" /></SelectTrigger>
-              <SelectContent><SelectItem value="none">Does not repeat</SelectItem><SelectItem value="daily">Every day</SelectItem><SelectItem value="weekly">Every week</SelectItem><SelectItem value="monthly">Every month</SelectItem><SelectItem value="yearly">Every year</SelectItem></SelectContent></Select>
-            <Input placeholder="Add location" value={newEventLocation} onChange={e => setNewEventLocation(e.target.value)} className="text-sm font-body" />
-            <Textarea placeholder="Description" value={newEventDesc} onChange={e => setNewEventDesc(e.target.value)} className="text-sm font-body resize-none" rows={3} />
-            <div className="flex gap-1.5">{EVENT_COLORS.map(c => <button key={c} className={cn("h-6 w-6 rounded-full transition-all", newEventColor === c && "ring-2 ring-offset-2 ring-primary")} style={{ backgroundColor: c }} onClick={() => setNewEventColor(c)} />)}</div>
-            <Button className="w-full font-body" onClick={handleCreateEvent}>Save Event</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!editingEvent} onOpenChange={() => setEditingEvent(null)}>
-        <DialogContent className="max-w-sm">{editingEvent && (<><DialogHeader><DialogTitle className="font-heading">{editingEvent.title}</DialogTitle></DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-full" style={{ backgroundColor: editingEvent.color }} /><span className="text-sm font-body">{format(editingEvent.start, "EEE, MMM d · h:mm a")} – {format(editingEvent.end, "h:mm a")}</span></div>
-            {editingEvent.location && <p className="text-sm text-muted-foreground font-body">📍 {editingEvent.location}</p>}
-            {editingEvent.description && <p className="text-sm text-muted-foreground font-body">{editingEvent.description}</p>}
-            <div className="flex gap-2 pt-2"><Button variant="outline" size="sm" className="gap-1 font-body text-xs" onClick={() => { handleDeleteEvent(editingEvent.id); setEditingEvent(null); }}><Trash2 className="h-3.5 w-3.5" /> Delete</Button></div>
-          </div></>)}</DialogContent>
       </Dialog>
 
       <Dialog open={showNewHabit} onOpenChange={setShowNewHabit}>
-        <DialogContent className="max-w-sm modal-shadow"><DialogHeader><DialogTitle className="font-heading">New Habit</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-sm modal-shadow" aria-describedby={undefined}><DialogHeader><DialogTitle className="font-heading">New Habit</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <Input placeholder="Habit name" value={newHabitName} onChange={e => setNewHabitName(e.target.value)} className="font-body" />
             <div><label className="text-xs font-body text-muted-foreground mb-2 block">Emoji</label>
@@ -1222,7 +1330,7 @@ const StudyMode = () => {
       )}</AnimatePresence>
 
       <Dialog open={showDailyCheckIn} onOpenChange={setShowDailyCheckIn}>
-        <DialogContent className="max-w-md modal-shadow"><DialogHeader><DialogTitle className="font-heading text-xl">
+        <DialogContent className="max-w-md modal-shadow" aria-describedby={undefined}><DialogHeader><DialogTitle className="font-heading text-xl">
           Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, {user?.displayName?.split(" ")[0] || "Student"}! ☀️
         </DialogTitle></DialogHeader>
           <div className="space-y-6 py-2">
@@ -1234,7 +1342,7 @@ const StudyMode = () => {
       </Dialog>
 
       <Dialog open={!!selectedTask} onOpenChange={() => setSelectedTask(null)}>
-        <DialogContent className="max-w-sm">{selectedTask && (<><DialogHeader><DialogTitle className="font-heading">{selectedTask.title}</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>{selectedTask && (<><DialogHeader><DialogTitle className="font-heading">{selectedTask.title}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div><label className="text-xs font-body text-muted-foreground">Priority</label>
               <div className="flex gap-2 mt-1">{(["none", "low", "medium", "high", "urgent"] as const).map(p => (

@@ -53,7 +53,11 @@ const Resources = () => {
     document.title = "Resources — VivaVault";
     const fetch = async () => {
       try {
-        const q = query(collection(db, "resources"), where("projectId", "==", projectId));
+        const resourcesRef = collection(db, "resources");
+        const q = projectId 
+          ? query(resourcesRef, where("projectId", "==", projectId))
+          : query(resourcesRef);
+        
         const snap = await getDocs(q);
         setResources(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Resource)));
       } catch {

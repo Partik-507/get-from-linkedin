@@ -4,6 +4,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { StorageProvider, useStorage } from "@/contexts/StorageContext";
+import { FocusProvider } from "@/contexts/FocusContext";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
@@ -23,8 +25,13 @@ import Notes from "./pages/Notes";
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 import SharedNote from "./pages/SharedNote";
+import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
+import FocusMode from "./pages/FocusMode";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
+});
+
 
 const AuthGate = ({ children }: { children: React.ReactNode }) => {
   const { user, isGuest, isAdmin, isDemo, loading } = useAuth();
@@ -60,36 +67,42 @@ const LandingGate = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
-      <TooltipProvider>
-        <Toaster richColors position="bottom-right" />
-        <BrowserRouter>
-          <AuthProvider>
-            <ScrollToTop />
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={<LandingGate />} />
-              <Route path="/dashboard" element={<AuthGate><Dashboard /></AuthGate>} />
-              <Route path="/profile" element={<AuthGate><Profile /></AuthGate>} />
-              <Route path="/submit-question" element={<AuthGate><SubmitQuestion /></AuthGate>} />
-              <Route path="/project/:projectId/viva" element={<AuthGate><VivaPrep /></AuthGate>} />
-              <Route path="/project/:projectId/submit" element={<AuthGate><SubmitExperience /></AuthGate>} />
-              <Route path="/project/:projectId/resources" element={<AuthGate><Resources /></AuthGate>} />
-              <Route path="/project/:projectId/flashcards" element={<AuthGate><Flashcards /></AuthGate>} />
-              <Route path="/project/:projectId/quiz" element={<AuthGate><Quiz /></AuthGate>} />
-              <Route path="/bookmarks" element={<AuthGate><Bookmarks /></AuthGate>} />
-              <Route path="/notes" element={<AuthGate><Notes /></AuthGate>} />
-              <Route path="/study" element={<AuthGate><StudyMode /></AuthGate>} />
-              <Route path="/focus" element={<Navigate to="/study" replace />} />
-              <Route path="/timer" element={<Navigate to="/study" replace />} />
-              <Route path="/notifications" element={<AuthGate><Notifications /></AuthGate>} />
-              <Route path="/admin" element={<AuthGate><Admin /></AuthGate>} />
-              <Route path="/progress" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/shared/:noteId" element={<SharedNote />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
+      <StorageProvider>
+        <FocusProvider>
+          <TooltipProvider>
+            <Toaster richColors position="bottom-right" />
+            <BrowserRouter>
+              <AuthProvider>
+                <ScrollToTop />
+                  <Routes>
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/" element={<LandingGate />} />
+                    <Route path="/dashboard" element={<AuthGate><Dashboard /></AuthGate>} />
+                    <Route path="/profile" element={<AuthGate><Profile /></AuthGate>} />
+                    <Route path="/submit-question" element={<AuthGate><SubmitQuestion /></AuthGate>} />
+                    <Route path="/project/:projectId/viva" element={<AuthGate><VivaPrep /></AuthGate>} />
+                    <Route path="/project/:projectId/submit" element={<AuthGate><SubmitExperience /></AuthGate>} />
+                    <Route path="/project/:projectId/resources" element={<AuthGate><Resources /></AuthGate>} />
+                    <Route path="/project/:projectId/flashcards" element={<AuthGate><Flashcards /></AuthGate>} />
+                    <Route path="/project/:projectId/quiz" element={<AuthGate><Quiz /></AuthGate>} />
+                    <Route path="/bookmarks" element={<AuthGate><Bookmarks /></AuthGate>} />
+                    <Route path="/notes" element={<AuthGate><Notes /></AuthGate>} />
+                    <Route path="/resources" element={<AuthGate><Resources /></AuthGate>} />
+                    <Route path="/study" element={<AuthGate><StudyMode /></AuthGate>} />
+                    <Route path="/focus" element={<AuthGate><FocusMode /></AuthGate>} />
+                    <Route path="/timer" element={<Navigate to="/focus" replace />} />
+                    <Route path="/notifications" element={<AuthGate><Notifications /></AuthGate>} />
+                    <Route path="/admin" element={<AuthGate><Admin /></AuthGate>} />
+                    <Route path="/progress" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/shared/:noteId" element={<SharedNote />} />
+                    <Route path="/oauth/google/callback" element={<GoogleCalendarCallback />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+              </AuthProvider>
+            </BrowserRouter>
+          </TooltipProvider>
+        </FocusProvider>
+      </StorageProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );

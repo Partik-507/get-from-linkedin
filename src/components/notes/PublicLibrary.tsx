@@ -7,6 +7,7 @@ import { Search, Heart, Eye, BookOpen, Copy, ArrowLeft, User, Hash, Shield } fro
 import { fetchPublicNotes, fetchPublicNoteContent, likePublicNote, forkPublicNote, type PublicNote } from "@/lib/notesFirestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { NoteEditor } from "@/components/notes/NoteEditor";
 
 // Hash-based gradient generator
 const hashGradient = (id: string): string => {
@@ -38,7 +39,7 @@ export const PublicLibrary = () => {
   const subjects = useMemo(() => {
     const set = new Set<string>();
     notes.forEach(n => { if (n.subject) set.add(n.subject); n.tags?.forEach(t => set.add(t)); });
-    return [...set].slice(0, 10);
+    return ["Official", ...[...set].slice(0, 10)];
   }, [notes]);
 
   const filtered = useMemo(() => {
@@ -51,7 +52,11 @@ export const PublicLibrary = () => {
       );
     }
     if (activeSubject) {
-      result = result.filter(n => n.subject === activeSubject || n.tags?.includes(activeSubject));
+      if (activeSubject === "Official") {
+        result = result.filter(n => n.adminCreated);
+      } else {
+        result = result.filter(n => n.subject === activeSubject || n.tags?.includes(activeSubject));
+      }
     }
     return result;
   }, [notes, search, activeSubject]);
@@ -119,7 +124,15 @@ export const PublicLibrary = () => {
           </div>
 
           {/* Content */}
-          <div className="tiptap-editor prose-notes" dangerouslySetInnerHTML={{ __html: noteContent }} />
+          <div className="mt-8 relative -mx-4 md:-mx-8">
+            <NoteEditor
+              noteId={selectedNote.id}
+              initialContent={noteContent}
+              onChange={() => {}}
+              readOnly={true}
+              isFullWidth={false}
+            />
+          </div>
 
           {/* Actions */}
           <div className="flex items-center gap-3 mt-8 pt-6 border-t border-border/30">

@@ -473,20 +473,20 @@ const CourseCrud = ({ projects, setProjects }: { projects: Project[]; setProject
           </div>
           <div className="space-y-2">
             <Label className="font-body">Branch</Label>
-            <Select value={form.branchId} onValueChange={v => setForm(f => ({ ...f, branchId: v, levelId: "" }))}>
+            <Select value={form.branchId || undefined} onValueChange={v => setForm(f => ({ ...f, branchId: v === "none" ? "" : v, levelId: "" }))}>
               <SelectTrigger className="bg-secondary/30 border-border/40"><SelectValue placeholder="Select" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
             <Label className="font-body">Level</Label>
-            <Select value={form.levelId} onValueChange={v => setForm(f => ({ ...f, levelId: v }))}>
+            <Select value={form.levelId || undefined} onValueChange={v => setForm(f => ({ ...f, levelId: v === "none" ? "" : v }))}>
               <SelectTrigger className="bg-secondary/30 border-border/40"><SelectValue placeholder="Select" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {filteredLevels.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
               </SelectContent>
             </Select>
