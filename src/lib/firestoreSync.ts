@@ -11,6 +11,8 @@ export interface UserProfile {
   level: string;
   streak: number;
   lastStudied: string;
+  selectedCollegeId?: string;
+  selectedCollegeName?: string;
   createdAt: any;
 }
 
@@ -463,3 +465,82 @@ export const submitFeedback = async (feedback: { type: string; message: string; 
     createdAt: serverTimestamp(),
   });
 };
+
+// ============ COLLEGES ============
+export interface College {
+  id: string;
+  name: string;
+  type?: string;
+  logoUrl?: string;
+  shortName?: string;
+  adminUIDs?: string[];
+}
+
+export const getColleges = async (): Promise<College[]> => {
+  try {
+    const snap = await getDocs(collection(db, "colleges"));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as College));
+  } catch { return []; }
+};
+
+export const createCollege = async (data: Omit<College, "id">) => {
+  const ref = await addDoc(collection(db, "colleges"), { ...data, createdAt: serverTimestamp() });
+  return ref.id;
+};
+
+// ============ RESOURCE FOLDERS ============
+export interface ResourceFolder {
+  id: string;
+  name: string;
+  parentId: string;
+  courseId?: string;
+  collegeId?: string;
+  order: number;
+  createdAt?: any;
+}
+
+export const getResourceFolders = async (): Promise<ResourceFolder[]> => {
+  try {
+    const snap = await getDocs(collection(db, "resourceFolders"));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as ResourceFolder));
+  } catch { return []; }
+};
+
+export const createResourceFolder = async (data: Omit<ResourceFolder, "id">) => {
+  const ref = await addDoc(collection(db, "resourceFolders"), { ...data, createdAt: serverTimestamp() });
+  return ref.id;
+};
+
+export const updateResourceFolder = async (id: string, data: Partial<ResourceFolder>) => {
+  await updateDoc(doc(db, "resourceFolders", id), data);
+};
+
+export const deleteResourceFolder = async (id: string) => {
+  await deleteDoc(doc(db, "resourceFolders", id));
+};
+
+// ============ RESOURCE CATEGORIES ============
+export interface ResourceCategory {
+  id: string;
+  name: string;
+  color?: string;
+  icon?: string;
+  collegeId?: string;
+}
+
+export const getResourceCategories = async (): Promise<ResourceCategory[]> => {
+  try {
+    const snap = await getDocs(collection(db, "resourceCategories"));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as ResourceCategory));
+  } catch { return []; }
+};
+
+export const createResourceCategory = async (data: Omit<ResourceCategory, "id">) => {
+  const ref = await addDoc(collection(db, "resourceCategories"), { ...data, createdAt: serverTimestamp() });
+  return ref.id;
+};
+
+export const deleteResourceCategory = async (id: string) => {
+  await deleteDoc(doc(db, "resourceCategories", id));
+};
+
