@@ -816,6 +816,54 @@
 }
 
 /* ============================================================
+   MOBILE-NATIVE UTILITIES
+   ============================================================ */
+@layer utilities {
+  /* Edge-to-edge full-bleed mobile page (clears bottom nav + safe area) */
+  .mobile-page {
+    padding-left: 0;
+    padding-right: 0;
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
+  /* Min 44x44 touch target (Apple HIG) */
+  .tap-44 { min-height: 44px; min-width: 44px; }
+  /* Native press feedback replacing hover */
+  .press {
+    transition: transform 120ms ease, background-color 120ms ease, opacity 120ms ease;
+  }
+  .press:active { transform: scale(0.97); }
+  /* Bottom-sheet drag handle */
+  .mobile-sheet-handle {
+    width: 36px; height: 4px; border-radius: 9999px;
+    background: hsl(var(--muted-foreground) / 0.35);
+    margin: 8px auto 4px;
+  }
+  /* Hide scrollbar */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+  /* Safe-area helpers */
+  .safe-top { padding-top: env(safe-area-inset-top, 0px); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  /* iOS-style grouped list rows */
+  .ios-row {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.875rem 1rem; min-height: 56px;
+    background: hsl(var(--card));
+    transition: background 120ms ease;
+  }
+  .ios-row:active { background: hsl(var(--accent)); }
+  .ios-group {
+    background: hsl(var(--card));
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid hsl(var(--border) / 0.5);
+  }
+  .ios-group > .ios-row + .ios-row {
+    border-top: 1px solid hsl(var(--border) / 0.5);
+  }
+}
+
+/* ============================================================
    RESPONSIVE HELPERS
    ============================================================ */
 @media (max-width: 767px) {
