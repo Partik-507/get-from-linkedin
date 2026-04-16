@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { X, ExternalLink, Maximize2, Minimize2 } from "lucide-react";
+import { X, ExternalLink, Maximize2, Minimize2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { PDFViewer } from "@/components/PDFViewer";
 
 interface ResourceViewerProps {
   open: boolean;
@@ -31,6 +32,11 @@ export const ResourceViewer = ({ open, onClose, title, url, type, htmlContent }:
   const youtubeId = url ? getYouTubeId(url) : null;
   const isGDrive = url?.includes("drive.google.com");
   const isPdf = type === "pdf" || url?.endsWith(".pdf");
+
+  // PDFs get the dedicated full-window offline-aware viewer
+  if (isPdf && url) {
+    return <PDFViewer open={open} url={url} title={title} onClose={onClose} />;
+  }
 
   const renderContent = () => {
     // Inline HTML / Note content
@@ -66,15 +72,6 @@ export const ResourceViewer = ({ open, onClose, title, url, type, htmlContent }:
       );
     }
 
-    if (isPdf) {
-      return (
-        <iframe
-          src={url}
-          className="w-full h-full rounded-lg bg-white"
-        />
-      );
-    }
-
     return (
       <div className="w-full h-full flex flex-col items-center justify-center gap-4">
         <iframe src={url} className="w-full h-full rounded-lg" />
@@ -90,20 +87,27 @@ export const ResourceViewer = ({ open, onClose, title, url, type, htmlContent }:
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-xl flex flex-col"
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
-          <h3 className="font-heading font-semibold truncate">{title}</h3>
-          <div className="flex items-center gap-2">
+        <div
+          className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-border/30"
+          style={{ paddingTop: "max(0.625rem, env(safe-area-inset-top))" }}
+        >
+          <Button variant="ghost" size="sm" onClick={onClose} className="gap-1.5 -ml-2 h-10 md:hidden">
+            <ArrowLeft className="h-5 w-5" />
+            <span className="font-medium">Back</span>
+          </Button>
+          <h3 className="font-heading font-semibold truncate flex-1 text-sm md:text-base">{title}</h3>
+          <div className="flex items-center gap-1">
             {url && (
-              <Button variant="ghost" size="icon" asChild>
+              <Button variant="ghost" size="icon" asChild className="h-10 w-10">
                 <a href={url} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-4 w-4" />
                 </a>
               </Button>
             )}
-            <Button variant="ghost" size="icon" onClick={() => setFullscreen(!fullscreen)}>
+            <Button variant="ghost" size="icon" onClick={() => setFullscreen(!fullscreen)} className="h-10 w-10 hidden md:flex">
               {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </Button>
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10 hidden md:flex">
               <X className="h-4 w-4" />
             </Button>
           </div>

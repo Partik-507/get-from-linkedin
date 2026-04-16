@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { NotificationBell } from "@/components/NotificationBell";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { FloatingDock, useDockMode } from "@/components/FloatingDock";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -305,6 +306,7 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
 
               {/* Notifications */}
               {(user || isGuest) && <NotificationBell />}
+              <OfflineIndicator className="ml-1" />
 
               {/* Switch to Dock button */}
               <Button
