@@ -20,6 +20,7 @@ import {
   User, Target, TrendingUp, ArrowRight, Zap,
 } from "lucide-react";
 import { loadActivity, loadStreak, getStudiedIds, getDueQuestions } from "@/lib/spacedRepetition";
+import { GreetingBanner } from "@/components/GreetingBanner";
 import { format, subDays } from "date-fns";
 import { BarChart, Bar, ResponsiveContainer } from "recharts";
 
@@ -168,12 +169,13 @@ const Dashboard = () => {
   return (
     <Layout title="Dashboard">
       <div className="w-full space-y-8">
+        <GreetingBanner />
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           <h1 className="text-2xl sm:text-3xl font-heading font-bold tracking-tight">
-            Welcome back, <span className="text-gradient">{user.displayName?.split(" ")[0] || "Student"}</span>
+            Your <span className="text-gradient">command center</span>
           </h1>
-          <p className="text-sm text-muted-foreground font-body mt-1">Your command center — all systems at a glance.</p>
+          <p className="text-sm text-muted-foreground font-body mt-1">All systems at a glance.</p>
         </motion.div>
 
         {loading ? (
