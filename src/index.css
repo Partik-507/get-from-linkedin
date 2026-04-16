@@ -974,3 +974,54 @@
     background-color: inherit;
   }
 }
+
+/* ============================================================
+   TOUCH-FIRST OVERRIDES — applied on any device without hover
+   ============================================================ */
+@media (hover: none) and (pointer: coarse) {
+  /* Kill hover-driven scale/translate that don't work on touch */
+  *:hover {
+    transform: none !important;
+  }
+  /* Use :active feedback instead */
+  button:active, [role="button"]:active, a:active {
+    opacity: 0.85;
+    transform: scale(0.98);
+    transition: transform 80ms ease, opacity 80ms ease;
+  }
+  /* Replace hardcoded white/black backgrounds with tokens for unified theming */
+  .bg-white { background-color: hsl(var(--card)) !important; }
+  .text-black { color: hsl(var(--foreground)) !important; }
+}
+
+/* ============================================================
+   iOS-style settings rows (used in Profile + Settings)
+   ============================================================ */
+.ios-group {
+  background: hsl(var(--card));
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border) / 0.4);
+}
+.ios-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  min-height: 52px;
+  text-align: left;
+  border-bottom: 1px solid hsl(var(--border) / 0.4);
+  transition: background-color 120ms ease;
+}
+.ios-row:last-child { border-bottom: none; }
+.ios-row:active { background-color: hsl(var(--muted) / 0.6); }
+
+/* Press feedback utility for any tappable element */
+.press {
+  transition: transform 100ms ease, opacity 100ms ease;
+}
+.press:active {
+  transform: scale(0.96);
+  opacity: 0.85;
+}
