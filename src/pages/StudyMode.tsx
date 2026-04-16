@@ -220,7 +220,9 @@ const StudyMode = () => {
 
   // Calendar state
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [calendarView, setCalendarView] = useState<"day" | "week" | "month" | "year" | "agenda">("week");
+  const [calendarView, setCalendarView] = useState<"day" | "week" | "month" | "year" | "agenda">(
+    typeof window !== "undefined" && window.innerWidth < 768 ? "day" : "week"
+  );
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
