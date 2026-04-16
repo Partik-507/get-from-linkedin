@@ -4,8 +4,10 @@ import { useTheme } from "@/contexts/ThemeContext";
 import {
   LogOut, Shield, Home, ArrowLeft, LayoutDashboard, Sun, Moon,
   User, Flame, StickyNote, Timer, BookOpen, Link2, Zap,
-  X, Download, Monitor, Apple, Terminal, Minimize2, Maximize, Building2,
+  X, Download, Monitor, Apple, Terminal, Minimize2, Maximize, Building2, Menu,
 } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,

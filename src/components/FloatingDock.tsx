@@ -449,7 +449,7 @@ export const FloatingDock = ({ isFullBleed, onRestoreNavbar }: FloatingDockProps
   return (
     <div
       ref={containerRef}
-      className="fixed z-[2147483647] select-none touch-none pointer-events-auto"
+      className="fixed z-[2147483647] select-none touch-none pointer-events-auto hidden md:block"
       style={{ left: pos.x, top: pos.y }}
     >
       {!panelOpen ? (
