@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { StorageProvider, useStorage } from "@/contexts/StorageContext";
 import { FocusProvider } from "@/contexts/FocusContext";
+import { OfflineProvider } from "@/contexts/OfflineContext";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
@@ -94,6 +95,7 @@ const App = () => (
             <Toaster richColors position="bottom-right" />
             <BrowserRouter>
               <AuthProvider>
+                <OfflineProvider>
                 <ScrollToTop />
                   <Routes>
                     <Route path="/auth" element={<Auth />} />
@@ -122,6 +124,7 @@ const App = () => (
                     <Route path="/oauth/google/callback" element={<GoogleCalendarCallback />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
+                </OfflineProvider>
               </AuthProvider>
             </BrowserRouter>
           </TooltipProvider>
