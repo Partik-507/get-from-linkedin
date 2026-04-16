@@ -126,9 +126,10 @@ export const PublicLibrary = () => {
           {/* Content */}
           <div className="mt-8 relative -mx-4 md:-mx-8">
             <NoteEditor
-              noteId={selectedNote.id}
-              initialContent={noteContent}
-              onChange={() => {}}
+              note={selectedNote as any}
+              content={noteContent}
+              onContentChange={() => {}}
+              onTitleChange={() => {}}
               readOnly={true}
               isFullWidth={false}
             />

@@ -166,15 +166,16 @@ export const ImportExportModal = ({ open, onClose, onImport }: Props) => {
 
         await Promise.all(
           Object.entries(zip.files).map(async ([path, zipEntry]) => {
-            if (zipEntry.dir) return;
+            const entry = zipEntry as any;
+            if (entry.dir) return;
             const fileName = path.split("/").pop() || path;
             const baseName = fileName.replace(/\.[^.]+$/, "");
 
             if (fileName.endsWith(".md")) {
-              const text = await zipEntry.async("string");
+              const text = await entry.async("string");
               pages.push({ title: baseName, html: markdownToHtml(text) });
             } else if (fileName.endsWith(".html")) {
-              const text = await zipEntry.async("string");
+              const text = await entry.async("string");
               pages.push({ title: baseName, html: cleanHtml(text) });
             }
           })

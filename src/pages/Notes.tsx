@@ -907,7 +907,7 @@ const Notes = () => {
 
       {/* ── Modals ─────────────────────────────────────────────────────────── */}
       <CommandPalette open={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)}
-        notes={activeNotes} onSelectNote={n => { openNote(n); setMobilePanel("editor"); }}
+        notes={activeNotes} onSelectNote={n => { openNote(n); }}
         onCreateNote={() => handleCreateNote()} onSetView={v => setViewMode(v as ViewMode)} />
 
       <TemplatePickerModal open={templateOpen} onClose={() => setTemplateOpen(false)}

@@ -167,7 +167,6 @@ const FocusMode = () => {
         duration: elapsed,
         mode: sessionMode,
         date: new Date().toISOString().split("T")[0],
-        abandoned: true,
       });
     }
     setStep("choose");
