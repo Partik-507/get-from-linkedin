@@ -45,7 +45,6 @@ interface Props {
   onToggleTag: (tag: string) => void;
   onClearTags: () => void;
   readOnly?: boolean;
-  collapsed?: boolean;
 }
 
 export const NotesSidebar = ({

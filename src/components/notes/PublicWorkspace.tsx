@@ -100,22 +100,21 @@ export const PublicWorkspace = () => {
           ) : (
             <div className="flex-1 flex overflow-hidden">
               <NoteEditor 
-                note={selectedNote} 
+                note={selectedNote as any} 
                 content={contents[selectedNoteId!] || ""} 
                 allNotes={activeNotes}
                 readOnly={!isAdmin}
-                onChange={guard(() => {})}
-                onSave={guard(() => {})}
+                onContentChange={guard(() => {})}
                 onTitleChange={guard(() => {})}
                 onIconChange={guard(() => {})}
                 onCoverChange={guard(() => {})}
                 onTogglePin={guard(() => {})}
-                onCopyLink={() => {
+                onShare={() => {
                   navigator.clipboard.writeText(window.location.origin + "/share/" + selectedNote.id);
                   toast.success("Link copied!");
                 }}
                 onOpenHistory={() => {}}
-                onOpenDetails={() => setShowDetails(!showDetails)}
+                onToggleBacklinks={() => setShowDetails(!showDetails)}
               />
               
               {showDetails && (
@@ -124,8 +123,7 @@ export const PublicWorkspace = () => {
                   content={contents[selectedNote.id] || ""}
                   allNotes={activeNotes}
                   onClose={() => setShowDetails(false)}
-                  onUpdateMetadata={guard(() => {})}
-                  onOpenNote={id => {
+                  onSelectNote={id => {
                     const linked = activeNotes.find(n => n.id === id);
                     if (linked) openNote(linked);
                   }}

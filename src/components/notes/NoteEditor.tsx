@@ -897,7 +897,7 @@ export const NoteEditor = ({
           )}
 
           {/* ── Bubble Menu ────────────────────────────────────────────── */}
-          <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }}
+          <BubbleMenu editor={editor}
             shouldShow={({ state }) => !state.selection.empty}>
             <div className="flex items-center gap-0.5 bg-popover/98 border border-border/40 rounded-lg shadow-xl p-1 backdrop-blur-xl">
               {[
