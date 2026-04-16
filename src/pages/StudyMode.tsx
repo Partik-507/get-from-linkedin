@@ -1291,8 +1291,8 @@ const StudyMode = () => {
         )}
 
         <main className={cn(
-          "flex-1 flex flex-col overflow-hidden min-w-0 m-3 ml-1.5 os-panel",
-          "mt-[calc(0.75rem+44px)] md:mt-3"
+          "flex-1 flex flex-col overflow-hidden min-w-0 os-panel",
+          "m-3 md:ml-1.5 mt-3 max-md:mx-2 max-md:mb-[calc(4.5rem+env(safe-area-inset-bottom,0px))]"
         )}>
           <div className="flex-1 overflow-hidden flex flex-col">
             {activeSection === "calendar" && renderCalendar()}
