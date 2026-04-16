@@ -4,7 +4,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import {
   LogOut, Shield, Home, ArrowLeft, LayoutDashboard, Sun, Moon,
   User, Flame, StickyNote, Timer, BookOpen, Link2, Zap,
-  X, Download, Monitor, Apple, Terminal, Minimize2, Maximize,
+  X, Download, Monitor, Apple, Terminal, Minimize2, Maximize, Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -112,13 +112,25 @@ const DesktopAppButton = () => {
 };
 
 export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: LayoutProps) => {
-  const { user, isGuest, isAdmin, isDemo, demoTimeLeft, signOut } = useAuth();
+  const { user, isGuest, isAdmin, isDemo, demoTimeLeft, signOut, userProfile, updateUserProfile } = useAuth();
   const { resolvedTheme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { mode, switchToDock, switchToNavbar } = useDockMode();
+
+  const collegeName = userProfile?.selectedCollegeName ||
+    (typeof window !== "undefined" ? localStorage.getItem("vv_selected_college_name") : null);
+
+  const handleSwitchCollege = async () => {
+    try {
+      if (user) await updateUserProfile({ selectedCollegeId: "", selectedCollegeName: "" } as any);
+    } catch { /* ignore */ }
+    localStorage.removeItem("vv_selected_college");
+    localStorage.removeItem("vv_selected_college_name");
+    window.location.href = "/";
+  };
 
   const streak = useMemo(() => loadStreak(), []);
 
@@ -326,6 +338,12 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
                       <LayoutDashboard className="h-4 w-4" /> Dashboard
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSwitchCollege} className="gap-2 font-body">
+                      <Building2 className="h-4 w-4" />
+                      <span className="flex-1">Switch Institution</span>
+                      {collegeName && <span className="text-[10px] text-muted-foreground truncate max-w-[80px]">{collegeName}</span>}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={signOut} className="gap-2 text-destructive font-body">
                       <LogOut className="h-4 w-4" /> Sign Out
                     </DropdownMenuItem>
@@ -430,16 +448,14 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
       )}
 
       {fullBleed ? (
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 flex flex-col overflow-hidden w-full max-w-none animate-in fade-in duration-200">
           {children}
         </main>
       ) : (
         <main
           className={cn(
-            // Unified layout: always full-width. Only the shell changes.
-            "w-full max-w-none",
-            "px-4 sm:px-6 md:px-8 lg:px-10 py-6 flex-1",
-            "pb-6",
+            "w-full max-w-none flex-1 animate-in fade-in duration-200",
+            "px-4 sm:px-6 md:px-8 lg:px-10 py-6 pb-6",
           )}
         >
           {children}

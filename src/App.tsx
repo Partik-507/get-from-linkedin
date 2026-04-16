@@ -1,3 +1,4 @@
+import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
@@ -28,6 +29,7 @@ import SharedNote from "./pages/SharedNote";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import FocusMode from "./pages/FocusMode";
 import CourseSelect from "./pages/CourseSelect";
+import { CollegeSelect } from "./pages/CollegeSelect";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -35,7 +37,20 @@ const queryClient = new QueryClient({
 
 
 const AuthGate = ({ children }: { children: React.ReactNode }) => {
-  const { user, isGuest, isAdmin, isDemo, loading } = useAuth();
+  const { user, isGuest, isAdmin, isDemo, loading, userProfile } = useAuth();
+  const [collegeId, setCollegeId] = React.useState<string | null>(
+    () => localStorage.getItem("vv_selected_college")
+  );
+
+  React.useEffect(() => {
+    if (userProfile?.selectedCollegeId) {
+      setCollegeId(userProfile.selectedCollegeId);
+      localStorage.setItem("vv_selected_college", userProfile.selectedCollegeId);
+      if (userProfile.selectedCollegeName) {
+        localStorage.setItem("vv_selected_college_name", userProfile.selectedCollegeName);
+      }
+    }
+  }, [userProfile?.selectedCollegeId, userProfile?.selectedCollegeName]);
 
   if (loading) {
     return (
@@ -47,6 +62,11 @@ const AuthGate = ({ children }: { children: React.ReactNode }) => {
 
   if (!user && !isGuest && !isAdmin && !isDemo) {
     return <Auth />;
+  }
+
+  // Post-login college gate (logged-in users only; guests/admins skip)
+  if (user && !isAdmin && !collegeId) {
+    return <CollegeSelect onSelected={(id) => setCollegeId(id)} />;
   }
 
   return <>{children}</>;
