@@ -113,49 +113,28 @@ export const CourseCard = ({
             </div>
           )}
 
-          {/* Footer buttons - 70/30 split */}
+          {/* Footer button — single Continue */}
           <div className="flex gap-2 mt-auto">
             {status === "not-enrolled" && (
-              <>
-                <Button onClick={onEnroll} className="basis-[70%] font-body text-sm gap-1.5 active:scale-[0.97] transition-all">
-                  + Enroll
-                </Button>
-                <Button asChild variant="outline" className="basis-[30%] font-body text-sm active:scale-[0.97] justify-center">
-                  <Link to={`/project/${id}/resources`}>
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </Link>
-                </Button>
-              </>
+              <Button onClick={onEnroll} className="flex-1 font-body text-sm gap-1.5 active:scale-[0.97] transition-all">
+                + Enroll
+              </Button>
             )}
 
             {status === "enrolled" && (
-              <>
-                <Button asChild className="basis-[70%] font-body text-sm gap-1.5 active:scale-[0.97] transition-all">
-                  <Link to={`/project/${id}/viva`}>
-                    <Play className="h-3.5 w-3.5" /> Continue
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="basis-[30%] font-body text-sm active:scale-[0.97] justify-center">
-                  <Link to={`/project/${id}/resources`}>
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </Link>
-                </Button>
-              </>
+              <Button asChild className="flex-1 font-body text-sm gap-1.5 active:scale-[0.97] transition-all">
+                <Link to={`/course/${id}/select`}>
+                  <Play className="h-3.5 w-3.5" /> Continue
+                </Link>
+              </Button>
             )}
 
             {status === "completed" && (
-              <>
-                <Button asChild variant="outline" className="basis-[70%] font-body text-sm gap-1.5 text-[hsl(var(--success))] border-[hsl(var(--success))]/30 active:scale-[0.97]">
-                  <Link to={`/project/${id}/viva`}>
-                    <RotateCcw className="h-3.5 w-3.5" /> Review
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="basis-[30%] font-body text-sm active:scale-[0.97] justify-center">
-                  <Link to={`/project/${id}/resources`}>
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </Link>
-                </Button>
-              </>
+              <Button asChild variant="outline" className="flex-1 font-body text-sm gap-1.5 text-[hsl(var(--success))] border-[hsl(var(--success))]/30 active:scale-[0.97]">
+                <Link to={`/course/${id}/select`}>
+                  <RotateCcw className="h-3.5 w-3.5" /> Continue
+                </Link>
+              </Button>
             )}
 
             {status === "locked" && (

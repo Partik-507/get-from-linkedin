@@ -9,6 +9,7 @@ interface ResourceViewerProps {
   title: string;
   url: string;
   type: string;
+  htmlContent?: string;
 }
 
 const getYouTubeId = (url: string) => {
@@ -22,16 +23,28 @@ const getDriveEmbedUrl = (url: string) => {
   return url;
 };
 
-export const ResourceViewer = ({ open, onClose, title, url, type }: ResourceViewerProps) => {
+export const ResourceViewer = ({ open, onClose, title, url, type, htmlContent }: ResourceViewerProps) => {
   const [fullscreen, setFullscreen] = useState(false);
 
   if (!open) return null;
 
-  const youtubeId = getYouTubeId(url);
-  const isGDrive = url.includes("drive.google.com");
-  const isPdf = type === "pdf" || url.endsWith(".pdf");
+  const youtubeId = url ? getYouTubeId(url) : null;
+  const isGDrive = url?.includes("drive.google.com");
+  const isPdf = type === "pdf" || url?.endsWith(".pdf");
 
   const renderContent = () => {
+    // Inline HTML / Note content
+    if (htmlContent) {
+      return (
+        <div className="w-full h-full overflow-auto bg-card rounded-lg p-2">
+          <div
+            className="font-editor max-w-3xl mx-auto p-6 prose prose-sm dark:prose-invert"
+            dangerouslySetInnerHTML={{ __html: htmlContent }}
+          />
+        </div>
+      );
+    }
+
     if (youtubeId) {
       return (
         <iframe
@@ -57,19 +70,14 @@ export const ResourceViewer = ({ open, onClose, title, url, type }: ResourceView
       return (
         <iframe
           src={url}
-          className="w-full h-full rounded-lg"
+          className="w-full h-full rounded-lg bg-white"
         />
       );
     }
 
-    // Generic iframe with fallback
     return (
       <div className="w-full h-full flex flex-col items-center justify-center gap-4">
-        <iframe
-          src={url}
-          className="w-full h-full rounded-lg"
-          onError={() => {}}
-        />
+        <iframe src={url} className="w-full h-full rounded-lg" />
       </div>
     );
   };
@@ -80,17 +88,18 @@ export const ResourceViewer = ({ open, onClose, title, url, type }: ResourceView
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] bg-background/90 backdrop-blur-xl flex flex-col"
+        className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-xl flex flex-col"
       >
-        {/* Title bar */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
           <h3 className="font-heading font-semibold truncate">{title}</h3>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" asChild>
-              <a href={url} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            </Button>
+            {url && (
+              <Button variant="ghost" size="icon" asChild>
+                <a href={url} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </Button>
+            )}
             <Button variant="ghost" size="icon" onClick={() => setFullscreen(!fullscreen)}>
               {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </Button>
@@ -100,8 +109,7 @@ export const ResourceViewer = ({ open, onClose, title, url, type }: ResourceView
           </div>
         </div>
 
-        {/* Content */}
-        <div className={`flex-1 ${fullscreen ? "p-0" : "p-4"}`}>
+        <div className={`flex-1 ${fullscreen ? "p-0" : "p-4"} overflow-hidden`}>
           {renderContent()}
         </div>
       </motion.div>

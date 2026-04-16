@@ -27,6 +27,7 @@ import NotFound from "./pages/NotFound";
 import SharedNote from "./pages/SharedNote";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import FocusMode from "./pages/FocusMode";
+import CourseSelect from "./pages/CourseSelect";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -83,6 +84,9 @@ const App = () => (
                     <Route path="/project/:projectId/viva" element={<AuthGate><VivaPrep /></AuthGate>} />
                     <Route path="/project/:projectId/submit" element={<AuthGate><SubmitExperience /></AuthGate>} />
                     <Route path="/project/:projectId/resources" element={<AuthGate><Resources /></AuthGate>} />
+                    <Route path="/course/:courseId/select" element={<AuthGate><CourseSelect /></AuthGate>} />
+                    <Route path="/course/:courseId/questions" element={<AuthGate><VivaPrep /></AuthGate>} />
+                    <Route path="/course/:courseId/resources" element={<AuthGate><Resources /></AuthGate>} />
                     <Route path="/project/:projectId/flashcards" element={<AuthGate><Flashcards /></AuthGate>} />
                     <Route path="/project/:projectId/quiz" element={<AuthGate><Quiz /></AuthGate>} />
                     <Route path="/bookmarks" element={<AuthGate><Bookmarks /></AuthGate>} />
