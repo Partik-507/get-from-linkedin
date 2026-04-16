@@ -1194,8 +1194,8 @@ const StudyMode = () => {
   );
 
   return (
-    <Layout fullBleed hideBottomNav>
-      <div className="flex overflow-hidden bg-transparent h-[100dvh] md:h-[calc(100dvh-57px)]">
+    <Layout fullBleed>
+      <div className="flex flex-col md:flex-row overflow-hidden bg-transparent h-[100dvh] md:h-[calc(100dvh-57px)]">
 
         {/* ── MOBILE OVERLAY DRAWER ── */}
         <AnimatePresence>
@@ -1216,17 +1216,36 @@ const StudyMode = () => {
           )}
         </AnimatePresence>
 
-        {/* ── MOBILE TOP BAR ── */}
-        <div className="md:hidden flex items-center h-12 px-3 border-b border-border/40 bg-background/95 backdrop-blur-sm shrink-0 gap-3">
+        {/* ── MOBILE TOP BAR (stacks above main, full width) ── */}
+        <div className="md:hidden flex items-center h-12 px-3 border-b border-border/40 bg-background/95 backdrop-blur-sm shrink-0 gap-3 w-full">
           <button onClick={() => setMobileDrawerOpen(o => !o)}
-            className="p-2 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
-            <Menu className="h-4 w-4" />
+            className="tap-44 -ml-2 flex items-center justify-center text-foreground press">
+            <Menu className="h-5 w-5" />
           </button>
           <span className="text-sm font-body font-semibold capitalize">{activeSection}</span>
           <button onClick={() => setShowQuickFocus(true)}
-            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-body text-primary bg-primary/10 hover:bg-primary/20 transition-colors">
+            className="ml-auto flex items-center gap-1.5 px-3 h-9 rounded-full text-xs font-body text-primary bg-primary/10 active:bg-primary/20 press">
             <Zap className="h-3.5 w-3.5" /> Focus
           </button>
+        </div>
+
+        {/* ── MOBILE SECTION TABS (horizontal scroll, replaces sidebar) ── */}
+        <div className="md:hidden flex gap-1.5 px-3 py-2 overflow-x-auto no-scrollbar shrink-0 border-b border-border/30 bg-background/80 w-full">
+          {SECTION_TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSection(tab.id)}
+              className={cn(
+                "shrink-0 flex items-center gap-1.5 px-3 h-9 rounded-full text-xs font-body press",
+                activeSection === tab.id
+                  ? "bg-primary text-primary-foreground font-medium shadow-sm shadow-primary/25"
+                  : "bg-secondary/60 text-muted-foreground active:bg-secondary"
+              )}
+            >
+              <tab.icon className="h-3.5 w-3.5" />
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* ── DESKTOP SIDEBAR ── */}
