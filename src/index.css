@@ -913,3 +913,64 @@
   .vv-card { padding: 0.75rem !important; }
   h1 { font-size: 1.25rem !important; }
 }
+
+/* ============================================================
+   MOBILE-NATIVE FORCED OVERRIDES (apply to every page on mobile)
+   ============================================================ */
+@media (max-width: 767px) {
+  /* All buttons get bigger tap targets on mobile */
+  button:not([data-radix-collection-item]):not(.no-tap-grow),
+  [role="button"]:not([data-radix-collection-item]):not(.no-tap-grow) {
+    min-height: 40px;
+  }
+  /* Tighter card padding edge-to-edge */
+  .vv-card {
+    border-radius: 14px !important;
+  }
+  /* Inputs comfortable for thumbs */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select, textarea {
+    font-size: 16px !important; /* prevents iOS zoom-on-focus */
+  }
+  /* Remove desktop-only hover translate effects on touch */
+  .hover\:scale-105:hover, .hover\:scale-110:hover { transform: none !important; }
+  /* Sticky filter chip rows */
+  .mobile-sticky-filter {
+    position: sticky;
+    top: 44px;
+    z-index: 40;
+    background: hsl(var(--background) / 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 0.5rem 0.75rem;
+    margin: 0 -0.75rem 0.5rem;
+    border-bottom: 1px solid hsl(var(--border) / 0.4);
+  }
+  /* Floating Action Button base */
+  .fab {
+    position: fixed;
+    right: 1rem;
+    bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+    width: 56px; height: 56px;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(240 70% 50%));
+    color: hsl(var(--primary-foreground));
+    box-shadow: 0 8px 24px -4px hsl(var(--primary) / 0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+    transition: transform 120ms ease;
+  }
+  .fab:active { transform: scale(0.92); }
+  /* Page entrance animation feels more native */
+  main {
+    animation: mobile-page-in 200ms ease-out;
+  }
+  @keyframes mobile-page-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  /* Suppress all hover-only states */
+  .hover\:bg-accent:hover, .hover\:bg-secondary:hover, .hover\:bg-muted:hover {
+    background-color: inherit;
+  }
+}
