@@ -209,7 +209,7 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
         <header
           className={cn(
             "sticky top-0 z-50 border-b transition-all duration-200",
-            fullBleed ? "hidden md:block" : "",
+            "hidden md:block", // mobile: classic navbar fully suppressed; replaced by status strip + bottom nav
             scrolled
               ? "bg-background/95 backdrop-blur-xl border-border/60 shadow-sm"
               : "bg-background/70 backdrop-blur-md border-transparent"
