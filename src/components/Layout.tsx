@@ -449,6 +449,101 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
         </header>
       )}
 
+      {/* ═══════════════════════════════════════════════════════════════
+          MOBILE STATUS STRIP (44px) — replaces top navbar on mobile
+          ═══════════════════════════════════════════════════════════════ */}
+      <header
+        className={cn(
+          "md:hidden sticky top-0 z-50 h-11 px-3 flex items-center justify-between safe-top",
+          "bg-background/90 backdrop-blur-xl border-b border-border/40"
+        )}
+      >
+        <div className="flex items-center gap-2">
+          {showBack ? (
+            <button onClick={() => navigate(-1)} className="tap-44 -ml-2 flex items-center justify-center text-foreground press">
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          ) : (
+            <Sheet>
+              <SheetTrigger asChild>
+                <button className="tap-44 -ml-2 flex items-center justify-center text-foreground press" aria-label="Open menu">
+                  <Menu className="h-5 w-5" />
+                </button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[82%] max-w-sm p-0 flex flex-col">
+                <div className="px-5 pt-5 pb-4 border-b border-border/50">
+                  <Link to="/" className="flex items-center gap-2.5">
+                    <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-[hsl(240,70%,50%)] flex items-center justify-center text-primary-foreground font-bold">V</div>
+                    <span className="font-heading font-bold text-lg">VivaVault</span>
+                  </Link>
+                  {user && (
+                    <div className="mt-3">
+                      <p className="text-sm font-body font-semibold truncate">{user.displayName || "Student"}</p>
+                      <p className="text-xs text-muted-foreground font-body truncate">{user.email}</p>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 overflow-y-auto p-3 space-y-1">
+                  {navLinks.map((link) => (
+                    <Link
+                      key={link.to + link.label}
+                      to={link.to}
+                      className={cn(
+                        "flex items-center gap-3 px-3 h-12 rounded-xl font-body press",
+                        location.pathname === link.to ? "bg-primary/10 text-primary font-medium" : "text-foreground/80 active:bg-accent"
+                      )}
+                    >
+                      <link.icon className="h-5 w-5" /> {link.label}
+                    </Link>
+                  ))}
+                  <div className="h-px bg-border/50 my-2" />
+                  <button onClick={() => navigate("/focus")} className="w-full flex items-center gap-3 px-3 h-12 rounded-xl font-body text-primary press active:bg-primary/10">
+                    <Zap className="h-5 w-5" /> Focus Mode
+                  </button>
+                  {user && (
+                    <button onClick={handleSwitchCollege} className="w-full flex items-center gap-3 px-3 h-12 rounded-xl font-body text-foreground/80 press active:bg-accent">
+                      <Building2 className="h-5 w-5" />
+                      <span className="flex-1 text-left">Switch Institution</span>
+                      {collegeName && <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">{collegeName}</span>}
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button onClick={() => navigate("/admin")} className="w-full flex items-center gap-3 px-3 h-12 rounded-xl font-body text-foreground/80 press active:bg-accent">
+                      <Shield className="h-5 w-5" /> Admin
+                    </button>
+                  )}
+                  {user && (
+                    <button onClick={signOut} className="w-full flex items-center gap-3 px-3 h-12 rounded-xl font-body text-destructive press active:bg-destructive/10">
+                      <LogOut className="h-5 w-5" /> Sign Out
+                    </button>
+                  )}
+                  {isGuest && (
+                    <button onClick={() => navigate("/auth")} className="w-full flex items-center gap-3 px-3 h-12 rounded-xl font-body text-primary border border-primary/30 press">
+                      Sign In
+                    </button>
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
+          )}
+          <Link to="/" className="flex items-center gap-1.5">
+            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary to-[hsl(240,70%,50%)] flex items-center justify-center text-primary-foreground font-bold text-xs">V</div>
+            <span className="font-heading font-bold text-[15px] tracking-tight">VivaVault</span>
+          </Link>
+        </div>
+        <div className="flex items-center gap-0.5">
+          {streak.current > 0 && (
+            <span className="text-[11px] font-body font-medium text-[hsl(var(--streak))] flex items-center gap-0.5 mr-1">
+              <Flame className="h-3 w-3" /> {streak.current}
+            </span>
+          )}
+          <button onClick={toggleTheme} className="tap-44 flex items-center justify-center text-muted-foreground press">
+            {resolvedTheme === "dark" ? <Moon className="h-[18px] w-[18px]" /> : <Sun className="h-[18px] w-[18px]" />}
+          </button>
+          {(user || isGuest) && <NotificationBell />}
+        </div>
+      </header>
+
       {fullBleed ? (
         <main className="flex-1 flex flex-col overflow-hidden w-full max-w-none animate-in fade-in duration-200">
           {children}
@@ -457,7 +552,9 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
         <main
           className={cn(
             "w-full max-w-none flex-1 animate-in fade-in duration-200",
-            "px-4 sm:px-6 md:px-8 lg:px-10 py-6 pb-6",
+            "px-4 sm:px-6 md:px-8 lg:px-10 py-6",
+            // Mobile: edge-to-edge horizontal, extra bottom padding to clear the 64px bottom nav + safe area
+            "max-md:px-3 max-md:py-4 max-md:pb-[calc(5rem+env(safe-area-inset-bottom,0px))]",
           )}
         >
           {children}
@@ -465,7 +562,7 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
       )}
 
       {/* ═══════════════════════════════════════════════════════════════
-          FLOATING DOCK — visible in dock mode or on fullBleed pages
+          FLOATING DOCK — desktop only (hidden on mobile by component)
           ═══════════════════════════════════════════════════════════════ */}
       {(user || isGuest) && showDock && (
         <FloatingDock
@@ -473,6 +570,11 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
           onRestoreNavbar={switchToNavbar}
         />
       )}
+
+      {/* ═══════════════════════════════════════════════════════════════
+          MOBILE BOTTOM NAV — primary mobile navigation
+          ═══════════════════════════════════════════════════════════════ */}
+      {!hideBottomNav && <MobileBottomNav />}
     </div>
   );
 };
