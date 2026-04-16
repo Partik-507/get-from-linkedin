@@ -36,6 +36,7 @@ interface Project {
   status?: string;
   isLocked?: boolean;
   accessType?: string;
+  collegeId?: string;
 }
 
 interface QuestionMeta {
@@ -44,7 +45,8 @@ interface QuestionMeta {
 }
 
 const Index = () => {
-  const { user, isGuest, isDemo } = useAuth();
+  const { user, isGuest, isDemo, isAdmin, userProfile } = useAuth();
+  const selectedCollegeId = userProfile?.selectedCollegeId || (typeof window !== "undefined" ? localStorage.getItem("vv_selected_college") : null);
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [questionMeta, setQuestionMeta] = useState<QuestionMeta[]>([]);
@@ -74,8 +76,13 @@ const Index = () => {
           getLevels(),
         ]);
         const allProjects = projSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Project));
+        // Multi-tenant scoping: only show projects for the active college (or those with no college tag = global)
+        // Super-admin sees everything.
+        const scoped = isAdmin
+          ? allProjects
+          : allProjects.filter(p => !selectedCollegeId || !p.collegeId || p.collegeId === selectedCollegeId);
         // Filter out private courses for non-admin
-        setProjects(allProjects.filter(p => p.accessType !== "private" || false));
+        setProjects(scoped.filter(p => p.accessType !== "private" || isAdmin));
         setQuestionMeta(qSnap.docs.map((d) => ({ id: d.id, projectId: (d.data() as any).projectId })));
         setBranches(branchData);
         setLevels(levelData);
@@ -90,7 +97,7 @@ const Index = () => {
       }
     };
     fetchData();
-  }, [user]);
+  }, [user, selectedCollegeId, isAdmin]);
 
   // Cascading filter: reset level when branch changes
   useEffect(() => {
