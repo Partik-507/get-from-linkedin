@@ -285,7 +285,138 @@ const TimeGrid = ({ days, events, onSlotClick, onEventClick }: {
   );
 };
 
-// ── Month view ─────────────────────────────────────────────────────────────────
+// ── MobileDayView ─────────────────────────────────────────────────────────────
+// Vertical hourly day-list optimised for touch. Horizontal swipe → ±1 day.
+const MobileDayView = ({ currentDate, events, onSlotClick, onEventClick, onChangeDay }: {
+  currentDate: Date;
+  events: CalViewEvent[];
+  onSlotClick: (day: Date, hour: number) => void;
+  onEventClick: (e: CalViewEvent, rect: DOMRect) => void;
+  onChangeDay: (delta: number) => void;
+}) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const startX = useRef<number | null>(null);
+  const startY = useRef<number | null>(null);
+  const dayEvents = useMemo(
+    () => events.filter((e) => isSameDay(e.start, currentDate) && !e.allDay)
+      .sort((a, b) => a.start.getTime() - b.start.getTime()),
+    [events, currentDate]
+  );
+  const allDay = useMemo(() => events.filter((e) => e.allDay && isSameDay(e.start, currentDate)), [events, currentDate]);
+  const now = new Date();
+  const currentMinute = getHours(now) * 60 + getMinutes(now);
+  const isCurrent = isToday(currentDate);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = Math.max(0, (currentMinute - 90) * (HOUR_HEIGHT / 60));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentDate.toDateString()]);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    startY.current = e.touches[0].clientY;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (startX.current == null || startY.current == null) return;
+    const dx = e.changedTouches[0].clientX - startX.current;
+    const dy = e.changedTouches[0].clientY - startY.current;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      onChangeDay(dx < 0 ? 1 : -1);
+    }
+    startX.current = null;
+    startY.current = null;
+  };
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden bg-background" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      {/* Compact day header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border/30 shrink-0">
+        <button onClick={() => onChangeDay(-1)} className="h-9 w-9 -ml-2 rounded-full flex items-center justify-center text-muted-foreground active:bg-muted/40">
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <div className="text-center">
+          <p className={cn("text-[11px] font-body uppercase tracking-wider", isCurrent ? "text-primary font-semibold" : "text-muted-foreground")}>{format(currentDate, "EEEE")}</p>
+          <p className={cn("text-base font-heading font-bold leading-tight", isCurrent && "text-primary")}>{format(currentDate, "MMMM d")}</p>
+        </div>
+        <button onClick={() => onChangeDay(1)} className="h-9 w-9 -mr-2 rounded-full flex items-center justify-center text-muted-foreground active:bg-muted/40">
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* All-day pills */}
+      {allDay.length > 0 && (
+        <div className="px-4 py-2 border-b border-border/20 flex flex-wrap gap-1.5 shrink-0">
+          {allDay.map((ev) => (
+            <button key={ev.id}
+              className="text-[11px] font-body rounded-full px-2.5 py-1 truncate max-w-[60%]"
+              style={{ backgroundColor: `${ev.color}25`, color: ev.color }}
+              onClick={(e) => onEventClick(ev, (e.currentTarget as HTMLElement).getBoundingClientRect())}
+            >
+              {ev.source === "holiday" && "🎌 "}{ev.source === "birthday" && "🎂 "}{ev.title}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Hourly timeline */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
+        <div className="relative" style={{ minHeight: `${24 * HOUR_HEIGHT}px` }}>
+          {HOURS.map((hour) => (
+            <button
+              key={hour}
+              type="button"
+              className="absolute left-0 right-0 flex active:bg-muted/30 transition-colors"
+              style={{ top: `${hour * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px` }}
+              onClick={() => onSlotClick(currentDate, hour)}
+            >
+              <div className="w-14 shrink-0 text-right pr-2 -mt-2 select-none pointer-events-none">
+                <span className="text-[10px] text-muted-foreground font-body">{hour !== 0 ? formatHour(hour) : ""}</span>
+              </div>
+              <div className="flex-1 border-t border-border/20" />
+            </button>
+          ))}
+
+          {/* Events */}
+          <div className="absolute inset-y-0 left-14 right-2 pointer-events-none">
+            {dayEvents.map((ev) => {
+              const startMin = getHours(ev.start) * 60 + getMinutes(ev.start);
+              const endMin = getHours(ev.end) * 60 + getMinutes(ev.end);
+              const top = (startMin / 60) * HOUR_HEIGHT;
+              const height = Math.max(((endMin - startMin) / 60) * HOUR_HEIGHT - 2, 24);
+              return (
+                <button
+                  key={ev.id}
+                  className="absolute left-0 right-0 text-left rounded-lg px-2.5 py-1.5 active:scale-[0.98] transition-transform pointer-events-auto"
+                  style={{ top, height, backgroundColor: `${ev.color}20`, borderLeft: `3px solid ${ev.color}` }}
+                  onClick={(e) => { e.stopPropagation(); onEventClick(ev, (e.currentTarget as HTMLElement).getBoundingClientRect()); }}
+                >
+                  <p className="text-[12px] font-body font-semibold truncate leading-tight" style={{ color: ev.color }}>
+                    {ev.source === "task" && <CheckSquare className="h-2.5 w-2.5 inline mr-0.5 -mt-px" />}
+                    {ev.title}
+                  </p>
+                  {height > 32 && (
+                    <p className="text-[10px] font-body opacity-70 truncate">{format(ev.start, "h:mm")} – {format(ev.end, "h:mm a")}</p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Now indicator */}
+          {isCurrent && (
+            <div className="absolute left-14 right-0 z-20 pointer-events-none flex items-center" style={{ top: `${(currentMinute / 60) * HOUR_HEIGHT}px` }}>
+              <div className="h-2.5 w-2.5 rounded-full bg-red-500 -ml-1.5 shrink-0 shadow-sm" />
+              <div className="flex-1 h-[2px] bg-red-500 shadow-sm" />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const MonthView = ({ currentDate, events, onDayClick, onEventClick, onCreateClick }: {
   currentDate: Date; events: CalViewEvent[];
   onDayClick: (d: Date) => void; onEventClick: (e: CalViewEvent, rect: DOMRect) => void; onCreateClick: (d: Date) => void;
