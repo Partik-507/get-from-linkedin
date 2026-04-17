@@ -66,9 +66,9 @@ function nearestEdge(p: Pos): { edge: Edge; offset: number } {
   const dists: Record<Edge, number> = { top: p.y, bottom: H - p.y, left: p.x, right: W - p.x };
   let edge: Edge = "right";
   let min = Infinity;
-  (Object.keys(dists) as Edge[]).forEach((e) => { if (dists[e] < min) { min = dists[e]; edge = e; } });
-  const e: Edge = edge;
-  const horizontal: boolean = e === "top" || e === "bottom";
+  (Object.keys(dists) as Edge[]).forEach((k) => { if (dists[k] < min) { min = dists[k]; edge = k; } });
+  const e = edge as Edge;
+  const horizontal: boolean = (e as string) === "top" || (e as string) === "bottom";
   const offset = horizontal
     ? Math.max(0, Math.min(W - SLAB_LEN, p.x - SLAB_LEN / 2))
     : Math.max(0, Math.min(H - SLAB_LEN, p.y - SLAB_LEN / 2));
