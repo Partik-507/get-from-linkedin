@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "./AuthContext";
-import { flushQueue, runIdle, type QueuedOp } from "@/lib/syncEngine";
+import { flushQueue, runIdle, fetchManifest, type QueuedOp } from "@/lib/syncEngine";
 import { offlineDB } from "@/lib/offlineDB";
 
 interface OfflineContextValue {
@@ -71,6 +71,11 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (replayerRef.current) {
         await flushQueue(user.uid, replayerRef.current);
       }
+      // Pull latest manifest (cheap; deduped server-side)
+      try {
+        const entries = await fetchManifest(user.uid);
+        if (entries.length > 0) setSyncProgress({ done: entries.length, total: entries.length });
+      } catch {/* manifest is best-effort */}
       const now = Date.now();
       localStorage.setItem(LAST_SYNC_KEY, String(now));
       setLastSyncAt(now);
@@ -86,6 +91,15 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
       runIdle(() => { void triggerSync(); });
     }
   }, [isOnline, user?.uid, triggerSync]);
+
+  // First-login sync: if no lastSyncAt, immediately fetch manifest to populate IndexedDB
+  useEffect(() => {
+    if (!user?.uid) return;
+    if (lastSyncAt) return;
+    if (!navigator.onLine) return;
+    runIdle(() => { void triggerSync(); }, 4000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]);
 
   return (
     <OfflineContext.Provider
