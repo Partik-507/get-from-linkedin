@@ -114,6 +114,59 @@ export async function flushQueue(
   return count;
 }
 
+// ── Manifest fetch (Firestore-backed) ────────────────────────────────────────
+/**
+ * Fetch the user's allowed-content manifest from Firestore.
+ * Looks for `manifests/{userId}` doc with `entries: ManifestEntry[]`.
+ * Falls back to aggregating from `users/{userId}/allowedContent` collection.
+ * Stores result in IndexedDB on success.
+ */
+export async function fetchManifest(userId: string): Promise<ManifestEntry[]> {
+  if (!userId) return [];
+  try {
+    const { db } = await import("./firebase");
+    const { doc, getDoc, collection, getDocs } = await import("firebase/firestore");
+
+    let entries: ManifestEntry[] = [];
+
+    // Try aggregated doc first (cheapest read)
+    try {
+      const snap = await getDoc(doc(db, "manifests", userId));
+      if (snap.exists()) {
+        const data = snap.data();
+        if (Array.isArray(data.entries)) entries = data.entries as ManifestEntry[];
+      }
+    } catch { /* ignore, fall through */ }
+
+    // Fallback: per-user allowedContent collection
+    if (entries.length === 0) {
+      try {
+        const colSnap = await getDocs(collection(db, "users", userId, "allowedContent"));
+        entries = colSnap.docs.map((d) => {
+          const data = d.data() as Partial<ManifestEntry>;
+          return {
+            id: d.id,
+            type: (data.type ?? "resource") as ManifestEntry["type"],
+            courseId: data.courseId,
+            hash: data.hash ?? "",
+            version: data.version ?? 1,
+            url: data.url,
+            updatedAt: data.updatedAt ?? Date.now(),
+          };
+        });
+      } catch { /* ignore */ }
+    }
+
+    if (entries.length > 0) {
+      await commitManifest(userId, entries);
+    }
+    return entries;
+  } catch (e) {
+    console.warn("[syncEngine] fetchManifest failed", e);
+    return [];
+  }
+}
+
 /** Schedule heavy work in idle time, fall back to setTimeout. */
 export function runIdle(fn: () => void, timeout = 2000) {
   const ric = (window as any).requestIdleCallback as
