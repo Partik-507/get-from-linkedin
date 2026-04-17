@@ -75,13 +75,14 @@ function nearestEdge(p: Pos): { edge: Edge; offset: number } {
 
 function slabStyle(edge: Edge, offset: number): React.CSSProperties {
   const horizontal = edge === "top" || edge === "bottom";
-  return {
+  const style: Record<string, string | number> = {
     position: "fixed",
     width: horizontal ? SLAB_LEN : SLAB_THICK,
     height: horizontal ? SLAB_THICK : SLAB_LEN,
-    [edge]: 0,
-    [horizontal ? "left" : "top"]: offset,
-  } as React.CSSProperties;
+  };
+  style[edge] = 0;
+  style[horizontal ? "left" : "top"] = offset;
+  return style as React.CSSProperties;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
