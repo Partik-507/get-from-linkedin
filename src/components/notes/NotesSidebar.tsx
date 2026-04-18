@@ -307,7 +307,7 @@ export const NotesSidebar = ({
               New Page
             </button>
             <button
-              onClick={() => onCreateNote("root", { title: "Untitled Canvas", content: "", tags: [] } as any)}
+              onClick={() => onCreateNote("root")}
               title="New Canvas (board)"
               className="flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-foreground transition-colors">
               <span className="text-sm leading-none">🎨</span>
