@@ -4,6 +4,7 @@ import {
   collection, getDocs, query, where, doc, updateDoc, increment as firestoreIncrement, orderBy, getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { safeHtml } from "@/lib/sanitize";
 import { Layout } from "@/components/Layout";
 import { EmptyState } from "@/components/EmptyState";
 import { QuestionSkeleton, CardSkeleton } from "@/components/LoadingSkeleton";
@@ -233,7 +234,7 @@ const QuestionCard = ({ q, onUpvote, isUpvoted, isStudied, onToggleStudied, book
                     </div>
                   ) : (
                     <div>
-                      {q.answer && <div className="prose prose-sm dark:prose-invert max-w-none mb-4 text-muted-foreground font-body leading-relaxed" dangerouslySetInnerHTML={{ __html: q.answer }} />}
+                      {q.answer && <div className="prose prose-sm dark:prose-invert max-w-none mb-4 text-muted-foreground font-body leading-relaxed" dangerouslySetInnerHTML={{ __html: safeHtml(q.answer) }} />}
                       {q.tip && (
                         <div className="tip-box rounded-r-lg p-4 mb-4">
                           <div className="flex items-center gap-2 mb-2" style={{ color: "hsl(var(--tip-border))" }}>
