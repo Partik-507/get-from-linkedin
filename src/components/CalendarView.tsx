@@ -656,19 +656,6 @@ export const CalendarView = forwardRef<CalendarViewHandle, CalendarViewProps>(({
   const handleEventClick = useCallback((ev: CalViewEvent, rect: DOMRect) => setPopoverEvent({ event: ev as PopoverEvent, rect }), []);
   const handleCreateFromDay = useCallback((day: Date) => { setView("day"); setCurrentDate(day); }, []);
   const handleSaveEvent = useCallback(async (data: CreateEventData) => { await onCreateEvent(data); setCreateModal({ open: false }); }, [onCreateEvent]);
-
-  const VIEW_OPTIONS = [
-    { id: "day" as ViewType, label: "Day", key: "D" },
-    { id: "week" as ViewType, label: "Week", key: "W" },
-    { id: "month" as ViewType, label: "Month", key: "M" },
-    { id: "year" as ViewType, label: "Year", key: "Y" },
-    { id: "agenda" as ViewType, label: "Schedule", key: "A" },
-  ];
-
-  const handleSlotClick = useCallback((day: Date, hour: number) => setCreateModal({ open: true, date: day, hour }), []);
-  const handleEventClick = useCallback((ev: CalViewEvent, rect: DOMRect) => setPopoverEvent({ event: ev as PopoverEvent, rect }), []);
-  const handleCreateFromDay = useCallback((day: Date) => { setView("day"); setCurrentDate(day); }, []);
-  const handleSaveEvent = useCallback(async (data: CreateEventData) => { await onCreateEvent(data); setCreateModal({ open: false }); }, [onCreateEvent]);
   const handleChangeDay = useCallback((delta: number) => setCurrentDate((d) => addDays(d, delta)), []);
 
   const VIEW_OPTIONS = [
