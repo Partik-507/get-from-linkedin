@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { FileText } from "lucide-react";
+import { safeHtml } from "@/lib/sanitize";
 
 const SharedNote = () => {
   const { noteId } = useParams();
@@ -48,7 +49,7 @@ const SharedNote = () => {
         <h1 className="text-2xl font-heading font-bold mb-6">{note.title}</h1>
         <div
           className="prose prose-sm dark:prose-invert max-w-none font-body"
-          dangerouslySetInnerHTML={{ __html: note.content }}
+          dangerouslySetInnerHTML={{ __html: safeHtml(note.content) }}
         />
       </main>
     </div>

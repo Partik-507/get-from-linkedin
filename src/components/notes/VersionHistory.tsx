@@ -108,7 +108,7 @@ export const VersionHistory = ({ open, onClose, noteId, currentContent, onRestor
                 {preview?.id === snap.id && (
                   <div className="mt-3 pt-3 border-t border-border/50" onClick={e => e.stopPropagation()}>
                     <div className="max-h-32 overflow-y-auto text-[11px] text-muted-foreground font-body mb-3 tiptap-editor prose-notes rounded-lg bg-secondary/30 p-2 border border-border/40"
-                      dangerouslySetInnerHTML={{ __html: snap.content.slice(0, 1000) }} />
+                      dangerouslySetInnerHTML={{ __html: safeHtml(snap.content.slice(0, 1000)) }} />
                     <Button size="sm" className="w-full text-xs font-body gap-1 h-7"
                       onClick={() => handleRestore(snap)}>
                       <RotateCcw className="h-3 w-3" /> Restore this version

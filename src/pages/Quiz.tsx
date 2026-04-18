@@ -343,7 +343,7 @@ const Quiz = () => {
                     </div>
                     <div className="text-sm text-muted-foreground font-body p-3 rounded-lg bg-secondary/30">
                       <p className="text-xs text-muted-foreground mb-1">Correct answer:</p>
-                      <div dangerouslySetInnerHTML={{ __html: currentQ.answer?.substring(0, 500) || "—" }} />
+                      <div dangerouslySetInnerHTML={{ __html: safeHtml(currentQ.answer?.substring(0, 500) || "—") }} />
                     </div>
                   </div>
                 )}

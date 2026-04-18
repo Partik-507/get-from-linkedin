@@ -45,7 +45,7 @@ export const ResourceViewer = ({ open, onClose, title, url, type, htmlContent }:
         <div className="w-full h-full overflow-auto bg-card rounded-lg p-2">
           <div
             className="font-editor max-w-3xl mx-auto p-6 prose prose-sm dark:prose-invert"
-            dangerouslySetInnerHTML={{ __html: htmlContent }}
+            dangerouslySetInnerHTML={{ __html: safeHtml(htmlContent) }}
           />
         </div>
       );
