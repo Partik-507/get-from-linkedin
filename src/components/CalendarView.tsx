@@ -580,7 +580,18 @@ export const CalendarView = forwardRef<CalendarViewHandle, CalendarViewProps>(({
   const currentDate = propDate || internalDate;
   const setCurrentDate = onDateChange || setInternalDate;
 
-  const [view, setView] = useState<ViewType>(initialView);
+  // Mobile detection — force day view, full-bleed, no toolbar shortcuts
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const [view, setView] = useState<ViewType>(isMobile ? "day" : initialView);
+  // Force day view when entering mobile
+  useEffect(() => { if (isMobile) setView("day"); }, [isMobile]);
+
   const [showWeekends, setShowWeekends] = useState(true);
   
   const [internalHolidays, setInternalHolidays] = useState(true);
