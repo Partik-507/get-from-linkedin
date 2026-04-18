@@ -45,12 +45,16 @@ export const ShareModal = ({ open, onClose, note, userId, content }: Props) => {
         title: note.title,
         icon: note.icon || "📄",
         content,
+        type: "note", // Explicit type so SharedView can branch on note vs canvas
+        revoked: false,
+        deleted: false,
+        views: 0,
         publishedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
       setSlug(newSlug);
       setPublished(true);
-      toast.success("Page published to web!");
+      toast.success("Page published — anyone with the link can view");
     } catch (err) {
       toast.error("Failed to publish. Check Firebase rules.");
     } finally {
@@ -58,10 +62,15 @@ export const ShareModal = ({ open, onClose, note, userId, content }: Props) => {
     }
   };
 
-  const handleUnpublish = () => {
+  const handleUnpublish = async () => {
+    if (slug) {
+      try {
+        await setDoc(doc(db, "publicShares", slug), { revoked: true, updatedAt: serverTimestamp() }, { merge: true });
+      } catch { /* ignore */ }
+    }
     setPublished(false);
     setSlug("");
-    toast.success("Unpublished");
+    toast.success("Link revoked — visitors will see a not-available message");
   };
 
   const handleCopy = () => {
