@@ -14,6 +14,14 @@ import {
   ChevronRight, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SceneEngine } from "@/components/focus/SceneEngine";
+import { getThemeById, DEFAULT_THEME_ID } from "@/lib/focusThemes";
+
+// Inline wrapper to keep theme lookup tidy
+const SceneEngineWrapper = ({ themeId, battery, intro }: { themeId: string; battery: boolean; intro?: boolean }) => {
+  const theme = getThemeById(themeId) || getThemeById(DEFAULT_THEME_ID)!;
+  return <SceneEngine theme={theme} battery={battery} intro={intro} />;
+};
 
 const MOTIVATIONAL = [
   "Stay focused! Every minute of study brings you closer to mastery. 📚",
@@ -220,15 +228,22 @@ const FocusMode = () => {
 
   // ─── ACTIVE SESSION ─────────────────────────────────────────────────────────
   if (step === "active") {
+    const themeId = localStorage.getItem("vv_focus_theme") || "night-desk";
     return (
       <div
         className="fixed inset-0 z-[100] flex flex-col items-center justify-center"
-        style={bgStyle}
         onMouseMove={resetHideTimer}
         onTouchStart={resetHideTimer}
       >
-        {wallpaper && <div className="absolute inset-0 bg-black/50" />}
-        {!wallpaper && <div className="absolute inset-0 bg-background" />}
+        {/* Layered scene engine OR custom wallpaper fallback */}
+        {wallpaper ? (
+          <>
+            <div className="absolute inset-0" style={bgStyle} />
+            <div className="absolute inset-0 bg-black/50" />
+          </>
+        ) : (
+          <SceneEngineWrapper themeId={themeId} battery={sessionMode === "normal" ? false : false} intro />
+        )}
 
         {/* Top-right controls */}
         <div className={cn(
