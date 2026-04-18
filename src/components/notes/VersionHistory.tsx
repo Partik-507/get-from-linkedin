@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { History, RotateCcw, Eye, X, Clock, FileText, ChevronRight } from "lucide-react";
 import { getSnapshots, saveSnapshot, formatRelativeTime, type LocalSnapshot } from "@/lib/indexedDB";
+import { safeHtml } from "@/lib/sanitize";
 
 interface Props {
   open: boolean;

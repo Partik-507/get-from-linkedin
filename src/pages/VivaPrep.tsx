@@ -4,6 +4,7 @@ import {
   collection, getDocs, query, where, doc, updateDoc, increment as firestoreIncrement, orderBy, getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { safeHtml } from "@/lib/sanitize";
 import { Layout } from "@/components/Layout";
 import { EmptyState } from "@/components/EmptyState";
 import { QuestionSkeleton, CardSkeleton } from "@/components/LoadingSkeleton";

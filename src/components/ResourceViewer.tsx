@@ -3,6 +3,7 @@ import { X, ExternalLink, Maximize2, Minimize2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { PDFViewer } from "@/components/PDFViewer";
+import { safeHtml } from "@/lib/sanitize";
 
 interface ResourceViewerProps {
   open: boolean;
