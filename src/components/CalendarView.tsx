@@ -665,6 +665,65 @@ export const CalendarView = forwardRef<CalendarViewHandle, CalendarViewProps>(({
     { id: "agenda" as ViewType, label: "Schedule", key: "A" },
   ];
 
+  const handleSlotClick = useCallback((day: Date, hour: number) => setCreateModal({ open: true, date: day, hour }), []);
+  const handleEventClick = useCallback((ev: CalViewEvent, rect: DOMRect) => setPopoverEvent({ event: ev as PopoverEvent, rect }), []);
+  const handleCreateFromDay = useCallback((day: Date) => { setView("day"); setCurrentDate(day); }, []);
+  const handleSaveEvent = useCallback(async (data: CreateEventData) => { await onCreateEvent(data); setCreateModal({ open: false }); }, [onCreateEvent]);
+  const handleChangeDay = useCallback((delta: number) => setCurrentDate((d) => addDays(d, delta)), []);
+
+  const VIEW_OPTIONS = [
+    { id: "day" as ViewType, label: "Day", key: "D" },
+    { id: "week" as ViewType, label: "Week", key: "W" },
+    { id: "month" as ViewType, label: "Month", key: "M" },
+    { id: "year" as ViewType, label: "Year", key: "Y" },
+    { id: "agenda" as ViewType, label: "Schedule", key: "A" },
+  ];
+
+  // ── MOBILE BRANCH — Edge-to-edge day view, no toolbar, FAB instead of Create button ──
+  if (isMobile) {
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden h-full min-w-0 bg-background relative">
+        <MobileDayView
+          currentDate={currentDate}
+          events={visibleEvents}
+          onSlotClick={handleSlotClick}
+          onEventClick={handleEventClick}
+          onChangeDay={handleChangeDay}
+        />
+
+        {/* FAB — Create event */}
+        <button
+          onClick={() => setCreateModal({ open: true, date: currentDate })}
+          className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] z-30 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 active:scale-95 transition-transform flex items-center justify-center"
+          aria-label="Create event"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+
+        {/* Event popover */}
+        <AnimatePresence>
+          {popoverEvent && (
+            <CalendarEventPopover
+              event={popoverEvent.event} anchorRect={popoverEvent.rect}
+              onClose={() => setPopoverEvent(null)}
+              onEdit={(ev) => { setPopoverEvent(null); onEditEvent(ev as CalViewEvent); }}
+              onDelete={async (id) => { setPopoverEvent(null); await onDeleteEvent(id); }}
+            />
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {createModal.open && (
+            <CalendarCreateModal
+              open={createModal.open} initialDate={createModal.date} initialHour={createModal.hour}
+              onClose={() => setCreateModal({ open: false })}
+              onSave={handleSaveEvent} gcalConnected={gcalConnected}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden h-full min-w-0">
       {/* Toolbar */}
