@@ -452,8 +452,10 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
       )}
 
       {/* ═══════════════════════════════════════════════════════════════
-          MOBILE STATUS STRIP (44px) — replaces top navbar on mobile
+          MOBILE STATUS STRIP (44px) — hidden entirely on fullBleed pages
+          (Notes/Study/Focus). Bottom nav handles mobile navigation.
           ═══════════════════════════════════════════════════════════════ */}
+      {!fullBleed && (
       <header
         className={cn(
           "md:hidden sticky top-0 z-50 h-11 px-3 flex items-center justify-between safe-top",
@@ -545,6 +547,7 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
           {(user || isGuest) && <NotificationBell />}
         </div>
       </header>
+      )}
 
       {fullBleed ? (
         <main className="flex-1 flex flex-col overflow-hidden w-full max-w-none animate-in fade-in duration-200">

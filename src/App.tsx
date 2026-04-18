@@ -121,6 +121,7 @@ const App = () => (
                     <Route path="/admin" element={<AuthGate><Admin /></AuthGate>} />
                     <Route path="/progress" element={<Navigate to="/dashboard" replace />} />
                     <Route path="/shared/:noteId" element={<SharedNote />} />
+                    <Route path="/share/:shareId" element={<SharedNote />} />
                     <Route path="/oauth/google/callback" element={<GoogleCalendarCallback />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>

@@ -395,6 +395,7 @@ export const FloatingDock = ({ onRestoreNavbar }: FloatingDockProps) => {
     : "rgba(255, 255, 255, 0.97)";
 
   // ── SLAB MODE ─────────────────────────────────────────────────────────────
+  // Slab is visible on ALL screens (incl. mobile) so the dock is always reachable.
   if (!open) {
     const horizontal = slabEdge === "top" || slabEdge === "bottom";
     return (
@@ -402,19 +403,20 @@ export const FloatingDock = ({ onRestoreNavbar }: FloatingDockProps) => {
         ref={slabDragRef}
         className={cn(
           "z-[2147483647] select-none touch-none cursor-grab active:cursor-grabbing rounded-full",
-          "bg-gradient-to-r from-primary to-[hsl(240,70%,50%)]",
-          "transition-opacity duration-200 hidden md:block",
+          "bg-gradient-to-r from-primary to-[hsl(240,70%,50%)] shadow-lg shadow-primary/30",
+          "transition-opacity duration-200 pointer-events-auto",
         )}
         style={{
           ...slabStyle(slabEdge, slabOffset),
-          opacity: slabHover ? 0.6 : 0.18,
+          // Always visible (≥ 0.18), brightens on hover/touch
+          opacity: slabHover ? 0.7 : 0.22,
+          // Slightly bigger hit area on touch via padding box (handled by SLAB_THICK)
         }}
         onPointerEnter={() => setSlabHover(true)}
         onPointerLeave={() => setSlabHover(false)}
         title="Open Command Center (drag to move, tap to open)"
         aria-label="Open command center"
       >
-        {/* Mobile-friendly invisible click-area extender */}
         <span className="sr-only">Command center slab</span>
       </div>
     );

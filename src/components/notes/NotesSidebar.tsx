@@ -306,6 +306,12 @@ export const NotesSidebar = ({
               <Plus className="h-3.5 w-3.5" />
               New Page
             </button>
+            <button
+              onClick={() => onCreateNote("root")}
+              title="New Canvas (board)"
+              className="flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-foreground transition-colors">
+              <span className="text-sm leading-none">🎨</span>
+            </button>
             <button onClick={() => onCreateFolder("root")} title="New Folder"
               className="flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-foreground transition-colors">
               <Folder className="h-3.5 w-3.5" />
