@@ -545,9 +545,9 @@ export const NoteEditor = ({
         "--editor-size": `${fontSize}px`,
       } as React.CSSProperties}
     >
-      {/* ── Top toolbar ─────────────────────────────────────────────────── */}
+      {/* ── Top toolbar (DESKTOP ONLY — mobile uses keyboard accessory bar) ─ */}
       {!readOnly && (
-        <div className="flex items-center justify-between px-4 py-1.5 border-b border-border/20 bg-card/30 shrink-0 gap-2 flex-wrap">
+        <div className="hidden md:flex items-center justify-between px-4 py-1.5 border-b border-border/20 bg-card/30 shrink-0 gap-2 flex-wrap">
           {/* Left: formatting */}
           <div className="flex items-center gap-0.5 flex-wrap">
             {/* Font picker */}
