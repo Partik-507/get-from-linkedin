@@ -1,111 +1,143 @@
 
 
-# Massive Mobile + Share + Canvas Admin + Focus Room Rebuild
+# Massive Mobile Rebuild — Resources, Notes, Study, Focus, Admin
 
-5 parallel tracks. Concise, high-impact only.
+8 parallel tracks. Concise, high-impact only.
 
-## Track A — Mobile Calendar/Notes/Layout fixes
+## Track A — Mobile Native Foundation (Flipkart-style)
 
-**`src/components/Layout.tsx`**: Hide top navbar on mobile entirely (`hidden md:flex`). Mobile uses bottom nav only.
+**`src/components/MobileTopBar.tsx`** (new, reusable):
+- Compact profile chip (avatar + name) tiny on top
+- Below: search pill (full-width, 44px, rounded-22px)
+- Below: horizontal scrollable nav chips (For You / Fashion-style — used by StudyOS for Calendar/Tasks/Habits/Focus/Analytics, by NotesOS for My/Public/Library)
+- Auto-hide on scroll-down, restore on scroll-up (uses scroll direction hook)
 
-**`src/components/CalendarView.tsx`**: 
-- Mobile (`<md`): force `view="day"` default, render only `MobileDayView`, full-bleed (no border/padding/card wrapper), hide all view-switcher chips/shortcuts (already in drawer)
-- Wire MobileDayView into day branch on mobile
+**`src/hooks/useScrollDirection.ts`** (new): tracks scroll direction for hide/show top+bottom bars natively.
 
-**`src/pages/StudyMode.tsx`**: Mobile top bar = single hamburger + title + FAB. Remove duplicate shortcuts (keep only in drawer).
+## Track B — Resources Page Full Mobile Rebuild
 
-**`src/pages/Notes.tsx`**: Mobile = no top navbar (Layout handles), full-bleed editor, edge-swipe-from-left opens sidebar drawer.
+**`src/pages/Resources.tsx`** (mobile branch rewrite):
+- Header: "Library" + search icon + 36px purple `+` add button
+- Public/Private segmented switcher (gray bg, white sliding pill)
+- Search bar (44px, always visible)
+- Controls row: All Courses chip + All Categories chip + view toggle (list/grid)
+- Grid view: 2-col cards with type icon, thumbnail, title, tags
+- List view: 72px rows
+- Edge-swipe-from-left → folder drawer
 
-## Track B — FloatingDock (Command Center) hard fixes
+**`src/components/resources/FolderDrawer.tsx`** (new):
+- 290px slide-in drawer with nested folder tree
+- "+ New Folder" (admin in Public, all users in Private)
+- Long-press → Rename/Move/Delete
+- Persists last selected folder
 
-**`src/components/FloatingDock.tsx`**:
-- Fix slab toggle race: single `mode: "expanded" | "slab"` state, never both
-- Slab click handler: stopPropagation + explicit `setMode("expanded")` 
-- When in slab mode: container `height: auto`, `width: auto`, no fixed dimensions leaking from expanded state — clear inline styles on collapse
-- Pointer-events: slab `auto`, expanded panel `auto`, never `none` blocking
-- Persist `mode` in localStorage so reload keeps state
-- Slab visibility: always `opacity ≥ 0.15`, never display:none
+**`src/components/resources/ResourceUploadSheet.tsx`** (new):
+- 70vh bottom sheet, 6 type tiles (PDF/YouTube/Link/Doc/Image/Audio)
+- Auto-fetch YouTube title/thumb on URL paste
+- Subject/Course/Tags fields, purple Save button
 
-## Track C — Public Share System (`/share/:shareId`)
+**`src/components/resources/ResourceDetailSheet.tsx`** (new): inline preview + action row.
 
-**`src/pages/SharedNote.tsx`** → rename mentally to `SharedView.tsx`, generalize:
-- Read `shareId` from URL
-- Query Firestore `publicShares/{shareId}` (already used by `ShareModal`)
-- Detect `type` (`note` | `canvas`) from doc
-- Render note → read-only TipTap (or sanitized HTML)
-- Render canvas → CanvasView with `readOnly={true}`
-- Top banner: "You're viewing a shared page (read-only)" + "Open in workspace" if logged in
-- Edge cases: invalid → "Not Found", deleted (`deleted:true`) → "No longer available", `revoked:true` → blocked
-- No auth required (route stays outside AuthGate ✅ already)
+**`src/lib/resourcesFolders.ts`** (new): Firestore folder CRUD with parent/child tree.
 
-**`src/App.tsx`**: Add `/share/:shareId` route → `<SharedView />` (keep `/shared/:noteId` as alias for legacy).
+**`src/lib/privateResources.ts`** (new): mirrors `notesLocalFS`/`notesFirestore` pattern — local FS or Firestore for private resources, with storage onboarding reusing `StorageOnboarding`.
 
-**`src/components/notes/ShareModal.tsx`**: Already writes to `publicShares/{slug}` ✅. Add `type: "note" | "canvas"` field, `revoked: false`, view counter increment on read.
+## Track C — NotesOS Mobile (Obsidian-style)
 
-**`src/components/notes/CanvasView.tsx`**: Accept `readOnly` prop — disable drag/zoom-pan still allowed but no node creation/edit/delete.
+**`src/pages/Notes.tsx`** (mobile rewrite):
+- Top bar: hamburger (left) + workspace switcher pill (3-dot menu opens My/Public/Library) + read/edit toggle (right)
+- Search bar centered between
+- Auto-hide on scroll
+- Bottom: existing MobileBottomNav
+- When active note has `isCanvas:true` → render `<CanvasView readOnly={isPublicWorkspace && !isAdmin} />` else `<NoteEditor />`
+- Sidebar pages with `isCanvas:true` show `LayoutDashboard` icon
 
-## Track D — Admin Canvas Creation in NotesOS
+**`src/components/notes/NotesSidebar.tsx`**: board icon for canvas pages (already added +Canvas button).
 
-**`src/pages/Notes.tsx`** + **`src/components/notes/NotesSidebar.tsx`**:
-- Add "+ New Canvas" button (admin only, via `useAuth().isAdmin`) next to "+ New Page"
-- Creates note with `isCanvas: true`, `title: "Untitled Canvas"`, icon `🎨`
-- Sidebar: pages with `isCanvas:true` show board icon (Layout/Grid icon)
-- Notes.tsx render: if active page `isCanvas` → `<CanvasView readOnly={!isAdmin && isPublicWorkspace} />` else `<NoteEditor />`
+## Track D — StudyOS Mobile Top Bar Prune
 
-## Track E — Offline Focus Room Engine
+**`src/pages/StudyMode.tsx`** (mobile branch):
+- Top bar: hamburger + section title + view-toggle pill (Day/3-Day/Week)
+- Remove Focus/Sync/Plan shortcuts (already in drawer)
+- Single global FAB (`+`, 56px, purple) bottom-right above bottom nav
+- Horizontal scrollable section chips (Calendar/Tasks/Habits/Focus/Analytics) — Flipkart-style
 
-**`src/lib/focusThemes.ts`** (new) — Theme registry:
-```
-{ id, name, baseImage, overlays: [{type:'snow'|'rain'|'particles'|'glow', config}], audio: {url, label}, perfProfile }
-```
+## Track E — Focus Mode Theme Picker + 5 Themes
 
-**`src/components/focus/SceneEngine.tsx`** (new):
-- Layered renderer: `<img>` base + `<canvas>` overlay (requestAnimationFrame loop)
-- Particle systems: snow (gravity+drift), rain (linear+splash), floating dust (sine), glow (radial gradient pulse)
-- 60fps target, auto-throttle to 30fps if frame budget exceeded
-- Battery-safe mode: pause canvas, keep static image only
+**`src/lib/focusThemes.ts`** (extend): add 5 named themes (Lo-fi Room, Night City, Forest Morning, Minimal Dark, Warm Library) each with baseImage + overlays + audio + season variants (snow/rain/spring particles/summer dust).
 
-**`src/components/focus/AudioEngine.tsx`** (new):
-- Preloads MP3 to Cache Storage on first play
-- HTMLAudio with `loop`, crossfade between tracks (200ms)
-- Volume slider, mute toggle, falls back to silent if blob fails
+**`src/components/focus/SceneEngine.tsx`** (extend): add seasonal particle effects (cherry blossom, autumn leaves, snow drift, summer fireflies).
 
-**`src/lib/focusAssetCache.ts`** (new):
-- `cacheAsset(url)` → fetch + put in `focus-assets-v1` Cache Storage, return blob URL
-- `getCachedAsset(url)` → returns local blob URL if present, else fetches+caches
+**`src/components/focus/ThemePicker.tsx`** (new):
+- Horizontal scrollable strip, 80×80 thumbnails
+- Battery-safe toggle pill
+- Cross-fade 400ms on switch
+- Auto-dismiss after 5s idle
 
-**`src/pages/FocusMode.tsx`**: 
-- Replace any video bg with `<SceneEngine theme={selected} />`
-- Theme picker drawer (Night Desk, Rainy Window, Anime Study, Library, Cafe)
-- Mode toggle: Normal / Strict / Battery-Safe
-- Minimal UI: timer, clock, controls, volume, theme — auto-hide after 3s idle
+**`src/pages/FocusMode.tsx`**: wire ThemePicker into mode-selection screen + palette icon in active session.
 
-**Theme assets**: Use 5 royalty-free Unsplash URLs as initial baseImage (cached on first load); animations are pure code so no asset weight.
+**`src/components/focus/CustomThemeUpload.tsx`** (new): upload custom background, pick overlay (rain/particles/gradient/none).
 
-## Files (~12)
+## Track F — Admin Focus Mode Module
+
+**`src/pages/Admin.tsx`** (add new section):
+- "Focus Mode Manager" tab
+- CRUD for themes: name, description, baseImage upload (Firebase Storage), overlay type, audio upload, video upload
+- List of all themes with edit/delete/preview
+- Stored in Firestore `focusThemes/{id}` — read by all users on focus session start
+
+**`src/lib/adminFocusThemes.ts`** (new): Firestore CRUD for focus themes, syncs into local registry on app load.
+
+**`src/components/admin/FocusThemeEditor.tsx`** (new): form with image/video/audio upload via existing `ImagePicker` + Firebase Storage upload helpers.
+
+## Track G — Mobile Event Cards (no more giant web cards)
+
+**`src/components/CalendarCreateModal.tsx`** (mobile branch): full-screen sheet with native pickers (TimeWheelPicker already exists), no desktop card.
+
+**`src/components/CalendarEventPopover.tsx`** (mobile branch): bottom sheet 60vh instead of popover.
+
+## Track H — Color System Audit (premium UX/UI palette)
+
+**`src/index.css`**: Refine HSL tokens for Study OS specifically:
+- New muted gradient backgrounds for sections
+- Better contrast ratios (WCAG AA)
+- Consistent purple primary (already #8B5CF6-ish), refined neutrals
+- Add `--surface-elevated`, `--surface-recessed` tokens for proper hierarchy
+- Apply to all StudyOS components
+
+## Files (~22)
 
 | File | Action |
 |------|--------|
-| `src/components/Layout.tsx` | Hide top navbar on mobile |
-| `src/components/CalendarView.tsx` | Mobile = day-only, full-bleed |
-| `src/pages/StudyMode.tsx` | Strip mobile shortcuts |
-| `src/pages/Notes.tsx` | Mobile shell + canvas creation |
-| `src/components/notes/NotesSidebar.tsx` | Board icon, +Canvas button |
-| `src/components/notes/CanvasView.tsx` | readOnly prop |
-| `src/components/FloatingDock.tsx` | Slab toggle hard fix |
-| `src/pages/SharedNote.tsx` | Generalize to note+canvas viewer |
-| `src/App.tsx` | `/share/:shareId` route |
-| `src/components/notes/ShareModal.tsx` | type field, revoke |
-| `src/lib/focusThemes.ts` | New |
-| `src/lib/focusAssetCache.ts` | New |
-| `src/components/focus/SceneEngine.tsx` | New |
-| `src/components/focus/AudioEngine.tsx` | New |
-| `src/pages/FocusMode.tsx` | Wire scene engine |
+| `src/components/MobileTopBar.tsx` | New — Flipkart-style header |
+| `src/hooks/useScrollDirection.ts` | New |
+| `src/pages/Resources.tsx` | Mobile rewrite |
+| `src/components/resources/FolderDrawer.tsx` | New |
+| `src/components/resources/ResourceUploadSheet.tsx` | New |
+| `src/components/resources/ResourceDetailSheet.tsx` | New |
+| `src/lib/resourcesFolders.ts` | New |
+| `src/lib/privateResources.ts` | New |
+| `src/pages/Notes.tsx` | Mobile Obsidian shell + canvas render |
+| `src/components/notes/NotesSidebar.tsx` | Board icon |
+| `src/pages/StudyMode.tsx` | Mobile top bar prune + chip nav + FAB |
+| `src/lib/focusThemes.ts` | 5 themes + seasonal variants |
+| `src/components/focus/SceneEngine.tsx` | Seasonal particles |
+| `src/components/focus/ThemePicker.tsx` | New |
+| `src/components/focus/CustomThemeUpload.tsx` | New |
+| `src/pages/FocusMode.tsx` | Wire picker |
+| `src/pages/Admin.tsx` | Focus Mode Manager tab |
+| `src/lib/adminFocusThemes.ts` | New Firestore CRUD |
+| `src/components/admin/FocusThemeEditor.tsx` | New |
+| `src/components/CalendarCreateModal.tsx` | Mobile full-screen sheet |
+| `src/components/CalendarEventPopover.tsx` | Mobile bottom sheet |
+| `src/index.css` | Color token refinement |
 
 ## Notes
 
-- No new deps (canvas particles + HTMLAudio are native)
-- All desktop layouts preserved
-- Share route works without auth (already outside AuthGate)
-- FloatingDock localStorage key: `dock_mode` separate from size/pos to prevent state corruption
+- No new deps — Lottie/canvas particles are pure code
+- Admin themes hydrate from Firestore on app boot, fall back to hardcoded 5
+- Public canvas: readOnly only when `isPublicWorkspace && !isAdmin`. Private canvas always editable by owner.
+- All mobile rebuilds are separate branches (not responsive) — desktop preserved
+- Resources folders persisted in Firestore with parent/child IDs
+- Auto-hide nav uses scroll direction (>10px delta threshold)
 
