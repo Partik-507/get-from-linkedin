@@ -192,7 +192,7 @@ export const CalendarCreateModal = ({
               <Checkbox checked={allDay} onCheckedChange={(c) => setAllDay(!!c)} className="h-5 w-5" />
             </label>
 
-            {/* Date pickers */}
+            {/* Date + time pickers (native inputs — no time-wheel timer confusion) */}
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -206,6 +206,14 @@ export const CalendarCreateModal = ({
                   }}
                   className="flex-1 h-10 px-3 rounded-xl bg-muted/50 border-0 text-sm font-body focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
+                {!allDay && (
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-[110px] h-10 px-3 rounded-xl bg-muted/50 border-0 text-sm font-body tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <span className="h-4 w-4 shrink-0" />
@@ -219,17 +227,15 @@ export const CalendarCreateModal = ({
                   }}
                   className="flex-1 h-10 px-3 rounded-xl bg-muted/50 border-0 text-sm font-body focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
-              </div>
-
-              {!allDay && (
-                <div className="rounded-2xl bg-muted/30 p-3 mt-2">
-                  <p className="text-xs text-muted-foreground font-body mb-2">Time</p>
-                  <TimeWheelPicker
-                    initialMinutes={Math.max(15, (parseInt(endTime.split(":")[0]) - parseInt(startTime.split(":")[0])) * 60)}
-                    onConfirm={() => { /* handled by save button */ }}
+                {!allDay && (
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="w-[110px] h-10 px-3 rounded-xl bg-muted/50 border-0 text-sm font-body tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Location */}
