@@ -405,6 +405,21 @@ const StudyMode = () => {
     return () => window.removeEventListener("keydown", handler);
   }, [focusActive]);
 
+  // Quick Action FAB events (from MobileBottomNav → QuickActionSheet)
+  useEffect(() => {
+    const onNewTask = () => { setActiveSection("tasks"); setShowQuickCapture(true); };
+    const onNewEvent = () => { setActiveSection("calendar"); setShowEventModal(true as any); };
+    const onNewHabit = () => { setActiveSection("habits"); setShowNewHabit(true); };
+    window.addEventListener("study-new-task", onNewTask);
+    window.addEventListener("study-new-event", onNewEvent);
+    window.addEventListener("study-new-habit", onNewHabit);
+    return () => {
+      window.removeEventListener("study-new-task", onNewTask);
+      window.removeEventListener("study-new-event", onNewEvent);
+      window.removeEventListener("study-new-habit", onNewHabit);
+    };
+  }, []);
+
   // Focus timer
   useEffect(() => {
     if (!focusActive || focusPaused) return;
