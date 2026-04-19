@@ -256,11 +256,14 @@ const FocusMode = () => {
           "absolute top-4 right-4 flex items-center gap-2 z-20 transition-opacity duration-300",
           controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
         )}>
+          <Button variant="ghost" size="icon" onClick={() => setPickerOpen(true)} className="text-foreground/70 h-8 w-8" title="Change theme">
+            <Image className="h-4 w-4" />
+          </Button>
           <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-foreground/70 h-8 w-8">
             {resolvedTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => wallpaperInputRef.current?.click()} className="text-foreground/70 h-8 w-8">
-            <Image className="h-4 w-4" />
+          <Button variant="ghost" size="icon" onClick={() => wallpaperInputRef.current?.click()} className="text-foreground/70 h-8 w-8" title="Custom wallpaper">
+            <Upload className="h-4 w-4" />
           </Button>
           {wallpaper && (
             <Button variant="ghost" size="sm" onClick={clearWallpaper} className="text-foreground/60 text-xs h-8 font-body">
@@ -269,6 +272,15 @@ const FocusMode = () => {
           )}
           <input ref={wallpaperInputRef} type="file" accept="image/*" className="hidden" onChange={handleWallpaper} />
         </div>
+
+        <ThemePicker
+          open={pickerOpen}
+          selectedId={themeId}
+          battery={batterySafe}
+          onSelect={(id) => setThemeId(id)}
+          onToggleBattery={() => setBatterySafe((b) => !b)}
+          onClose={() => setPickerOpen(false)}
+        />
 
         {/* Progress arc */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-border/20">

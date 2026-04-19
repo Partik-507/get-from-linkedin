@@ -808,6 +808,26 @@ const Notes = () => {
                     }} />
                 </motion.div>
 
+              /* CANVAS PAGE — note has isCanvas:true property */
+              ) : selectedNote && selectedNote.properties?.isCanvas ? (
+                <motion.div key={`canvas-${selectedNote.id}`} className="flex-1 overflow-hidden"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                  <CanvasView
+                    notes={displayActiveNotes}
+                    canvasNodes={(selectedNote.properties?.canvasNodes as CanvasNode[]) || []}
+                    onUpdateNodes={async (nodes) => {
+                      if (isReadOnly) return;
+                      const props = { ...(selectedNote.properties || {}), isCanvas: true, canvasNodes: nodes };
+                      if (isLocal && dirHandle) await localUpdateNoteMetadata(dirHandle, selectedNote.id, { properties: props } as any);
+                      else if (userId) await updateNoteMetadata(userId, selectedNote.id, { properties: props } as any);
+                      setNotes(prev => prev.map(n => n.id === selectedNote.id ? { ...n, properties: props } : n));
+                    }}
+                    onSelectNote={navigateToNote}
+                    contents={displayContents}
+                    readOnly={isReadOnly}
+                  />
+                </motion.div>
+
               /* EDITOR — note selected */
               ) : selectedNote ? (
                 <motion.div key={selectedNote.id} className="flex-1 flex overflow-hidden"
