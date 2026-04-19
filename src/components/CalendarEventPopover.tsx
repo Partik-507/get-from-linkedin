@@ -128,7 +128,10 @@ export const CalendarEventPopover = ({
 
   // ── DESKTOP: floating popover ────────────────────────────────────────
   return (
+    <>
+      {/* Backdrop */}
       <div className="fixed inset-0 z-40" onClick={onClose} />
+      
       
       {/* Popover card */}
       <motion.div
