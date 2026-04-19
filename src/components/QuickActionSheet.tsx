@@ -92,7 +92,7 @@ export const QuickActionSheet = ({ open, onClose }: QuickActionSheetProps) => {
                 "h-24 rounded-2xl p-4 flex flex-col items-start justify-between text-left",
                 "transition-[filter,background-color] duration-150 active:brightness-95",
                 primary
-                  ? "bg-gradient-to-br from-primary via-primary to-indigo-600 text-primary-foreground shadow-[0_6px_20px_-6px_hsl(var(--primary)/0.5)]"
+                  ? "bg-gradient-to-br from-primary to-[hsl(240_70%_50%)] text-primary-foreground shadow-[0_6px_20px_-6px_hsl(var(--primary)/0.5)]"
                   : "bg-muted/60 text-foreground border border-border/60 hover:bg-muted/80",
               )}
             >

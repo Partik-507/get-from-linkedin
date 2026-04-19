@@ -97,7 +97,7 @@ export const MobileBottomNav = () => {
             className={cn(
               "absolute left-1/2 -translate-x-1/2 -top-5",
               "h-14 w-14 rounded-full grid place-items-center",
-              "bg-gradient-to-br from-primary via-primary to-indigo-600 text-primary-foreground",
+              "bg-gradient-to-br from-primary to-[hsl(240_70%_50%)] text-primary-foreground",
               "shadow-[0_8px_24px_-4px_hsl(var(--primary)/0.55)]",
               "border-[3px] border-background",
               "active:brightness-90 transition-[filter] duration-150",
