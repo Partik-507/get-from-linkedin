@@ -1212,7 +1212,7 @@ const StudyMode = () => {
 
   return (
     <Layout fullBleed>
-      <div className="flex flex-col md:flex-row overflow-hidden bg-transparent h-[100dvh] md:h-[calc(100dvh-57px)]">
+      <div className="flex flex-col md:flex-row overflow-hidden bg-transparent h-[calc(100dvh-60px-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-57px)]">
 
         {/* ── MOBILE OVERLAY DRAWER ── */}
         <AnimatePresence>
