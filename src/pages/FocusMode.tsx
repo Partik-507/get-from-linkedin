@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SceneEngine } from "@/components/focus/SceneEngine";
 import { getThemeById, DEFAULT_THEME_ID } from "@/lib/focusThemes";
+import { ThemePicker } from "@/components/focus/ThemePicker";
 
 // Inline wrapper to keep theme lookup tidy
 const SceneEngineWrapper = ({ themeId, battery, intro }: { themeId: string; battery: boolean; intro?: boolean }) => {
@@ -72,6 +73,12 @@ const FocusMode = () => {
   const [volume, setVolume] = useState(50);
   const [wallpaper, setWallpaper] = useState<string | null>(() => localStorage.getItem("vv_focus_wallpaper"));
   const [controlsVisible, setControlsVisible] = useState(true);
+  const [themeId, setThemeId] = useState<string>(() => localStorage.getItem("vv_focus_theme") || DEFAULT_THEME_ID);
+  const [batterySafe, setBatterySafe] = useState<boolean>(() => localStorage.getItem("vv_focus_battery") === "1");
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  useEffect(() => { localStorage.setItem("vv_focus_theme", themeId); }, [themeId]);
+  useEffect(() => { localStorage.setItem("vv_focus_battery", batterySafe ? "1" : "0"); }, [batterySafe]);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -228,7 +235,6 @@ const FocusMode = () => {
 
   // ─── ACTIVE SESSION ─────────────────────────────────────────────────────────
   if (step === "active") {
-    const themeId = localStorage.getItem("vv_focus_theme") || "night-desk";
     return (
       <div
         className="fixed inset-0 z-[100] flex flex-col items-center justify-center"
@@ -242,7 +248,7 @@ const FocusMode = () => {
             <div className="absolute inset-0 bg-black/50" />
           </>
         ) : (
-          <SceneEngineWrapper themeId={themeId} battery={sessionMode === "normal" ? false : false} intro />
+          <SceneEngineWrapper themeId={themeId} battery={batterySafe} intro />
         )}
 
         {/* Top-right controls */}

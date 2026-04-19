@@ -76,6 +76,16 @@ export const CanvasView = ({ notes, canvasNodes, onUpdateNodes, onSelectNote, co
     onUpdateNodes([...canvasNodes, { noteId, x: snap(w.x - 100), y: snap(w.y - 30), width: 200, height: 100 }]);
   };
 
+  const addBlankNode = () => {
+    if (readOnly) return;
+    const noteId = notes[0]?.id;
+    if (!noteId) return;
+    const cx = (containerRef.current?.clientWidth || 800) / 2;
+    const cy = (containerRef.current?.clientHeight || 600) / 2;
+    const w = screenToWorld(cx, cy);
+    onUpdateNodes([...canvasNodes, { noteId, x: snap(w.x - 100), y: snap(w.y - 30), width: 200, height: 100 }]);
+  };
+
   const onPointerDownBg = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest("[data-canvas-node]")) return;
     setPanning(true);
