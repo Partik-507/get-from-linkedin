@@ -25,10 +25,11 @@ import {
   HelpCircle, CheckCircle2, FileText, ClipboardPaste, Pencil, Shield,
   StickyNote, BarChart3, GitBranch, Bell, Clock, Database, Wand2,
   Save, Download, Eye, RefreshCw, Lock, Unlock, Globe, Crown,
-  Users, Settings, Activity, Hash,
+  Users, Settings, Activity, Hash, Focus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { FocusThemeEditor } from "@/components/admin/FocusThemeEditor";
 import { extractJsonFromText, mapToQuestionSchema } from "@/lib/jsonExtractor";
 import { CsvMapper } from "@/components/CsvMapper";
 import {
@@ -58,7 +59,7 @@ interface Project {
 type AdminSection =
   | "overview" | "branches" | "courses" | "schema_import"
   | "questions" | "question_submissions" | "resources" | "notes"
-  | "notifications" | "submissions" | "audit" | "admins";
+  | "notifications" | "submissions" | "audit" | "admins" | "focus_mode";
 
 const Admin = () => {
   const { isAdmin, user } = useAuth();
@@ -103,6 +104,7 @@ const Admin = () => {
     { key: "question_submissions", label: "Question Submissions", icon: HelpCircle, badge: pendingCount },
     { key: "resources", label: "Add Resource", icon: Link2 },
     { key: "notes", label: "Manage Notes", icon: FileText },
+    { key: "focus_mode", label: "Focus Mode", icon: Focus },
     { key: "notifications", label: "Notifications", icon: Bell },
     { key: "submissions", label: "Submissions", icon: MessageSquare },
     { key: "audit", label: "Audit Log", icon: Clock },
@@ -147,6 +149,7 @@ const Admin = () => {
           )}
           {section === "resources" && <AddResource projects={projects} />}
           {section === "notes" && <ManageNotes />}
+          {section === "focus_mode" && <FocusThemeEditor />}
           {section === "notifications" && <NotificationsComposer userId={user?.uid || ""} userEmail={user?.email || ""} />}
           {section === "submissions" && <ManageSubmissions />}
           {section === "audit" && <AuditLogViewer />}

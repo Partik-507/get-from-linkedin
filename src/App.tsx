@@ -31,10 +31,14 @@ import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import FocusMode from "./pages/FocusMode";
 import CourseSelect from "./pages/CourseSelect";
 import { CollegeSelect } from "./pages/CollegeSelect";
+import { hydrateThemes } from "./lib/adminFocusThemes";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
 });
+
+// Hydrate admin-managed focus themes once on app boot (silent fallback to built-ins)
+hydrateThemes();
 
 
 const AuthGate = ({ children }: { children: React.ReactNode }) => {
