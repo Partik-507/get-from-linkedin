@@ -14,17 +14,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { MobileSheet } from "@/components/MobileSheet";
+import { FolderDrawer } from "@/components/resources/FolderDrawer";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   getResourceFolders, createResourceFolder, deleteResourceFolder,
   getResourceCategories, createResourceCategory,
   type ResourceFolder, type ResourceCategory,
 } from "@/lib/firestoreSync";
+import type { LibraryFolder } from "@/lib/resourcesFolders";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Plus, FolderOpen, Folder, ChevronRight, ChevronDown, FileText,
   ExternalLink, Eye, Trash2, Pencil, Upload, Link2, Code, StickyNote,
   Grid3x3, List, Youtube, Github, HardDrive, BookOpen, Bookmark, X, Loader2,
+  SlidersHorizontal, ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
