@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SlashCommandMenu } from "./SlashCommandMenu";
+import { MobileEditorAccessoryBar } from "./MobileEditorAccessoryBar";
 import { CalloutExtension } from "./extensions/CalloutExtension";
 import { ToggleExtension } from "./extensions/ToggleExtension";
 import { MathBlockExtension, MathInlineExtension } from "./extensions/MathExtension";
@@ -973,6 +974,9 @@ export const NoteEditor = ({
           <p className="text-[10px] text-muted-foreground/40 mt-1.5">Auto-selecting "Keep as link" in 3s...</p>
         </div>
       )}
+
+      {/* Mobile keyboard accessory bar — floats above the keyboard */}
+      {!readOnly && <MobileEditorAccessoryBar editor={editor} />}
     </div>
   );
 };
