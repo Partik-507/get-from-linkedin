@@ -14,6 +14,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileSheet } from "@/components/MobileSheet";
 
 export interface PopoverEvent {
   id: string;
@@ -69,10 +71,67 @@ export const CalendarEventPopover = ({
     return `${format(event.start, "MMMM d, h:mm a")} – ${format(event.end, "MMMM d, h:mm a")}`;
   };
 
+  const isMobile = useIsMobile();
+
+  // ── MOBILE: bottom sheet ─────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <MobileSheet open onClose={onClose} snap="auto">
+        <div className="px-5 pt-1 pb-6 space-y-4">
+          {/* Color stripe + title */}
+          <div className="space-y-2">
+            <div className="h-1 w-12 rounded-full" style={{ backgroundColor: event.color }} />
+            <h3 className="text-lg font-heading font-semibold leading-tight">{event.title}</h3>
+            <p className="text-xs text-muted-foreground font-body">{sourceInfo.label}</p>
+          </div>
+
+          {/* Time */}
+          <div className="flex items-start gap-3 py-2 border-t border-border/40">
+            <Clock className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-body">{formatEventTime()}</p>
+              {event.recurrence && event.recurrence !== "none" && (
+                <p className="text-xs text-muted-foreground font-body mt-0.5 capitalize">Repeats {event.recurrence}</p>
+              )}
+            </div>
+          </div>
+
+          {event.location && (
+            <div className="flex items-start gap-3">
+              <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+              <p className="text-sm font-body">{event.location}</p>
+            </div>
+          )}
+
+          {event.description && (
+            <div className="flex items-start gap-3">
+              <AlignLeft className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+              <p className="text-sm font-body text-muted-foreground leading-relaxed">{event.description}</p>
+            </div>
+          )}
+
+          {/* Action row (sticky bottom) */}
+          {!isReadOnly && (
+            <div className="flex gap-2 pt-3 border-t border-border/40">
+              <Button variant="outline" className="flex-1 font-body gap-2" onClick={() => { onClose(); onEdit(event); }}>
+                <Edit2 className="h-4 w-4" /> Edit
+              </Button>
+              <Button variant="outline" className="flex-1 font-body gap-2 text-destructive hover:text-destructive" onClick={() => { onDelete(event.id); onClose(); }}>
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
+            </div>
+          )}
+        </div>
+      </MobileSheet>
+    );
+  }
+
+  // ── DESKTOP: floating popover ────────────────────────────────────────
   return (
     <>
       {/* Backdrop */}
       <div className="fixed inset-0 z-40" onClick={onClose} />
+      
       
       {/* Popover card */}
       <motion.div

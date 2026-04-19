@@ -185,6 +185,31 @@ const Notes = () => {
     return () => window.removeEventListener("notes-navigate-page", handler);
   }, [displayNotes]);
 
+  // ── Quick Action FAB events ────────────────────────────────────────────────
+  useEffect(() => {
+    const onCreate = () => handleCreateNote();
+    const onCanvas = async () => {
+      const created = await handleCreateNote("root", { title: "Canvas", content: "", tags: [] });
+      if (created && userId) {
+        const props = { isCanvas: true, canvasNodes: [] };
+        await updateNoteMetadata(userId, created.id, { properties: props } as any);
+        setNotes(prev => prev.map(n => n.id === created.id ? { ...n, properties: props } : n));
+      }
+    };
+    const onFolder = () => handleCreateFolder("root");
+    const onTpl = () => setTemplateOpen(true);
+    window.addEventListener("notes-create-note", onCreate);
+    window.addEventListener("notes-create-canvas", onCanvas);
+    window.addEventListener("notes-create-folder", onFolder);
+    window.addEventListener("notes-open-templates", onTpl);
+    return () => {
+      window.removeEventListener("notes-create-note", onCreate);
+      window.removeEventListener("notes-create-canvas", onCanvas);
+      window.removeEventListener("notes-create-folder", onFolder);
+      window.removeEventListener("notes-open-templates", onTpl);
+    };
+  }, [userId]);
+
   // ── Autosave ───────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!selectedNoteId) return;

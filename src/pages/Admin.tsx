@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
-import { FocusThemeEditor } from "@/components/admin/FocusThemeEditor";
+import { FocusManager } from "@/components/admin/FocusManager";
 import { extractJsonFromText, mapToQuestionSchema } from "@/lib/jsonExtractor";
 import { CsvMapper } from "@/components/CsvMapper";
 import {
@@ -149,7 +149,7 @@ const Admin = () => {
           )}
           {section === "resources" && <AddResource projects={projects} />}
           {section === "notes" && <ManageNotes />}
-          {section === "focus_mode" && <FocusThemeEditor />}
+          {section === "focus_mode" && <FocusManager />}
           {section === "notifications" && <NotificationsComposer userId={user?.uid || ""} userEmail={user?.email || ""} />}
           {section === "submissions" && <ManageSubmissions />}
           {section === "audit" && <AuditLogViewer />}
