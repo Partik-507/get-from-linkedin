@@ -1,133 +1,161 @@
 
 
-# VivaVault — Total Design System Overhaul & Mobile-Native Rebuild
+# Mobile-Native Total Rebuild — StudyOS, NotesOS, Focus Immersion, Dashboard, Calendar
 
-You've given me free rein. I'm taking it. Here's the senior-product-designer plan to take this from "broken copy-paste" to "premium production-grade."
+You loved Resources mobile. Same energy across the entire app. One parallel pass.
 
-## The Diagnosis (what's actually broken)
+## Track A — StudyOS Mobile (full native rebuild)
 
-After auditing the codebase across 150+ files:
+**`src/pages/StudyMode.tsx`** mobile branch (`md:hidden`):
+- **Header (auto-hide on scroll)**: hamburger (drawer) + "Study" title + view-toggle pill (Day / 3-Day / Week)
+- **Section chips row (horizontal scroll)**: Calendar · Tasks · Habits · Focus · Analytics — Flipkart-style, active pill animates
+- **Content area**: full-bleed, no card wrappers, native list rows
+- **Global FAB**: 56px purple `+` bottom-right above bottom nav → opens `QuickActionSheet` (New Task / New Event / Quick Focus / New Habit)
+- All shortcuts removed from header (live in drawer + FAB)
 
-1. **No design system** — colors, spacing, typography, radii are inconsistent across pages. Each page invented its own. No shared tokens enforced.
-2. **Mobile = shrunk web** — desktop cards, popovers, dialogs jammed into 375px screens. Not native.
-3. **Runtime errors** — Firestore listeners crashing on `/resources` (assertion ID ca9). Likely duplicate `onSnapshot` subscriptions or auth race.
-4. **Visual hierarchy collapse** — every heading uses different weights/sizes. No type scale. Buttons inconsistent (sometimes purple, sometimes gray, sometimes outlined randomly).
-5. **Component fragmentation** — 4 different "card" patterns, 3 different modals, 5 different empty states.
-6. **Color chaos** — primary purple drifts between hues. Dark mode contrast fails WCAG AA in many places.
-7. **Resources page is the worst offender** — broken layout on mobile, no folder UX, looks like a spreadsheet.
-8. **No motion language** — abrupt transitions, no choreography, feels mechanical.
+**`src/components/study/QuickActionSheet.tsx`** (new): MobileSheet with 4 large action tiles.
 
-## The Vision
+**`src/components/study/MobileTaskRow.tsx`** (new): 64px row, swipe-left to complete, swipe-right to defer.
 
-**"Calm Productivity"** — a focused, premium study environment. Linear/Notion/Arc-inspired. Confident purple accent on a near-black or warm-white canvas. Every pixel deliberate.
+**`src/components/study/MobileHabitGrid.tsx`** (new): native check tiles, haptic-style scale.
 
-## Phase 1 — Design System Foundation (everything depends on this)
+## Track B — NotesOS Mobile (Obsidian shell)
 
-**`src/index.css`** — Complete token rewrite:
-- Refined HSL palette: `--primary` locked to single hue, neutral surfaces with elevation tiers (`--surface-1/2/3`), semantic tokens (`--success/warning/danger/info`)
-- WCAG AA contrast everywhere (verified)
-- Type scale: 11/12/13/14/16/18/20/24/32/40 — no arbitrary sizes
-- Spacing scale: 2/4/8/12/16/24/32/48 — 8px base
-- Radius scale: 6/10/14/22 — no arbitrary radii
-- Shadow scale: subtle/elevated/floating/modal — single light source
-- Motion tokens: `--ease-out-soft`, `--ease-spring`, durations 150/200/300/400ms
+**`src/pages/Notes.tsx`** mobile rewrite:
+- **Top bar**: hamburger (sidebar drawer) + workspace switcher pill (3-dot menu → My / Public / Library) + read/edit toggle
+- **Below top bar**: centered search pill (44px)
+- **Content**: full-bleed editor, auto-hide top + bottom nav on scroll-down
+- **Sidebar** opens as `MobileSheet snap="full"` (left-edge swipe or hamburger)
+- **Workspace switcher**: 3-dot opens MobileSheet with 3 options + active checkmark
+- Canvas pages render `<CanvasView readOnly={isPublicWorkspace && !isAdmin} />`
 
-**`tailwind.config.ts`** — Extend with new tokens, custom font stack (Inter + Lora for editor).
+**`src/components/notes/MobileNoteHeader.tsx`** (new): the Obsidian shell.
 
-**`src/components/ui/button.tsx`** — Tighten variants. Single source of truth. Add `xs`, `tap` (44px min) sizes.
+## Track C — Focus Immersion Engine (the big one)
 
-## Phase 2 — Fix Runtime Errors (Resources crash)
+### Floating Control Hub
+**`src/components/focus/FocusHub.tsx`** (new) — replaces scattered top-bar controls:
+- Single floating circular button (56px, glass, bottom-center above safe area)
+- Tap → radial menu fans out 5 options: 🎨 Theme · 🎵 Music · ✨ Animation · ⏱️ Timer Style · 👁️ Hide UI
+- Auto-hides 3s after idle, taps re-show
+- Persistent visibility hint: subtle pulse on first session
 
-**`src/pages/Resources.tsx`** — The Firestore "ca9" assertion is from `onSnapshot` not being torn down or being created with stale auth. Audit listener lifecycle, ensure unsubscribe on unmount, gate on `user?.uid`.
+### Three Pickers (consistent UI pattern)
+**`src/components/focus/ThemePicker.tsx`** (already exists — refine)
+**`src/components/focus/MusicPicker.tsx`** (new) — same UI as ThemePicker:
+- Horizontal strip of 80×80 album-art thumbnails
+- 20+ tracks tagged by season/mood: Lo-fi Rain, Forest Birds, Ocean Waves, Cherry Blossom Chimes, Autumn Wind, Winter Fireplace, Spring Stream, Summer Cicadas, Coffee Shop, Night Crickets, Binaural Alpha (8Hz), Beta (14Hz), Theta (6Hz), Library Whispers, Jazz Café, Piano Rain, Tibetan Bowls, White Noise, Brown Noise, Pink Noise
+- Volume slider + crossfade
+- Battery-safe pause
 
-## Phase 3 — Mobile-Native Shell (parallel)
+**`src/components/focus/AnimationPicker.tsx`** (new) — 15+ overlay animations:
+- Snow · Rain · Cherry Blossom · Autumn Leaves · Fireflies · Dust Motes · Aurora · Stars · Meteor Shower · Bubbles · Smoke · Embers · Fog Drift · Lightning Flashes · Gradient Aurora · Candle Flicker · Ocean Ripple · Galaxy Spiral · Neon Pulse · None
 
-**`src/components/MobileShell.tsx`** (new) — Reusable mobile chrome:
-- Auto-hiding top bar (uses existing `useScrollDirection`)
-- Status-bar safe-area inset handling
-- Edge-swipe gesture zones (left = drawer, right = back)
-- Pull-to-refresh hook
+### Timer Style Picker (10+ styles)
+**`src/components/focus/TimerStylePicker.tsx`** (new):
+1. **Minimal Mono** — large monospace digits
+2. **Ring Arc** — circular SVG progress
+3. **Flip Card** — 3D digit flip
+4. **Pixel LED** — retro 7-segment
+5. **Analog Clock** — full clock face with sweeping hand
+6. **Liquid Fill** — water rises in glass
+7. **Sand Hourglass** — animated falling sand
+8. **Orbit** — planets circle showing time
+9. **Pulse Ring** — breathing concentric circles
+10. **Premium Black** — full-screen black, single elegant clock (immersive mode)
+11. **Constellation** — stars connect to form digits
+12. **Vinyl** — spinning record with arm
 
-**`src/components/MobileBottomNav.tsx`** — Refine: glass blur, active pill animation, haptic-style scale on tap.
+**`src/components/focus/TimerCanvas.tsx`** (new): renders selected style. Uses `mix-blend-mode: difference` + adaptive contrast (samples background brightness) so timer ALWAYS readable on any theme — fixes your "can't see timer" problem.
 
-**`src/components/MobileSheet.tsx`** (new) — Standardized bottom sheet (drag handle, snap points 50/80/100%, backdrop dismiss). Replaces all dialog-as-mobile-modal usage.
+### Draggable + Hide-able Timer
+- Timer wrapped in draggable container (framer-motion drag)
+- Position persisted to localStorage per user
+- "Hide UI" in radial menu → timer fades to 5% opacity, single tap anywhere reveals
+- Long-press on timer → "Reset Position" toast
 
-## Phase 4 — Page-by-Page Rebuild (parallel tracks)
+### Session Greeting + Celebration
+**`src/components/focus/SessionGreeting.tsx`** (new):
+- Pre-session: full-screen fade-in, "Take a breath. Let's begin." + 3-2-1 countdown ring
+- Personalized: "Welcome back, [name]. Your 47th session."
+- Quote of the day (rotating curated set)
 
-| Page | Mobile rebuild | Desktop polish |
-|---|---|---|
-| **Landing** | Hero refresh, single CTA, social proof | Typography hierarchy, animated gradient |
-| **Dashboard** | 4-row vertical native feed (greeting, streak ring, today's plan, quick actions) | Tighten grid, reduce visual noise |
-| **Resources** | Library header + Public/Private switcher + search + folder drawer + grid/list (per File 4 spec) | 3-pane: folders | grid | preview |
-| **Notes** | Obsidian shell: hamburger + workspace pill + read/edit toggle, bottom sheet for sidebar | Polish split layout, refine sidebar density |
-| **StudyMode** | Pruned top bar, chip nav, single FAB | Remove duplicate controls |
-| **FocusMode** | Already strong — wire ThemePicker into pre-session | Refine theme thumbnails |
-| **Profile** | Already mobile-native — use as template for others | — |
-| **Auth** | Refine card, fix spacing, native keyboard handling | Center, refine illustration |
-| **Course/Viva/Quiz/Flashcards** | Native stack navigation feel, full-bleed content | Consistent card pattern |
-| **Calendar Create/Edit** | Full-screen sheet with native pickers (TimeWheelPicker exists) | Compact popover refinement |
+**`src/components/focus/SessionComplete.tsx`** (refine existing FocusSessionComplete):
+- 2s confetti particle burst from center (canvas)
+- Stats card slides up: duration · streak · "You've focused 12h this week"
+- Mood emoji row + quick journal input
 
-## Phase 5 — Component Consolidation
+## Track D — Admin Focus Manager (full CRUD)
 
-- Single `Card` with variants (`default | elevated | interactive | glass`)
-- Single `EmptyState` (already exists — enforce usage)
-- Single `LoadingSkeleton` patterns
-- Single `PageHeader` component (mobile + desktop branches)
-- Replace ad-hoc dialogs with `MobileSheet` on mobile, `Dialog` on desktop
+**`src/components/admin/FocusThemeEditor.tsx`** (extend):
+- Add tabs: Themes · Music · Animations
+- Music CRUD: upload MP3/OGG, label, season tag, mood tag
+- Animation CRUD: select from built-in registry + upload custom Lottie JSON
+- All hydrate on app boot via `adminFocusThemes.ts`
 
-## Phase 6 — Motion & Polish
+**`src/lib/adminFocusMusic.ts`** (new): Firestore CRUD for `focusMusic/{id}`.
+**`src/lib/adminFocusAnimations.ts`** (new): Firestore CRUD for `focusAnimations/{id}`.
 
-- Page transitions (fade + 8px slide)
-- List item stagger on mount
-- Tap feedback (scale 0.97, 100ms)
-- Skeleton shimmer for all data fetches
-- Toast restyle (smaller, glass, top-center on mobile)
+## Track E — Dashboard Mobile Refinement
 
-## Phase 7 — Resources Page Full Spec (highest user pain)
+**`src/pages/Dashboard.tsx`** mobile:
+- Remove top navbar entirely (Layout already handles)
+- 4-row vertical native feed: Greeting + streak ring · Today's Plan (next 3 events) · Quick Stats (3 tiles) · Quick Actions
+- All modals → MobileSheet
+- Swipeable cards in "Today's Plan"
 
-Per File 4 spec already in conversation:
-1. Header: "Library" + search icon + 36px purple add button
-2. Public/Private segmented switcher (top, persistent)
-3. Search pill (44px)
-4. Controls row: Course chip + Category chip + view toggle
-5. Grid (2-col) / List (72px row) views
-6. Edge-swipe → FolderDrawer (already built)
-7. Resource upload bottom sheet (6 type tiles)
-8. Resource detail bottom sheet (PDF.js preview, YouTube embed)
-9. Private storage onboarding (reuse `StorageOnboarding`)
+## Track F — Calendar Mobile Sheets
 
-## Phase 8 — Color & Theme Audit
+**`src/components/CalendarCreateModal.tsx`**: mobile branch → MobileSheet `snap="full"` with TimeWheelPicker, native form.
+**`src/components/CalendarEventPopover.tsx`**: mobile branch → MobileSheet `snap="half"` with action row.
 
-- Verify every component uses semantic tokens (no hardcoded `#fff`, `bg-white`, `text-black`)
-- Dark mode pass on every page
-- Brand purple consistency: lock to single HSL across all instances
+## Track G — Bottom Nav + Quick Action
 
-## Files I'll touch (~35 in parallel)
+**`src/components/MobileBottomNav.tsx`**: insert center `+` FAB (raised 8px above bar, purple glow) → opens contextual QuickActionSheet (different per page: Notes = New Note/Canvas/Folder, Study = Task/Event/Focus, Resources = Upload).
 
-**Foundation (4)**: `src/index.css`, `tailwind.config.ts`, `src/components/ui/button.tsx`, `src/components/ui/card.tsx`
+## Track H — Color Token Audit
 
-**Mobile shell (3)**: `src/components/MobileShell.tsx` (new), `src/components/MobileSheet.tsx` (new), `src/components/MobileBottomNav.tsx`
+Sweep `src/pages/*` and `src/components/*` for `bg-white`, `text-black`, `#hex`, `rgb(`, `bg-gray-`. Replace with semantic tokens. Verify dark mode contrast on every page.
 
-**Resources rebuild (5)**: `src/pages/Resources.tsx`, `src/components/resources/ResourceUploadSheet.tsx` (new), `src/components/resources/ResourceDetailSheet.tsx` (new), `src/components/resources/ResourceCard.tsx` (new), `src/lib/privateResources.ts` (new)
+## Files (~28, all parallel)
 
-**Page rebuilds (10)**: `src/pages/Dashboard.tsx`, `src/pages/Notes.tsx`, `src/pages/StudyMode.tsx`, `src/pages/Landing.tsx`, `src/pages/Auth.tsx`, `src/pages/Profile.tsx`, `src/pages/Quiz.tsx`, `src/pages/Flashcards.tsx`, `src/pages/VivaPrep.tsx`, `src/pages/CourseSelect.tsx`
-
-**Calendar mobile (2)**: `src/components/CalendarCreateModal.tsx`, `src/components/CalendarEventPopover.tsx`
-
-**Shared components (6)**: `src/components/Layout.tsx`, `src/components/EmptyState.tsx`, `src/components/LoadingSkeleton.tsx`, `src/components/GlassCard.tsx`, `src/components/PageHeader.tsx` (new), `src/components/ui/sonner.tsx`
-
-**Notes refinement (3)**: `src/components/notes/NotesSidebar.tsx`, `src/components/notes/NoteEditor.tsx`, `src/components/notes/CommandPalette.tsx`
-
-**Focus polish (2)**: `src/pages/FocusMode.tsx`, `src/components/focus/ThemePicker.tsx`
+| File | Action |
+|---|---|
+| `src/pages/StudyMode.tsx` | Mobile rewrite |
+| `src/components/study/QuickActionSheet.tsx` | New |
+| `src/components/study/MobileTaskRow.tsx` | New |
+| `src/components/study/MobileHabitGrid.tsx` | New |
+| `src/pages/Notes.tsx` | Mobile Obsidian shell |
+| `src/components/notes/MobileNoteHeader.tsx` | New |
+| `src/pages/FocusMode.tsx` | Wire FocusHub + new pickers |
+| `src/components/focus/FocusHub.tsx` | New radial menu |
+| `src/components/focus/MusicPicker.tsx` | New |
+| `src/components/focus/AnimationPicker.tsx` | New |
+| `src/components/focus/TimerStylePicker.tsx` | New |
+| `src/components/focus/TimerCanvas.tsx` | New (12 styles + adaptive contrast) |
+| `src/components/focus/SessionGreeting.tsx` | New |
+| `src/components/FocusSessionComplete.tsx` | Refine with confetti |
+| `src/components/focus/SceneEngine.tsx` | Add 8+ animations |
+| `src/lib/focusMusicLibrary.ts` | New 20-track curated library |
+| `src/lib/focusAnimationLibrary.ts` | New animation registry |
+| `src/components/admin/FocusThemeEditor.tsx` | 3-tab CRUD |
+| `src/lib/adminFocusMusic.ts` | New |
+| `src/lib/adminFocusAnimations.ts` | New |
+| `src/pages/Dashboard.tsx` | Mobile 4-row feed |
+| `src/components/CalendarCreateModal.tsx` | MobileSheet branch |
+| `src/components/CalendarEventPopover.tsx` | MobileSheet branch |
+| `src/components/MobileBottomNav.tsx` | Center FAB |
+| `src/index.css` | Token sweep + adaptive-contrast util |
+| `src/pages/Resources.tsx` | Token sweep |
+| `src/components/Layout.tsx` | Token sweep |
+| Misc components | Token sweep (bg-white/text-black removal) |
 
 ## Approach
 
-All 8 phases ship in **one parallel pass**. No "I'll do this next." Foundation (Phase 1) lands first in the same response, then all page rebuilds reference the new tokens immediately. Runtime errors fixed quietly. Desktop preserved everywhere; mobile gets purpose-built branches.
-
-## Out of scope (explicit)
-
-- No new dependencies
-- No backend schema changes (Firestore stays as-is)
-- No removal of existing features — pure redesign + consolidation
-- Admin pages: light polish only (lower user-facing priority)
+- All tracks ship in one pass — no "next message"
+- Music: royalty-free Pixabay/CDN URLs cached via existing `focusAssetCache`
+- Timer adaptive contrast: sample 5×5px background pixel under timer center via canvas, flip text color (white/black) per luminance
+- No new deps — confetti, draggable, all styles via existing framer-motion + canvas
+- Desktop preserved everywhere (mobile branches only)
+- Admin gets full CRUD for themes/music/animations — true command center
 
