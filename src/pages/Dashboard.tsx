@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { loadActivity, loadStreak, getStudiedIds, getDueQuestions } from "@/lib/spacedRepetition";
 import { GreetingBanner } from "@/components/GreetingBanner";
+import { MobileDashboard } from "@/components/dashboard/MobileDashboard";
 import { format, subDays } from "date-fns";
 import { BarChart, Bar, ResponsiveContainer } from "recharts";
 
@@ -168,7 +169,20 @@ const Dashboard = () => {
 
   return (
     <Layout title="Dashboard">
-      <div className="w-full space-y-8">
+      {/* ── MOBILE: native 4-row feed ── */}
+      <MobileDashboard
+        name={user?.displayName?.split(" ")[0] || "Student"}
+        streak={streak.current}
+        focusMinutes={todayFocusMinutes}
+        tasksDone={todayTasksDone}
+        tasksTotal={todayTasks.length}
+        habitsDone={habitsCompletedToday}
+        habitsTotal={habits.length}
+        upcoming={calEvents.slice(0, 5)}
+      />
+
+      {/* ── DESKTOP: full grid ── */}
+      <div className="hidden md:block w-full space-y-8">
         <GreetingBanner />
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
@@ -186,7 +200,6 @@ const Dashboard = () => {
           <>
             {/* Row 1: Metric Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Focus Time */}
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }} className="vv-card p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Clock className="h-4 w-4 text-primary" />
@@ -198,13 +211,12 @@ const Dashboard = () => {
                 <div className="h-10 mt-2">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={focusSparkline}>
-                      <Bar dataKey="minutes" fill="hsl(263, 70%, 58%)" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="minutes" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </motion.div>
 
-              {/* Streak */}
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="vv-card p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Flame className="h-4 w-4 text-[hsl(var(--streak))]" />
@@ -214,7 +226,6 @@ const Dashboard = () => {
                 <p className="text-xs text-muted-foreground font-body mt-1">Longest: {streak.longest}d</p>
               </motion.div>
 
-              {/* Tasks */}
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="vv-card p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <CheckSquare className="h-4 w-4 text-[hsl(var(--success))]" />
@@ -224,7 +235,6 @@ const Dashboard = () => {
                 <Progress value={todayTasks.length > 0 ? (todayTasksDone / todayTasks.length) * 100 : 0} className="h-1.5 mt-2" />
               </motion.div>
 
-              {/* Habits */}
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="vv-card p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Heart className="h-4 w-4 text-pink-500" />
@@ -241,7 +251,6 @@ const Dashboard = () => {
 
             {/* Row 2: Heatmap + Events + Habits */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-              {/* Focus Heatmap */}
               <div className="lg:col-span-6 vv-card p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <BarChart3 className="h-4 w-4 text-primary" />
@@ -250,7 +259,6 @@ const Dashboard = () => {
                 <ActivityHeatmap data={activity} />
               </div>
 
-              {/* Upcoming Events */}
               <div className="lg:col-span-3 vv-card p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <CalendarDays className="h-4 w-4 text-primary" />
@@ -262,7 +270,7 @@ const Dashboard = () => {
                   <div className="space-y-2">
                     {calEvents.slice(0, 5).map(e => (
                       <div key={e.id} className="flex items-center gap-2.5">
-                        <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: e.color || "#7c3aed" }} />
+                        <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: e.color || "hsl(var(--primary))" }} />
                         <div className="min-w-0 flex-1">
                           <p className="text-xs font-body font-medium truncate">{e.title}</p>
                         </div>
@@ -275,7 +283,6 @@ const Dashboard = () => {
                 </Link>
               </div>
 
-              {/* Today's Habits */}
               <div className="lg:col-span-3 vv-card p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <Heart className="h-4 w-4 text-pink-500" />
@@ -304,7 +311,6 @@ const Dashboard = () => {
 
             {/* Row 3: Course Progress + Recent Notes */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-              {/* Per-Course Progress */}
               <div className="lg:col-span-7 vv-card p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <Target className="h-4 w-4 text-primary" />
@@ -343,14 +349,12 @@ const Dashboard = () => {
                 )}
               </div>
 
-              {/* Recent Notes */}
               <div className="lg:col-span-5 vv-card p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <StickyNote className="h-4 w-4 text-primary" />
                   <h3 className="text-sm font-heading font-bold">Recent Notes</h3>
                 </div>
                 <div className="space-y-2.5">
-                  {/* This would pull from notes data - showing empty state for now */}
                   <div className="text-center py-8">
                     <StickyNote className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
                     <p className="text-xs text-muted-foreground font-body">Open Notes OS to see recent notes here.</p>
