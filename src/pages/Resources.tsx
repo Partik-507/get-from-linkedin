@@ -101,6 +101,12 @@ const Resources = () => {
   const [folderModalOpen, setFolderModalOpen] = useState(false);
   const [folderParent, setFolderParent] = useState<string>("root");
 
+  // Mobile-only state
+  const isMobile = useIsMobile();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [scope, setScope] = useState<"public" | "private">("public");
+
   // Add form state
   const [form, setForm] = useState<Partial<Resource>>({ source: "url", type: "link" });
   const [customType, setCustomType] = useState("");
