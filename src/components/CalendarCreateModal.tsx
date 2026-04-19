@@ -167,8 +167,149 @@ export const CalendarCreateModal = ({
     }
   };
 
+  const isMobile = useIsMobile();
+
   if (!open) return null;
 
+  // ── MOBILE: full-screen sheet with native form ─────────────────────────
+  if (isMobile) {
+    return (
+      <MobileSheet open={open} onClose={onClose} snap="full" title="New event" hideHandle>
+        <div className="flex flex-col h-full">
+          <div className="px-5 pt-3 pb-4 space-y-4 flex-1 overflow-y-auto">
+            {/* Title */}
+            <Input
+              autoFocus
+              placeholder="Event title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="text-xl font-heading font-semibold border-0 px-0 focus-visible:ring-0 placeholder:text-muted-foreground/40 bg-transparent h-12"
+            />
+
+            {/* All-day toggle */}
+            <label className="flex items-center justify-between py-3 border-y border-border/40">
+              <span className="text-sm font-body">All-day event</span>
+              <Checkbox checked={allDay} onCheckedChange={(c) => setAllDay(!!c)} className="h-5 w-5" />
+            </label>
+
+            {/* Date pickers */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-xs text-muted-foreground font-body w-12">Starts</span>
+                <input
+                  type="date"
+                  value={format(startDate, "yyyy-MM-dd")}
+                  onChange={(e) => {
+                    const [y, m, d] = e.target.value.split("-").map(Number);
+                    const nd = new Date(startDate); nd.setFullYear(y, m - 1, d); setStartDate(nd);
+                  }}
+                  className="flex-1 h-10 px-3 rounded-xl bg-muted/50 border-0 text-sm font-body focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="h-4 w-4 shrink-0" />
+                <span className="text-xs text-muted-foreground font-body w-12">Ends</span>
+                <input
+                  type="date"
+                  value={format(endDate, "yyyy-MM-dd")}
+                  onChange={(e) => {
+                    const [y, m, d] = e.target.value.split("-").map(Number);
+                    const nd = new Date(endDate); nd.setFullYear(y, m - 1, d); setEndDate(nd);
+                  }}
+                  className="flex-1 h-10 px-3 rounded-xl bg-muted/50 border-0 text-sm font-body focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+
+              {!allDay && (
+                <div className="rounded-2xl bg-muted/30 p-3 mt-2">
+                  <p className="text-xs text-muted-foreground font-body mb-2">Time</p>
+                  <TimeWheelPicker
+                    initialMinutes={Math.max(15, (parseInt(endTime.split(":")[0]) - parseInt(startTime.split(":")[0])) * 60)}
+                    onConfirm={() => { /* handled by save button */ }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Location */}
+            <div className="flex items-center gap-3">
+              <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Input
+                placeholder="Add location"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="h-11 rounded-xl bg-muted/40 border-0 text-sm font-body"
+              />
+            </div>
+
+            {/* Description */}
+            <div className="flex items-start gap-3">
+              <AlignLeft className="h-4 w-4 text-muted-foreground shrink-0 mt-3" />
+              <Textarea
+                placeholder="Add description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="min-h-[80px] rounded-xl bg-muted/40 border-0 text-sm font-body"
+              />
+            </div>
+
+            {/* Recurrence */}
+            <div className="flex items-center gap-3">
+              <Repeat className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Select value={recurrence} onValueChange={setRecurrence}>
+                <SelectTrigger className="h-11 rounded-xl bg-muted/40 border-0 text-sm font-body">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="z-[401]">
+                  <SelectItem value="none">Does not repeat</SelectItem>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Color */}
+            <div className="flex items-center gap-3 pt-1">
+              <Palette className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="flex items-center gap-2 flex-wrap">
+                {EVENT_COLORS.map((c) => (
+                  <button
+                    key={c.hex}
+                    aria-label={c.name}
+                    className={cn(
+                      "h-8 w-8 rounded-full transition-transform border-2",
+                      color === c.hex ? "border-foreground scale-110" : "border-transparent"
+                    )}
+                    style={{ backgroundColor: c.hex }}
+                    onClick={() => setColor(c.hex)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Sticky bottom bar */}
+          <div className="px-5 py-3 border-t border-border/40 flex gap-2 bg-card">
+            <Button variant="ghost" className="flex-1 font-body rounded-xl" onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 font-body rounded-xl gap-2"
+              disabled={!title.trim() || saving}
+              onClick={handleSave}
+            >
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        </div>
+      </MobileSheet>
+    );
+  }
+
+  // ── DESKTOP ────────────────────────────────────────────────────────────
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div
