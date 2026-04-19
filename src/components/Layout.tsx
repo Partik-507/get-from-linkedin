@@ -578,8 +578,10 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
 
       {/* ═══════════════════════════════════════════════════════════════
           MOBILE BOTTOM NAV — primary mobile navigation
+          Always visible on mobile (the `hideBottomNav` prop is desktop-only).
+          The component itself is `md:hidden` so desktop never sees it.
           ═══════════════════════════════════════════════════════════════ */}
-      {!hideBottomNav && <MobileBottomNav />}
+      <MobileBottomNav />
     </div>
   );
 };
