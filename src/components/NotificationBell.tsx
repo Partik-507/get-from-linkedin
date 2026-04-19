@@ -15,13 +15,29 @@ export const NotificationBell = () => {
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
 
+  // Gate the listener on auth — Firestore rules require an authenticated user
+  // Subscribing without a user causes "Missing or insufficient permissions" errors
+  // and noisy aborted-channel reconnect loops.
   useEffect(() => {
+    if (!user?.uid) {
+      setNotifications([]);
+      return;
+    }
     const q = query(collection(db, "notifications"), orderBy("createdAt", "desc"), limit(20));
-    const unsub = onSnapshot(q, (snap) => {
-      setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() } as Notification)));
-    }, () => {});
-    return unsub;
-  }, []);
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() } as Notification)));
+      },
+      (err) => {
+        // Silently swallow permission errors during sign-out / role transitions
+        if (err?.code !== "permission-denied") {
+          console.warn("notifications listener:", err.message);
+        }
+      }
+    );
+    return () => { try { unsub(); } catch { /* noop */ } };
+  }, [user?.uid]);
 
   useEffect(() => {
     if (!user) return;

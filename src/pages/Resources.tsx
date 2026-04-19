@@ -14,17 +14,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { MobileSheet } from "@/components/MobileSheet";
+import { FolderDrawer } from "@/components/resources/FolderDrawer";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   getResourceFolders, createResourceFolder, deleteResourceFolder,
   getResourceCategories, createResourceCategory,
   type ResourceFolder, type ResourceCategory,
 } from "@/lib/firestoreSync";
+import type { LibraryFolder } from "@/lib/resourcesFolders";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Plus, FolderOpen, Folder, ChevronRight, ChevronDown, FileText,
   ExternalLink, Eye, Trash2, Pencil, Upload, Link2, Code, StickyNote,
   Grid3x3, List, Youtube, Github, HardDrive, BookOpen, Bookmark, X, Loader2,
+  SlidersHorizontal, ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -95,6 +100,12 @@ const Resources = () => {
   const [editing, setEditing] = useState<Resource | null>(null);
   const [folderModalOpen, setFolderModalOpen] = useState(false);
   const [folderParent, setFolderParent] = useState<string>("root");
+
+  // Mobile-only state
+  const isMobile = useIsMobile();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [scope, setScope] = useState<"public" | "private">("public");
 
   // Add form state
   const [form, setForm] = useState<Partial<Resource>>({ source: "url", type: "link" });
@@ -303,6 +314,292 @@ const Resources = () => {
     } catch { toast.error("Failed to create folder"); }
   };
 
+  // Map ResourceFolder → LibraryFolder shape for the mobile FolderDrawer
+  const libraryFolders: LibraryFolder[] = useMemo(
+    () => folders.map(f => ({
+      id: f.id,
+      name: f.name,
+      parentId: f.parentId || "root",
+      scope: scope,
+      order: (f as any).order ?? 0,
+    })),
+    [folders, scope],
+  );
+
+  // ─── Mobile-native render ──────────────────────────────────────
+  if (isMobile) {
+    return (
+      <Layout fullBleed>
+        <div className="min-h-[100dvh] bg-background flex flex-col pb-20">
+          <header
+            className="sticky top-0 z-30 bg-background/85 backdrop-blur-2xl border-b border-border/50"
+            style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+          >
+            <div className="px-4 pt-3 pb-2 flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setDrawerOpen(true)}
+                className="h-9 w-9 -ml-2"
+                aria-label="Open folders"
+              >
+                <FolderOpen className="h-5 w-5" />
+              </Button>
+              <h1 className="font-heading font-bold text-[22px] flex-1 leading-none">Library</h1>
+              {isAdmin && (
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => openAddModal()}
+                  className="h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md shadow-primary/20"
+                  aria-label="Add resource"
+                >
+                  <Plus className="h-5 w-5" strokeWidth={2.4} />
+                </motion.button>
+              )}
+            </div>
+
+            <div className="px-4 pb-2">
+              <div className="bg-muted/60 rounded-full p-1 flex relative h-10">
+                <motion.div
+                  layout
+                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                  className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-card rounded-full shadow-sm"
+                  style={{ left: scope === "public" ? 4 : "50%" }}
+                />
+                {(["public", "private"] as const).map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setScope(s)}
+                    className={cn(
+                      "relative flex-1 text-sm font-body font-medium capitalize z-10 transition-colors",
+                      scope === s ? "text-foreground" : "text-muted-foreground"
+                    )}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="px-4 pb-3">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search resources…"
+                  className="pl-11 h-11 rounded-full bg-muted/50 border-transparent font-body text-[15px] focus-visible:bg-card"
+                />
+              </div>
+            </div>
+
+            <div className="px-4 pb-3 flex items-center gap-2 overflow-x-auto scrollbar-none">
+              <button
+                onClick={() => setMobileFiltersOpen(true)}
+                className={cn(
+                  "h-8 px-3 rounded-full text-xs font-body inline-flex items-center gap-1.5 shrink-0 transition-colors",
+                  (courseFilter !== "all" || categoryFilter !== "all")
+                    ? "bg-primary/10 text-primary border border-primary/30"
+                    : "bg-muted/60 text-muted-foreground border border-transparent",
+                )}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Filters
+                {(courseFilter !== "all" || categoryFilter !== "all") && (
+                  <span className="ml-0.5 h-4 min-w-[16px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+                    {(courseFilter !== "all" ? 1 : 0) + (categoryFilter !== "all" ? 1 : 0)}
+                  </span>
+                )}
+              </button>
+              {activeFolderId !== "root" && (
+                <button
+                  onClick={() => setActiveFolderId("root")}
+                  className="h-8 px-3 rounded-full text-xs font-body inline-flex items-center gap-1.5 shrink-0 bg-primary/10 text-primary border border-primary/30"
+                >
+                  <Folder className="h-3.5 w-3.5" />
+                  {folders.find(f => f.id === activeFolderId)?.name || "Folder"}
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+              <div className="flex-1" />
+              <button
+                onClick={() => setView(v => v === "grid" ? "list" : "grid")}
+                className="h-8 w-8 rounded-full bg-muted/60 text-muted-foreground inline-flex items-center justify-center shrink-0"
+                aria-label="Toggle view"
+              >
+                {view === "grid" ? <List className="h-4 w-4" /> : <Grid3x3 className="h-4 w-4" />}
+              </button>
+            </div>
+          </header>
+
+          <main className="flex-1 px-4 pt-4">
+            {loading ? (
+              <GridSkeleton />
+            ) : filtered.length === 0 ? (
+              <EmptyState
+                icon={Bookmark}
+                title="Nothing here yet"
+                description={isAdmin ? "Tap the + button to add your first resource." : "Resources will appear here once added."}
+              />
+            ) : view === "grid" ? (
+              <div className="grid grid-cols-2 gap-3">
+                {paged.map((r, i) => {
+                  const TIcon = TYPE_ICON[r.type?.toLowerCase()] || TYPE_ICON.other;
+                  const color = TYPE_COLOR[r.type?.toLowerCase()] || TYPE_COLOR.other;
+                  return (
+                    <motion.button
+                      key={r.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(i * 0.025, 0.25), duration: 0.25 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => openResource(r)}
+                      className="text-left bg-card rounded-2xl border border-border/60 p-3 flex flex-col gap-2 active:bg-accent/40 transition-colors min-h-[140px]"
+                    >
+                      <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0", color)}>
+                        <TIcon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-body font-semibold text-[13px] leading-snug line-clamp-2 text-foreground">{r.title}</p>
+                        <p className="text-[10px] text-muted-foreground font-body capitalize mt-1 truncate">
+                          {r.type}{r.category ? ` · ${r.category}` : ""}
+                        </p>
+                      </div>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {paged.map((r, i) => {
+                  const TIcon = TYPE_ICON[r.type?.toLowerCase()] || TYPE_ICON.other;
+                  const color = TYPE_COLOR[r.type?.toLowerCase()] || TYPE_COLOR.other;
+                  return (
+                    <motion.button
+                      key={r.id}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: Math.min(i * 0.02, 0.2), duration: 0.2 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => openResource(r)}
+                      className="w-full text-left bg-card rounded-2xl border border-border/60 px-3 h-[72px] flex items-center gap-3 active:bg-accent/40"
+                    >
+                      <div className={cn("h-11 w-11 rounded-xl flex items-center justify-center shrink-0", color)}>
+                        <TIcon className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-body font-medium text-sm truncate">{r.title}</p>
+                        <p className="text-[11px] text-muted-foreground font-body truncate capitalize">
+                          {r.type}{r.category ? ` · ${r.category}` : ""}
+                        </p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+                    </motion.button>
+                  );
+                })}
+              </div>
+            )}
+
+            {hasMore && (
+              <div className="flex justify-center py-6">
+                <Button variant="outline" onClick={() => setPage(p => p + 1)} className="font-body rounded-full h-10 px-6">
+                  Load more
+                </Button>
+              </div>
+            )}
+          </main>
+
+          <FolderDrawer
+            open={drawerOpen}
+            onClose={() => setDrawerOpen(false)}
+            folders={libraryFolders}
+            selectedId={activeFolderId}
+            onSelect={(id) => { setActiveFolderId(id); setDrawerOpen(false); }}
+            canEdit={isAdmin || scope === "private"}
+            onCreate={(parentId) => { setFolderParent(parentId); handleCreateFolder(); }}
+            onRename={(_id, name) => toast.message(`Rename to ${name}`)}
+            onDelete={(id) => {
+              deleteResourceFolder(id);
+              setFolders(p => p.filter(f => f.id !== id));
+              toast.success("Folder deleted");
+            }}
+            scopeLabel={scope === "public" ? "Public Library" : "Your Private"}
+          />
+
+          <MobileSheet
+            open={mobileFiltersOpen}
+            onClose={() => setMobileFiltersOpen(false)}
+            title="Filters"
+            snap="auto"
+          >
+            <div className="px-5 py-4 space-y-5">
+              <div>
+                <label className="text-xs font-body font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Course</label>
+                <Select value={courseFilter} onValueChange={setCourseFilter}>
+                  <SelectTrigger className="h-12 font-body rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="font-body">All Courses</SelectItem>
+                    {courses.map(c => <SelectItem key={c.id} value={c.id} className="font-body">{c.code} — {c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-body font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Category</label>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="h-12 font-body rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="font-body">All Categories</SelectItem>
+                    {[...PREDEFINED_CATEGORIES, ...categories.map(c => c.name)].filter((v, i, a) => a.indexOf(v) === i).map(c =>
+                      <SelectItem key={c} value={c} className="font-body">{c}</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1 h-12 rounded-xl font-body" onClick={() => { setCourseFilter("all"); setCategoryFilter("all"); }}>
+                  Reset
+                </Button>
+                <Button className="flex-1 h-12 rounded-xl font-body" onClick={() => setMobileFiltersOpen(false)}>
+                  Apply
+                </Button>
+              </div>
+            </div>
+          </MobileSheet>
+
+          <Dialog open={addOpen} onOpenChange={setAddOpen}>
+            <DialogContent className="max-w-[95vw] max-h-[90dvh] overflow-y-auto rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="font-heading">{editing ? "Edit Resource" : "Add Resource"}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <Input value={form.title || ""} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Title *" className="font-body h-11" />
+                <Textarea value={form.description || ""} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Description (optional)" className="font-body" />
+                <Input value={form.url || ""} onChange={e => setForm({ ...form, url: e.target.value })} placeholder="URL (https://…)" className="font-body h-11" />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setAddOpen(false)} className="font-body">Cancel</Button>
+                <Button onClick={handleSubmit} disabled={submitting} className="font-body gap-2">
+                  {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {editing ? "Save" : "Add"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <ResourceViewer
+            open={viewer.open}
+            onClose={() => setViewer({ open: false, title: "", url: "", type: "" })}
+            title={viewer.title}
+            url={viewer.url}
+            type={viewer.type}
+            htmlContent={viewer.html}
+          />
+        </div>
+      </Layout>
+    );
+  }
+
+  // ─── Desktop render ────────────────────────────────────────────
   return (
     <Layout title="Resources" showBack>
       <div className="flex flex-col lg:flex-row gap-6 min-h-[70vh]">
