@@ -1,161 +1,152 @@
 
 
-# Mobile-Native Total Rebuild — StudyOS, NotesOS, Focus Immersion, Dashboard, Calendar
+# Mobile-Native Total Reconstruction — Bottom Nav, Flipkart Header, Obsidian Notes, Native Study, Dashboard Parity
 
-You loved Resources mobile. Same energy across the entire app. One parallel pass.
+Full ground-up rebuild. No web responsiveness. Real native patterns.
 
-## Track A — StudyOS Mobile (full native rebuild)
+## Track 1 — Bottom Nav (the foundational fix)
 
-**`src/pages/StudyMode.tsx`** mobile branch (`md:hidden`):
-- **Header (auto-hide on scroll)**: hamburger (drawer) + "Study" title + view-toggle pill (Day / 3-Day / Week)
-- **Section chips row (horizontal scroll)**: Calendar · Tasks · Habits · Focus · Analytics — Flipkart-style, active pill animates
-- **Content area**: full-bleed, no card wrappers, native list rows
-- **Global FAB**: 56px purple `+` bottom-right above bottom nav → opens `QuickActionSheet` (New Task / New Event / Quick Focus / New Habit)
-- All shortcuts removed from header (live in drawer + FAB)
+**`src/components/MobileBottomNav.tsx`** — full rewrite:
+- 6 slots: Home · Study · **[+ FAB]** · Notes · Resources · Me
+- FAB is **absolutely positioned** at center (not a flex child) → never moves on tap
+- Single premium purple gradient (no rainbow), 56px, raised 12px, soft purple glow
+- Active state: small 4px purple dot under icon (no pill jiggle)
+- Tap feedback: opacity only, no scale on FAB (kills the "moving" bug)
+- Render on **every** route including `/notes` (fix Layout's `hideBottomNav` for mobile)
+- "Me" → `/profile` (currently broken)
 
-**`src/components/study/QuickActionSheet.tsx`** (new): MobileSheet with 4 large action tiles.
+**`src/components/QuickActionSheet.tsx`** — recolor:
+- All tiles use **single purple→indigo gradient** (premium, not multicolor)
+- Glass surface variant for secondary tiles
+- Icon-first layout, label below, consistent 96px tiles
 
-**`src/components/study/MobileTaskRow.tsx`** (new): 64px row, swipe-left to complete, swipe-right to defer.
+## Track 2 — Universal Mobile Header (Flipkart pattern)
 
-**`src/components/study/MobileHabitGrid.tsx`** (new): native check tiles, haptic-style scale.
+**`src/components/MobileTopBar.tsx`** (new) — replaces top navbar everywhere on mobile:
+- **Row 1**: hamburger (left) · "Hi, [Name]" + tiny avatar (center-left) · notification bell (right)
+- **Row 2**: full-width search pill (44px, rounded-22, our purple focus ring)
+- **Row 3**: horizontal scrollable section chips (page-specific)
+- Auto-hide on scroll-down, reveal on scroll-up (`useScrollDirection`)
+- Hamburger opens left drawer (`MobileSheet` from-left variant)
 
-## Track B — NotesOS Mobile (Obsidian shell)
+**`src/components/Layout.tsx`**: on mobile, render `MobileTopBar` instead of desktop navbar. Kill the old top header on every page.
+
+## Track 3 — StudyOS Mobile Reconstruction
+
+**`src/pages/StudyMode.tsx`** mobile branch:
+- `MobileTopBar` with chips: Calendar · Tasks · Habits · Focus · Analytics
+- Remove all in-page headers, view-toggle pills, duplicate controls
+- Full-bleed content area
+- Section state synced to URL hash for back-button
+- All "create" actions flow through bottom-nav `+` FAB → `QuickActionSheet`
+
+**`src/components/CalendarCreateModal.tsx`**: remove `TimeWheelPicker` from event creation (it's a timer, not a time picker — your confusion was right). Use native `<input type="datetime-local">` on mobile inside `MobileSheet snap="full"`.
+
+**`src/components/CalendarEventPopover.tsx`**: mobile → `MobileSheet snap="half"` with native action rows (Edit · Delete · Share), no web popover styling.
+
+## Track 4 — NotesOS Obsidian Reconstruction
 
 **`src/pages/Notes.tsx`** mobile rewrite:
-- **Top bar**: hamburger (sidebar drawer) + workspace switcher pill (3-dot menu → My / Public / Library) + read/edit toggle
-- **Below top bar**: centered search pill (44px)
-- **Content**: full-bleed editor, auto-hide top + bottom nav on scroll-down
-- **Sidebar** opens as `MobileSheet snap="full"` (left-edge swipe or hamburger)
-- **Workspace switcher**: 3-dot opens MobileSheet with 3 options + active checkmark
-- Canvas pages render `<CanvasView readOnly={isPublicWorkspace && !isAdmin} />`
+- `MobileTopBar` chips: Pages · Canvas · Graph · Library
+- Search pill searches notes
+- Hamburger opens **left sidebar drawer** (file tree, exactly like Obsidian)
+- Bottom nav stays visible (fix Layout's `hideBottomNav` mobile override)
 
-**`src/components/notes/MobileNoteHeader.tsx`** (new): the Obsidian shell.
+**`src/components/notes/MobileNoteHeader.tsx`** (new) — when a note is open:
+- Left: drawer-icon (square outline, like your Obsidian screenshot)
+- Center: empty / breadcrumb
+- Right: read-mode toggle (book icon) + 3-dot menu
+- Auto-hides on scroll, returns on scroll-up
+- Matches your screenshot exactly
 
-## Track C — Focus Immersion Engine (the big one)
+**`src/components/notes/NoteEditor.tsx`** mobile:
+- Hide all in-page toolbars by default (clean blank canvas)
+- Detect `visualViewport` resize → keyboard open → render **floating toolbar above keyboard** (this is called a **keyboard accessory bar / input accessory view**)
+- Toolbar contains: undo · redo · `[]` (link) · page · tag · attach · H · B · I · S · highlight · `</>`
+- Position: `bottom: keyboardHeight`, glass background, horizontally scrollable
+- 3-dot menu in `MobileNoteHeader` reveals secondary actions
 
-### Floating Control Hub
-**`src/components/focus/FocusHub.tsx`** (new) — replaces scattered top-bar controls:
-- Single floating circular button (56px, glass, bottom-center above safe area)
-- Tap → radial menu fans out 5 options: 🎨 Theme · 🎵 Music · ✨ Animation · ⏱️ Timer Style · 👁️ Hide UI
-- Auto-hides 3s after idle, taps re-show
-- Persistent visibility hint: subtle pulse on first session
+## Track 5 — Dashboard Mobile (parity + native)
 
-### Three Pickers (consistent UI pattern)
-**`src/components/focus/ThemePicker.tsx`** (already exists — refine)
-**`src/components/focus/MusicPicker.tsx`** (new) — same UI as ThemePicker:
-- Horizontal strip of 80×80 album-art thumbnails
-- 20+ tracks tagged by season/mood: Lo-fi Rain, Forest Birds, Ocean Waves, Cherry Blossom Chimes, Autumn Wind, Winter Fireplace, Spring Stream, Summer Cicadas, Coffee Shop, Night Crickets, Binaural Alpha (8Hz), Beta (14Hz), Theta (6Hz), Library Whispers, Jazz Café, Piano Rain, Tibetan Bowls, White Noise, Brown Noise, Pink Noise
-- Volume slider + crossfade
-- Battery-safe pause
+**`src/components/dashboard/MobileDashboard.tsx`** — extend:
+- Keep current 4 native rows (greeting, streak, today's plan, quick actions)
+- **Add missing web parity**:
+  - Recent activity (last 5 events from web)
+  - Active courses widget (from web)
+  - Engagement heatmap (compact mobile version)
+  - Notifications preview (3 latest)
+  - Spaced-repetition due cards count
+- Pull-to-refresh (rubber-band, top of scroll)
 
-**`src/components/focus/AnimationPicker.tsx`** (new) — 15+ overlay animations:
-- Snow · Rain · Cherry Blossom · Autumn Leaves · Fireflies · Dust Motes · Aurora · Stars · Meteor Shower · Bubbles · Smoke · Embers · Fog Drift · Lightning Flashes · Gradient Aurora · Candle Flicker · Ocean Ripple · Galaxy Spiral · Neon Pulse · None
+## Track 6 — Pull-to-Refresh
 
-### Timer Style Picker (10+ styles)
-**`src/components/focus/TimerStylePicker.tsx`** (new):
-1. **Minimal Mono** — large monospace digits
-2. **Ring Arc** — circular SVG progress
-3. **Flip Card** — 3D digit flip
-4. **Pixel LED** — retro 7-segment
-5. **Analog Clock** — full clock face with sweeping hand
-6. **Liquid Fill** — water rises in glass
-7. **Sand Hourglass** — animated falling sand
-8. **Orbit** — planets circle showing time
-9. **Pulse Ring** — breathing concentric circles
-10. **Premium Black** — full-screen black, single elegant clock (immersive mode)
-11. **Constellation** — stars connect to form digits
-12. **Vinyl** — spinning record with arm
+**`src/hooks/usePullToRefresh.ts`** (new):
+- Touchstart at scrollTop=0, track pull distance
+- Rubber-band easing (resistance curve)
+- Trigger at 80px, snap back, native spinner
+- Wire into Dashboard + Resources
 
-**`src/components/focus/TimerCanvas.tsx`** (new): renders selected style. Uses `mix-blend-mode: difference` + adaptive contrast (samples background brightness) so timer ALWAYS readable on any theme — fixes your "can't see timer" problem.
+## Track 7 — FocusHub Polish
 
-### Draggable + Hide-able Timer
-- Timer wrapped in draggable container (framer-motion drag)
-- Position persisted to localStorage per user
-- "Hide UI" in radial menu → timer fades to 5% opacity, single tap anywhere reveals
-- Long-press on timer → "Reset Position" toast
+**`src/components/focus/FocusHub.tsx`**:
+- First-time pulsing ring around hub (localStorage flag `focus_hub_seen`)
+- Auto-hide after 3 sessions
 
-### Session Greeting + Celebration
-**`src/components/focus/SessionGreeting.tsx`** (new):
-- Pre-session: full-screen fade-in, "Take a breath. Let's begin." + 3-2-1 countdown ring
-- Personalized: "Welcome back, [name]. Your 47th session."
-- Quote of the day (rotating curated set)
+**`src/contexts/FocusContext.tsx`**:
+- Persist `timerStyle` + `selectedMusic` + `selectedAnimation` to Firestore `userPrefs/{uid}/focus`
+- Hydrate on auth ready
 
-**`src/components/focus/SessionComplete.tsx`** (refine existing FocusSessionComplete):
-- 2s confetti particle burst from center (canvas)
-- Stats card slides up: duration · streak · "You've focused 12h this week"
-- Mood emoji row + quick journal input
+## Track 8 — Color Token Sweep
 
-## Track D — Admin Focus Manager (full CRUD)
+Search & replace across `src/pages/*` and `src/components/*`:
+- `bg-white` → `bg-background` / `bg-card`
+- `text-black` → `text-foreground`
+- `bg-gray-*`, hex codes, `rgb()` → semantic tokens
+- Verify dark-mode contrast on every page
 
-**`src/components/admin/FocusThemeEditor.tsx`** (extend):
-- Add tabs: Themes · Music · Animations
-- Music CRUD: upload MP3/OGG, label, season tag, mood tag
-- Animation CRUD: select from built-in registry + upload custom Lottie JSON
-- All hydrate on app boot via `adminFocusThemes.ts`
+## Track 9 — Profile Mobile-Native
 
-**`src/lib/adminFocusMusic.ts`** (new): Firestore CRUD for `focusMusic/{id}`.
-**`src/lib/adminFocusAnimations.ts`** (new): Firestore CRUD for `focusAnimations/{id}`.
+**`src/pages/Profile.tsx`** mobile:
+- iOS-style grouped list rows (Account · Theme · Storage · Notifications · Sign Out)
+- 56px rows, chevron-right, section headers
+- Avatar header with edit pencil
 
-## Track E — Dashboard Mobile Refinement
+## Track 10 — Layout Fixes
 
-**`src/pages/Dashboard.tsx`** mobile:
-- Remove top navbar entirely (Layout already handles)
-- 4-row vertical native feed: Greeting + streak ring · Today's Plan (next 3 events) · Quick Stats (3 tiles) · Quick Actions
-- All modals → MobileSheet
-- Swipeable cards in "Today's Plan"
+**`src/components/Layout.tsx`**:
+- Force `MobileBottomNav` on **all** routes when mobile (kill `hideBottomNav` on mobile)
+- Force `MobileTopBar` instead of desktop nav
+- Ensure `pb-[88px]` content padding for nav clearance
 
-## Track F — Calendar Mobile Sheets
-
-**`src/components/CalendarCreateModal.tsx`**: mobile branch → MobileSheet `snap="full"` with TimeWheelPicker, native form.
-**`src/components/CalendarEventPopover.tsx`**: mobile branch → MobileSheet `snap="half"` with action row.
-
-## Track G — Bottom Nav + Quick Action
-
-**`src/components/MobileBottomNav.tsx`**: insert center `+` FAB (raised 8px above bar, purple glow) → opens contextual QuickActionSheet (different per page: Notes = New Note/Canvas/Folder, Study = Task/Event/Focus, Resources = Upload).
-
-## Track H — Color Token Audit
-
-Sweep `src/pages/*` and `src/components/*` for `bg-white`, `text-black`, `#hex`, `rgb(`, `bg-gray-`. Replace with semantic tokens. Verify dark mode contrast on every page.
-
-## Files (~28, all parallel)
+## Files (~22, parallel)
 
 | File | Action |
 |---|---|
-| `src/pages/StudyMode.tsx` | Mobile rewrite |
-| `src/components/study/QuickActionSheet.tsx` | New |
-| `src/components/study/MobileTaskRow.tsx` | New |
-| `src/components/study/MobileHabitGrid.tsx` | New |
-| `src/pages/Notes.tsx` | Mobile Obsidian shell |
-| `src/components/notes/MobileNoteHeader.tsx` | New |
-| `src/pages/FocusMode.tsx` | Wire FocusHub + new pickers |
-| `src/components/focus/FocusHub.tsx` | New radial menu |
-| `src/components/focus/MusicPicker.tsx` | New |
-| `src/components/focus/AnimationPicker.tsx` | New |
-| `src/components/focus/TimerStylePicker.tsx` | New |
-| `src/components/focus/TimerCanvas.tsx` | New (12 styles + adaptive contrast) |
-| `src/components/focus/SessionGreeting.tsx` | New |
-| `src/components/FocusSessionComplete.tsx` | Refine with confetti |
-| `src/components/focus/SceneEngine.tsx` | Add 8+ animations |
-| `src/lib/focusMusicLibrary.ts` | New 20-track curated library |
-| `src/lib/focusAnimationLibrary.ts` | New animation registry |
-| `src/components/admin/FocusThemeEditor.tsx` | 3-tab CRUD |
-| `src/lib/adminFocusMusic.ts` | New |
-| `src/lib/adminFocusAnimations.ts` | New |
-| `src/pages/Dashboard.tsx` | Mobile 4-row feed |
-| `src/components/CalendarCreateModal.tsx` | MobileSheet branch |
-| `src/components/CalendarEventPopover.tsx` | MobileSheet branch |
-| `src/components/MobileBottomNav.tsx` | Center FAB |
-| `src/index.css` | Token sweep + adaptive-contrast util |
-| `src/pages/Resources.tsx` | Token sweep |
-| `src/components/Layout.tsx` | Token sweep |
-| Misc components | Token sweep (bg-white/text-black removal) |
+| `src/components/MobileBottomNav.tsx` | Rewrite (6 slots, absolute FAB) |
+| `src/components/QuickActionSheet.tsx` | Single-purple gradient |
+| `src/components/MobileTopBar.tsx` | New universal header |
+| `src/components/Layout.tsx` | Mobile shell wiring |
+| `src/pages/StudyMode.tsx` | Mobile reconstruction |
+| `src/pages/Notes.tsx` | Mobile reconstruction |
+| `src/components/notes/MobileNoteHeader.tsx` | New Obsidian header |
+| `src/components/notes/NoteEditor.tsx` | Keyboard accessory toolbar |
+| `src/components/CalendarCreateModal.tsx` | Native datetime, MobileSheet |
+| `src/components/CalendarEventPopover.tsx` | MobileSheet half |
+| `src/components/dashboard/MobileDashboard.tsx` | Web parity widgets |
+| `src/hooks/usePullToRefresh.ts` | New |
+| `src/pages/Dashboard.tsx` | Wire PTR |
+| `src/pages/Resources.tsx` | Wire PTR + token sweep |
+| `src/pages/Profile.tsx` | iOS list rebuild |
+| `src/components/focus/FocusHub.tsx` | First-time hint |
+| `src/contexts/FocusContext.tsx` | Firestore prefs sync |
+| `src/index.css` | Token additions |
+| Misc pages | Token sweep |
 
 ## Approach
 
-- All tracks ship in one pass — no "next message"
-- Music: royalty-free Pixabay/CDN URLs cached via existing `focusAssetCache`
-- Timer adaptive contrast: sample 5×5px background pixel under timer center via canvas, flip text color (white/black) per luminance
-- No new deps — confetti, draggable, all styles via existing framer-motion + canvas
-- Desktop preserved everywhere (mobile branches only)
-- Admin gets full CRUD for themes/music/animations — true command center
+- All tracks ship in one parallel pass
+- No new deps (visualViewport, framer-motion, native inputs cover everything)
+- Desktop preserved via `md:` branches
+- Bottom nav guaranteed on every mobile route
+- Keyboard accessory toolbar = standard iOS/Android pattern (`window.visualViewport.height` delta)
 
