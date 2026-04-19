@@ -1,18 +1,41 @@
 /**
- * MobileDashboard — Native 4-row vertical feed.
+ * MobileDashboard — Native vertical feed with full web-parity widgets.
  *
- *  Row 1 — Greeting + streak ring
- *  Row 2 — Today's plan (next 3 events, swipeable cards)
- *  Row 3 — Quick stats (3 tiles: focus mins · tasks done · habits)
- *  Row 4 — Quick actions (Notes / Library / Focus / Study)
+ *  Sections (top → bottom):
+ *   1. Greeting + streak ring
+ *   2. Today's plan (horizontally swipeable cards)
+ *   3. At-a-glance stats (3 tiles)
+ *   4. Quick actions (4 gradient tiles)
+ *   5. Course progress (if any)
+ *   6. Activity heatmap (compact)
+ *   7. Recent activity feed
  *
- * Full-bleed, no card-in-card, native list rhythm. Uses semantic tokens.
+ * Full-bleed, no card-in-card. Uses semantic tokens only.
  */
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Flame, Clock, CheckSquare, Heart, StickyNote, BookOpen, Zap, Calendar, ArrowRight } from "lucide-react";
-import { format } from "date-fns";
+import {
+  Flame, Clock, CheckSquare, Heart, StickyNote, BookOpen, Zap,
+  Calendar, ArrowRight, Target, TrendingUp,
+} from "lucide-react";
+import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
+
+interface CourseStat {
+  projectId: string;
+  projectCode: string;
+  projectName: string;
+  progress: number;
+  studiedCount: number;
+  totalQuestions: number;
+}
+
+interface ActivityItem {
+  id: string;
+  type: "focus" | "task";
+  text: string;
+  date?: string;
+}
 
 interface Props {
   name: string;
@@ -23,6 +46,10 @@ interface Props {
   habitsDone: number;
   habitsTotal: number;
   upcoming: { id: string; title: string; start: any; color?: string }[];
+  /** Optional widgets (web parity) */
+  courses?: CourseStat[];
+  activity?: Record<string, number>;        // date "yyyy-MM-dd" → reviews count
+  recentActivity?: ActivityItem[];
 }
 
 const greet = () => {
@@ -50,7 +77,7 @@ const StreakRing = ({ value }: { value: number }) => {
         <defs>
           <linearGradient id="streakGrad" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="hsl(var(--primary))" />
-            <stop offset="100%" stopColor="#e11d48" />
+            <stop offset="100%" stopColor="hsl(var(--streak))" />
           </linearGradient>
         </defs>
       </svg>
@@ -61,29 +88,58 @@ const StreakRing = ({ value }: { value: number }) => {
   );
 };
 
+/** Compact 7-week horizontal heatmap (49 cells). */
+const CompactHeatmap = ({ data }: { data: Record<string, number> }) => {
+  const cells = Array.from({ length: 49 }).map((_, i) => {
+    const d = format(subDays(new Date(), 48 - i), "yyyy-MM-dd");
+    const v = data[d] || 0;
+    return { d, v };
+  });
+  const max = Math.max(1, ...cells.map(c => c.v));
+  return (
+    <div className="grid grid-cols-7 grid-rows-7 grid-flow-col gap-[3px]">
+      {cells.map((c) => {
+        const intensity = c.v / max;
+        return (
+          <div
+            key={c.d}
+            className="h-3 w-3 rounded-[3px]"
+            style={{
+              backgroundColor:
+                c.v === 0
+                  ? "hsl(var(--muted))"
+                  : `hsl(var(--primary) / ${0.25 + intensity * 0.75})`,
+            }}
+            title={`${c.d}: ${c.v}`}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
 export const MobileDashboard = ({
-  name, streak, focusMinutes, tasksDone, tasksTotal, habitsDone, habitsTotal, upcoming,
+  name, streak, focusMinutes, tasksDone, tasksTotal,
+  habitsDone, habitsTotal, upcoming,
+  courses = [], activity = {}, recentActivity = [],
 }: Props) => {
   const stats = [
-    { icon: Clock, label: "Focus", value: `${Math.floor(focusMinutes / 60)}h ${focusMinutes % 60}m`, tint: "text-primary", bg: "bg-primary/10" },
-    { icon: CheckSquare, label: "Tasks", value: `${tasksDone}/${tasksTotal}`, tint: "text-emerald-500", bg: "bg-emerald-500/10" },
-    { icon: Heart, label: "Habits", value: `${habitsDone}/${habitsTotal}`, tint: "text-pink-500", bg: "bg-pink-500/10" },
+    { icon: Clock,       label: "Focus",  value: `${Math.floor(focusMinutes / 60)}h ${focusMinutes % 60}m`, tint: "text-primary",       bg: "bg-primary/10" },
+    { icon: CheckSquare, label: "Tasks",  value: `${tasksDone}/${tasksTotal}`,                              tint: "text-[hsl(var(--success))]", bg: "bg-[hsl(var(--success))]/10" },
+    { icon: Heart,       label: "Habits", value: `${habitsDone}/${habitsTotal}`,                            tint: "text-[hsl(var(--streak))]",  bg: "bg-[hsl(var(--streak))]/10" },
   ];
 
   const actions = [
-    { to: "/notes",    icon: StickyNote, label: "Notes",   gradient: "from-violet-500 to-fuchsia-500" },
-    { to: "/focus",    icon: Zap,        label: "Focus",   gradient: "from-amber-500 to-orange-500" },
-    { to: "/study",    icon: Calendar,   label: "Study",   gradient: "from-sky-500 to-blue-500" },
-    { to: "/resources",icon: BookOpen,   label: "Library", gradient: "from-emerald-500 to-teal-500" },
+    { to: "/notes",     icon: StickyNote, label: "Notes",   gradient: "from-primary to-[hsl(280_70%_55%)]" },
+    { to: "/focus",     icon: Zap,        label: "Focus",   gradient: "from-[hsl(var(--streak))] to-[hsl(38_92%_50%)]" },
+    { to: "/study",     icon: Calendar,   label: "Study",   gradient: "from-[hsl(210_80%_50%)] to-primary" },
+    { to: "/resources", icon: BookOpen,   label: "Library", gradient: "from-[hsl(142_71%_45%)] to-[hsl(180_70%_45%)]" },
   ];
 
   return (
-    <div className="md:hidden flex flex-col gap-5 px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))]">
-      {/* Row 1 — Greeting + streak ring */}
-      <motion.section
-        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-4"
-      >
+    <div className="md:hidden flex flex-col gap-5 px-4 pt-3 pb-[calc(5rem+env(safe-area-inset-bottom,0px))]">
+      {/* 1 — Greeting + streak */}
+      <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4">
         <StreakRing value={streak} />
         <div className="flex-1 min-w-0">
           <p className="text-xs text-muted-foreground font-body">{greet()}</p>
@@ -94,10 +150,8 @@ export const MobileDashboard = ({
         </div>
       </motion.section>
 
-      {/* Row 2 — Today's plan (horizontally swipeable) */}
-      <motion.section
-        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.05 } }}
-      >
+      {/* 2 — Today's plan */}
+      <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.05 } }}>
         <div className="flex items-center justify-between mb-2.5">
           <h2 className="text-sm font-heading font-semibold">Today's Plan</h2>
           <Link to="/study" className="text-[11px] text-primary font-body flex items-center gap-1">
@@ -131,10 +185,8 @@ export const MobileDashboard = ({
         )}
       </motion.section>
 
-      {/* Row 3 — Quick stats */}
-      <motion.section
-        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.1 } }}
-      >
+      {/* 3 — At a glance */}
+      <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.1 } }}>
         <h2 className="text-sm font-heading font-semibold mb-2.5">At a Glance</h2>
         <div className="grid grid-cols-3 gap-2.5">
           {stats.map((s) => {
@@ -152,10 +204,8 @@ export const MobileDashboard = ({
         </div>
       </motion.section>
 
-      {/* Row 4 — Quick actions */}
-      <motion.section
-        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.15 } }}
-      >
+      {/* 4 — Quick actions */}
+      <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.15 } }}>
         <h2 className="text-sm font-heading font-semibold mb-2.5">Quick Actions</h2>
         <div className="grid grid-cols-2 gap-2.5">
           {actions.map((a) => {
@@ -165,7 +215,7 @@ export const MobileDashboard = ({
                 key={a.to}
                 to={a.to}
                 className={cn(
-                  "h-20 rounded-2xl p-3 flex flex-col items-start justify-between text-white",
+                  "h-20 rounded-2xl p-3 flex flex-col items-start justify-between text-primary-foreground",
                   "bg-gradient-to-br shadow-md active:scale-[0.97] transition-transform",
                   a.gradient,
                 )}
@@ -177,6 +227,74 @@ export const MobileDashboard = ({
           })}
         </div>
       </motion.section>
+
+      {/* 5 — Course progress */}
+      {courses.length > 0 && (
+        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.2 } }}>
+          <div className="flex items-center justify-between mb-2.5">
+            <h2 className="text-sm font-heading font-semibold flex items-center gap-1.5">
+              <Target className="h-3.5 w-3.5 text-primary" /> Course Progress
+            </h2>
+            <Link to="/" className="text-[11px] text-primary font-body flex items-center gap-1">
+              All <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="rounded-2xl bg-card border border-border/60 divide-y divide-border/50">
+            {courses.slice(0, 4).map((c) => (
+              <div key={c.projectId} className="px-4 py-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-body font-medium truncate">{c.projectCode}</p>
+                    <p className="text-[10px] text-muted-foreground font-body truncate">{c.projectName}</p>
+                  </div>
+                  <span className="text-[11px] font-body tabular-nums text-muted-foreground shrink-0 ml-2">
+                    {c.studiedCount}/{c.totalQuestions} · {c.progress}%
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full rounded-full bg-primary" style={{ width: `${c.progress}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.section>
+      )}
+
+      {/* 6 — Activity heatmap */}
+      <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.22 } }}>
+        <h2 className="text-sm font-heading font-semibold mb-2.5">Last 7 Weeks</h2>
+        <div className="rounded-2xl bg-card border border-border/60 p-4 flex items-center gap-4">
+          <CompactHeatmap data={activity} />
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] text-muted-foreground font-body">Each square = a study day. Darker = more reviews.</p>
+            <p className="text-xs font-body font-medium mt-1">
+              {Object.values(activity).reduce((a, b) => a + b, 0)} total reviews
+            </p>
+          </div>
+        </div>
+      </motion.section>
+
+      {/* 7 — Recent activity */}
+      {recentActivity.length > 0 && (
+        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.25 } }}>
+          <h2 className="text-sm font-heading font-semibold mb-2.5 flex items-center gap-1.5">
+            <TrendingUp className="h-3.5 w-3.5 text-primary" /> Recent Activity
+          </h2>
+          <div className="rounded-2xl bg-card border border-border/60 divide-y divide-border/50">
+            {recentActivity.slice(0, 6).map((a) => {
+              const Icon = a.type === "focus" ? Zap : CheckSquare;
+              const tint = a.type === "focus" ? "text-primary" : "text-[hsl(var(--success))]";
+              return (
+                <div key={a.id} className="flex items-center gap-3 px-4 py-3">
+                  <Icon className={cn("h-4 w-4 shrink-0", tint)} />
+                  <p className="flex-1 text-xs font-body truncate">{a.text}</p>
+                  {a.date && <span className="text-[10px] text-muted-foreground font-body shrink-0">{a.date}</span>}
+                </div>
+              );
+            })}
+          </div>
+        </motion.section>
+      )}
     </div>
   );
 };

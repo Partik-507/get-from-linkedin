@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SlashCommandMenu } from "./SlashCommandMenu";
+import { MobileEditorAccessoryBar } from "./MobileEditorAccessoryBar";
 import { CalloutExtension } from "./extensions/CalloutExtension";
 import { ToggleExtension } from "./extensions/ToggleExtension";
 import { MathBlockExtension, MathInlineExtension } from "./extensions/MathExtension";
@@ -545,9 +546,9 @@ export const NoteEditor = ({
         "--editor-size": `${fontSize}px`,
       } as React.CSSProperties}
     >
-      {/* ── Top toolbar ─────────────────────────────────────────────────── */}
+      {/* ── Top toolbar (DESKTOP ONLY — mobile uses keyboard accessory bar) ─ */}
       {!readOnly && (
-        <div className="flex items-center justify-between px-4 py-1.5 border-b border-border/20 bg-card/30 shrink-0 gap-2 flex-wrap">
+        <div className="hidden md:flex items-center justify-between px-4 py-1.5 border-b border-border/20 bg-card/30 shrink-0 gap-2 flex-wrap">
           {/* Left: formatting */}
           <div className="flex items-center gap-0.5 flex-wrap">
             {/* Font picker */}
@@ -973,6 +974,9 @@ export const NoteEditor = ({
           <p className="text-[10px] text-muted-foreground/40 mt-1.5">Auto-selecting "Keep as link" in 3s...</p>
         </div>
       )}
+
+      {/* Mobile keyboard accessory bar — floats above the keyboard */}
+      {!readOnly && <MobileEditorAccessoryBar editor={editor} />}
     </div>
   );
 };

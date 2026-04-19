@@ -543,7 +543,7 @@ const Notes = () => {
   if (world === "my" && (user || isGuest) && !isStorageChosen) {
     return (
       <Layout fullBleed hideBottomNav>
-        <div className="h-[100dvh] md:h-[calc(100dvh-57px)] flex items-center justify-center bg-background">
+        <div className="h-[calc(100dvh-60px-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-57px)] flex items-center justify-center bg-background">
           <div className="w-full max-w-xl px-4">
             <div className="text-center mb-8">
               <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-[hsl(240,70%,50%)] flex items-center justify-center text-primary-foreground font-bold text-2xl mx-auto mb-5 shadow-lg shadow-primary/20">V</div>
@@ -582,7 +582,7 @@ const Notes = () => {
   if (world === "my" && isLocal && !dirHandle && !isRestoringLocal) {
     return (
       <Layout fullBleed hideBottomNav>
-        <div className="h-[100dvh] md:h-[calc(100dvh-57px)] flex items-center justify-center bg-background">
+        <div className="h-[calc(100dvh-60px-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-57px)] flex items-center justify-center bg-background">
           <div className="w-full max-w-md px-4 text-center">
             <div className="h-16 w-16 rounded-2xl bg-amber-500/10 flex items-center justify-center mx-auto mb-5">
               <FolderOpen className="h-8 w-8 text-amber-500" />
@@ -605,7 +605,7 @@ const Notes = () => {
   if (world === "my" && isLocal && isRestoringLocal) {
     return (
       <Layout fullBleed hideBottomNav>
-        <div className="h-[100dvh] md:h-[calc(100dvh-57px)] flex items-center justify-center bg-background">
+        <div className="h-[calc(100dvh-60px-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-57px)] flex items-center justify-center bg-background">
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
             <p className="text-sm font-body text-muted-foreground">Reconnecting local vault…</p>
@@ -618,7 +618,7 @@ const Notes = () => {
     <Layout fullBleed hideBottomNav>
       <div className={cn(
         "flex overflow-hidden bg-transparent",
-        "h-[100dvh] md:h-[calc(100dvh-57px)]"
+        "h-[calc(100dvh-60px-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-57px)]"
       )}>
 
         {/* ════════════════════════════════════════
