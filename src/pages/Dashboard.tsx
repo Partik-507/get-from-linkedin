@@ -169,7 +169,7 @@ const Dashboard = () => {
 
   return (
     <Layout title="Dashboard">
-      {/* ── MOBILE: native 4-row feed ── */}
+      {/* ── MOBILE: native vertical feed with web parity ── */}
       <MobileDashboard
         name={user?.displayName?.split(" ")[0] || "Student"}
         streak={streak.current}
@@ -179,6 +179,22 @@ const Dashboard = () => {
         habitsDone={habitsCompletedToday}
         habitsTotal={habits.length}
         upcoming={calEvents.slice(0, 5)}
+        courses={projectStats.slice(0, 4).map(p => ({
+          projectId: p.projectId, projectCode: p.projectCode, projectName: p.projectName,
+          progress: p.progress, studiedCount: p.studiedCount, totalQuestions: p.totalQuestions,
+        }))}
+        activity={activity}
+        recentActivity={[
+          ...focusSessions.slice(-4).reverse().map(s => ({
+            id: `f-${s.id}`, type: "focus" as const,
+            text: `${s.abandoned ? "Ended" : "Completed"} a ${s.duration}-min ${s.mode} session`,
+            date: s.date,
+          })),
+          ...tasks.filter(t => t.status === "done").slice(-3).reverse().map(t => ({
+            id: `t-${t.id}`, type: "task" as const,
+            text: `Marked "${t.title}" as done`,
+          })),
+        ]}
       />
 
       {/* ── DESKTOP: full grid ── */}
