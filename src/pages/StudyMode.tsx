@@ -408,7 +408,7 @@ const StudyMode = () => {
   // Quick Action FAB events (from MobileBottomNav → QuickActionSheet)
   useEffect(() => {
     const onNewTask = () => { setActiveSection("tasks"); setShowQuickCapture(true); };
-    const onNewEvent = () => { setActiveSection("calendar"); setShowEventModal(true as any); };
+    const onNewEvent = () => { setActiveSection("calendar"); setShowEventModal(true); };
     const onNewHabit = () => { setActiveSection("habits"); setShowNewHabit(true); };
     window.addEventListener("study-new-task", onNewTask);
     window.addEventListener("study-new-event", onNewEvent);
