@@ -98,20 +98,18 @@ export const CanvasRenderer: React.FC = () => {
     return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
   }, [renderFrame]);
 
-  // Resize observer
+  // Resize observer (DPR-aware; render loop bakes DPR into setTransform)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const observer = new ResizeObserver(entries => {
       const entry = entries[0];
       const { width, height } = entry.contentRect;
-      const dpr = Math.min(window.devicePixelRatio, 2);
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
       canvas.style.width = width + 'px';
       canvas.style.height = height + 'px';
-      const ctx = canvas.getContext('2d')!;
-      ctx.scale(dpr, dpr);
       setViewport(vp => ({ ...vp, width, height }));
       isDirtyRef.current = true;
     });
