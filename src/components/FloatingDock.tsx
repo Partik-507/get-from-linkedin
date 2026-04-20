@@ -335,7 +335,9 @@ export const FloatingDock = ({ onRestoreNavbar }: FloatingDockProps) => {
     };
     const onMove = (e: PointerEvent) => {
       if (!dragging) return;
-      if (Math.abs(e.clientX - startMouse.x) > 4 || Math.abs(e.clientY - startMouse.y) > 4) moved = true;
+      // 5px deadzone — anything below counts as a tap, not a drag
+      if (Math.abs(e.clientX - startMouse.x) > 5 || Math.abs(e.clientY - startMouse.y) > 5) moved = true;
+      if (!moved) return;
       if (raf == null) {
         raf = requestAnimationFrame(() => {
           raf = null;
@@ -345,14 +347,14 @@ export const FloatingDock = ({ onRestoreNavbar }: FloatingDockProps) => {
         });
       }
     };
-    const onUp = (e: PointerEvent) => {
+    const onUp = (_e: PointerEvent) => {
       if (!dragging) return;
       dragging = false;
       if (moved) {
         save(KEYS.slabEdge, slabRef.current.edge);
         save(KEYS.slabOffset, slabRef.current.offset);
       } else {
-        // tap → expand
+        // tap → expand (the onClick fallback also covers cases where pointerup misses)
         toggle();
       }
     };
@@ -401,16 +403,19 @@ export const FloatingDock = ({ onRestoreNavbar }: FloatingDockProps) => {
     return (
       <div
         ref={slabDragRef}
+        onClick={(e) => {
+          // Click fallback (in case pointer events miss): only toggle if not currently dragging.
+          // The pointer-event flow above already handles drag-then-tap; this catches simple clicks.
+          if (e.detail > 0) toggle();
+        }}
         className={cn(
-          "z-[2147483647] select-none touch-none cursor-grab active:cursor-grabbing rounded-full",
+          "z-[2147483647] select-none touch-none cursor-pointer rounded-full",
           "bg-gradient-to-r from-primary to-[hsl(240,70%,50%)] shadow-lg shadow-primary/30",
           "transition-opacity duration-200 pointer-events-auto",
         )}
         style={{
           ...slabStyle(slabEdge, slabOffset),
-          // Always visible (≥ 0.18), brightens on hover/touch
           opacity: slabHover ? 0.7 : 0.22,
-          // Slightly bigger hit area on touch via padding box (handled by SLAB_THICK)
         }}
         onPointerEnter={() => setSlabHover(true)}
         onPointerLeave={() => setSlabHover(false)}
