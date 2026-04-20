@@ -19,7 +19,7 @@ export const activeToolAtom = atom<Tool>('select');
 export const isLockedAtom = atom<boolean>(false);
 
 // ─── Selection ───────────────────────────────────────────────────────────────
-export const selectedIdsAtom = atom<Set<string>>(new Set());
+export const selectedIdsAtom = atom<Set<string>>(new Set<string>());
 export const hoveredIdAtom = atom<string | null>(null);
 
 // ─── Drawing State ───────────────────────────────────────────────────────────
