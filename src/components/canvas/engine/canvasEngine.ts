@@ -123,7 +123,7 @@ export function useCanvasInteraction(canvasRef: React.RefObject<HTMLCanvasElemen
     const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
     const world = getWorldPos(e);
 
-    if (e.button === 1 || tool === 'hand' || (e.button === 0 && tool === 'hand')) {
+    if (e.button === 1 || (tool as string) === 'hand' || (e.button === 0 && (tool as string) === 'hand')) {
       s.isPanning = true;
       s.panStart = { vx: s.viewport.x, vy: s.viewport.y, sx: e.clientX, sy: e.clientY };
       canvas.style.cursor = 'grabbing';
