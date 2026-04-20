@@ -106,11 +106,19 @@ const FocusMode = () => {
     const track = getTrackById(id);
     if (!track) return;
     audioRef.current?.pause();
-    const localUrl = await cacheAsset(track.url);
-    const audio = new Audio(localUrl);
+    let src = track.url;
+    try { src = await cacheAsset(track.url); } catch { /* fall back to remote URL */ }
+    const audio = new Audio(src);
+    audio.crossOrigin = "anonymous";
     audio.loop = true;
     audio.volume = volume / 100;
-    audio.play().then(() => setMusicPlaying(true)).catch(() => setMusicPlaying(false));
+    try {
+      await audio.play();
+      setMusicPlaying(true);
+    } catch {
+      // Autoplay blocked — user needs to tap play
+      setMusicPlaying(false);
+    }
     audioRef.current = audio;
   }, [volume]);
 
@@ -124,13 +132,18 @@ const FocusMode = () => {
     playTrack(id);
   };
 
-  const handleToggleMusic = () => {
+  const handleToggleMusic = async () => {
     if (!audioRef.current) {
-      if (trackId) playTrack(trackId);
+      if (trackId) await playTrack(trackId);
       return;
     }
     if (audioRef.current.paused) {
-      audioRef.current.play().then(() => setMusicPlaying(true)).catch(() => {});
+      try {
+        await audioRef.current.play();
+        setMusicPlaying(true);
+      } catch {
+        setMusicPlaying(false);
+      }
     } else {
       audioRef.current.pause();
       setMusicPlaying(false);
