@@ -1,44 +1,53 @@
-import { atom } from 'jotai';
+import { atom, type PrimitiveAtom } from 'jotai';
 import type { AnyElement, Tool, Viewport, CanvasScene, LibraryItem, CanvasComment, CanvasVariable, Point } from '../elements/types';
 
+/**
+ * `patom<T>(initial)` — wrapper around Jotai's `atom()` that forces the
+ * `PrimitiveAtom<T>` overload. Required because this project runs with
+ * `strictNullChecks: false`, which causes `atom<T | null>(null)` to match
+ * Jotai's read-only `Read<Value>` overload (since `null` is assignable to
+ * any function type under non-strict). The `as PrimitiveAtom<T>` cast
+ * locks in the writable signature so `useAtom` setters are callable.
+ */
+const patom = <T,>(initial: T): PrimitiveAtom<T> => atom(initial) as PrimitiveAtom<T>;
+
 // ─── Core Scene ─────────────────────────────────────────────────────────────
-export const canvasIdAtom = atom<string>('');
-export const canvasNameAtom = atom<string>('Untitled Canvas');
-export const elementsAtom = atom<AnyElement[]>([]);
-export const viewportAtom = atom<Viewport>({ x: 0, y: 0, zoom: 1, width: 800, height: 600 });
-export const backgroundColorAtom = atom<string>('#1a1a2e');
-export const gridEnabledAtom = atom<boolean>(true);
-export const gridStepAtom = atom<number>(20);
-export const gridStyleAtom = atom<'dots' | 'lines' | 'blueprint' | 'graph' | 'none'>('dots');
-export const snapToGridAtom = atom<boolean>(true);
-export const snapToObjectsAtom = atom<boolean>(true);
-export const handDrawnModeAtom = atom<boolean>(false);
+export const canvasIdAtom = patom<string>('');
+export const canvasNameAtom = patom<string>('Untitled Canvas');
+export const elementsAtom = patom<AnyElement[]>([]);
+export const viewportAtom = patom<Viewport>({ x: 0, y: 0, zoom: 1, width: 800, height: 600 });
+export const backgroundColorAtom = patom<string>('#1a1a2e');
+export const gridEnabledAtom = patom<boolean>(true);
+export const gridStepAtom = patom<number>(20);
+export const gridStyleAtom = patom<'dots' | 'lines' | 'blueprint' | 'graph' | 'none'>('none');
+export const snapToGridAtom = patom<boolean>(false);
+export const snapToObjectsAtom = patom<boolean>(true);
+export const handDrawnModeAtom = patom<boolean>(false);
 
 // ─── Tool ────────────────────────────────────────────────────────────────────
-export const activeToolAtom = atom<Tool>('select');
-export const isLockedAtom = atom<boolean>(false);
+export const activeToolAtom = patom<Tool>('select');
+export const isLockedAtom = patom<boolean>(false);
 
 // ─── Selection ───────────────────────────────────────────────────────────────
-const initialSelectedIds: Set<string> = new Set<string>();
-export const selectedIdsAtom = atom(initialSelectedIds);
-export const hoveredIdAtom = atom<string | null>(null);
+export const selectedIdsAtom = patom<Set<string>>(new Set<string>());
+export const hoveredIdAtom = patom<string | null>(null);
 
 // ─── Drawing State ───────────────────────────────────────────────────────────
-export const isDrawingAtom = atom<boolean>(false);
-export const drawingPreviewAtom = atom<AnyElement | null>(null);
-export const editingTextIdAtom = atom<string | null>(null);
+export const isDrawingAtom = patom<boolean>(false);
+export const drawingPreviewAtom = patom<AnyElement | null>(null);
+export const editingTextIdAtom = patom<string | null>(null);
 
 // ─── UI State ────────────────────────────────────────────────────────────────
-export const sidebarOpenAtom = atom<boolean>(true);
-export const libraryOpenAtom = atom<boolean>(false);
-export const focusModeAtom = atom<boolean>(false);
-export const presentationModeAtom = atom<boolean>(false);
-export const presentationFrameIndexAtom = atom<number>(0);
-export const showRulersAtom = atom<boolean>(false);
-export const showMinimapAtom = atom<boolean>(false);
-export const showCommentsAtom = atom<boolean>(true);
-export const showHistoryPanelAtom = atom<boolean>(false);
-export const commandPaletteOpenAtom = atom<boolean>(false);
+export const sidebarOpenAtom = patom<boolean>(true);
+export const libraryOpenAtom = patom<boolean>(false);
+export const focusModeAtom = patom<boolean>(false);
+export const presentationModeAtom = patom<boolean>(false);
+export const presentationFrameIndexAtom = patom<number>(0);
+export const showRulersAtom = patom<boolean>(false);
+export const showMinimapAtom = patom<boolean>(false);
+export const showCommentsAtom = patom<boolean>(true);
+export const showHistoryPanelAtom = patom<boolean>(false);
+export const commandPaletteOpenAtom = patom<boolean>(false);
 
 // ─── History ─────────────────────────────────────────────────────────────────
 export interface HistoryState {
@@ -46,73 +55,73 @@ export interface HistoryState {
   description: string;
   timestamp: number;
 }
-export const historyStackAtom = atom<HistoryState[]>([]);
-export const historyIndexAtom = atom<number>(-1);
-export const isSavedAtom = atom<boolean>(true);
+export const historyStackAtom = patom<HistoryState[]>([]);
+export const historyIndexAtom = patom<number>(-1);
+export const isSavedAtom = patom<boolean>(true);
 
 // ─── Library ─────────────────────────────────────────────────────────────────
-export const libraryItemsAtom = atom<LibraryItem[]>([]);
+export const libraryItemsAtom = patom<LibraryItem[]>([]);
 
 // ─── Comments ────────────────────────────────────────────────────────────────
-export const commentsAtom = atom<CanvasComment[]>([]);
+export const commentsAtom = patom<CanvasComment[]>([]);
 
 // ─── Variables ───────────────────────────────────────────────────────────────
-export const variablesAtom = atom<CanvasVariable[]>([]);
+export const variablesAtom = patom<CanvasVariable[]>([]);
 
 // ─── Settings ────────────────────────────────────────────────────────────────
-export const themeAtom = atom<'light' | 'dark'>('dark');
-export const defaultStrokeColorAtom = atom<string>('#e2e8f0');
-export const defaultFillColorAtom = atom<string>('transparent');
-export const defaultStrokeWidthAtom = atom<number>(2);
-export const defaultFontAtom = atom<string>('system-ui');
-export const defaultFontSizeAtom = atom<number>(16);
+export const themeAtom = patom<'light' | 'dark'>('dark');
+export const defaultStrokeColorAtom = patom<string>('#e2e8f0');
+export const defaultFillColorAtom = patom<string>('transparent');
+export const defaultStrokeWidthAtom = patom<number>(2);
+export const defaultFontAtom = patom<string>('system-ui');
+export const defaultFontSizeAtom = patom<number>(16);
 
 // ─── Style Defaults (for new elements) ───────────────────────────────────────
-export const currentStrokeColorAtom = atom<string>('#e2e8f0');
-export const currentFillColorAtom = atom<string>('transparent');
-export const currentStrokeWidthAtom = atom<number>(2);
-export const currentStrokeStyleAtom = atom<'solid' | 'dashed' | 'dotted'>('solid');
-export const currentFillStyleAtom = atom<'none' | 'solid' | 'hachure' | 'cross-hatch' | 'dots' | 'zigzag' | 'zigzag-line'>('none');
-export const currentRoughnessAtom = atom<0 | 1 | 2 | 3>(0);
-export const currentRoundnessAtom = atom<'none' | 'sharp' | 'round' | 'extra-round'>('sharp');
-export const currentOpacityAtom = atom<number>(100);
-export const currentFontSizeAtom = atom<number>(16);
-export const currentFontFamilyAtom = atom<string>('system-ui');
-export const currentTextColorAtom = atom<string>('#e2e8f0');
-export const stickyColorAtom = atom<string>('#fef08a');
+export const currentStrokeColorAtom = patom<string>('#e2e8f0');
+export const currentFillColorAtom = patom<string>('transparent');
+export const currentStrokeWidthAtom = patom<number>(2);
+export const currentStrokeStyleAtom = patom<'solid' | 'dashed' | 'dotted'>('solid');
+export const currentFillStyleAtom = patom<'none' | 'solid' | 'hachure' | 'cross-hatch' | 'dots' | 'zigzag' | 'zigzag-line'>('none');
+export const currentRoughnessAtom = patom<0 | 1 | 2 | 3>(0);
+export const currentRoundnessAtom = patom<'none' | 'sharp' | 'round' | 'extra-round'>('sharp');
+export const currentOpacityAtom = patom<number>(100);
+export const currentFontSizeAtom = patom<number>(16);
+export const currentFontFamilyAtom = patom<string>('system-ui');
+export const currentTextColorAtom = patom<string>('#e2e8f0');
+export const stickyColorAtom = patom<string>('#fef08a');
 
 // ─── Export Modal ─────────────────────────────────────────────────────────────
-export const exportModalOpenAtom = atom<boolean>(false);
-export const addToPageModalOpenAtom = atom<boolean>(false);
+export const exportModalOpenAtom = patom<boolean>(false);
+export const addToPageModalOpenAtom = patom<boolean>(false);
 
 // ─── Search ──────────────────────────────────────────────────────────────────
-export const canvasSearchOpenAtom = atom<boolean>(false);
+export const canvasSearchOpenAtom = patom<boolean>(false);
 
 // ─── Focus Timer ─────────────────────────────────────────────────────────────
-export const focusTimerActiveAtom = atom<boolean>(false);
-export const focusTimerSecondsAtom = atom<number>(25 * 60);
-export const focusTimerRunningAtom = atom<boolean>(false);
+export const focusTimerActiveAtom = patom<boolean>(false);
+export const focusTimerSecondsAtom = patom<number>(25 * 60);
+export const focusTimerRunningAtom = patom<boolean>(false);
 
 // ─── Context Menu ────────────────────────────────────────────────────────────
-export const contextMenuAtom = atom<{ x: number; y: number; elementId: string | null } | null>(null);
+export const contextMenuAtom = patom<{ x: number; y: number; elementId: string | null } | null>(null);
 
 // ─── Mermaid Editor ──────────────────────────────────────────────────────────
-export const mermaidEditorOpenAtom = atom<boolean>(false);
-export const mermaidEditingIdAtom = atom<string | null>(null);
+export const mermaidEditorOpenAtom = patom<boolean>(false);
+export const mermaidEditingIdAtom = patom<string | null>(null);
 
 // ─── LaTeX Editor ────────────────────────────────────────────────────────────
-export const latexEditorOpenAtom = atom<boolean>(false);
-export const latexEditingIdAtom = atom<string | null>(null);
+export const latexEditorOpenAtom = patom<boolean>(false);
+export const latexEditingIdAtom = patom<string | null>(null);
 
 // ─── Table Creation ──────────────────────────────────────────────────────────
-export const tableDialogOpenAtom = atom<boolean>(false);
-export const tableDialogPositionAtom = atom<Point>({ x: 0, y: 0 });
+export const tableDialogOpenAtom = patom<boolean>(false);
+export const tableDialogPositionAtom = patom<Point>({ x: 0, y: 0 });
 
 // ─── AI Panel ────────────────────────────────────────────────────────────────
-export const aiPanelOpenAtom = atom<boolean>(false);
+export const aiPanelOpenAtom = patom<boolean>(false);
 
 // ─── Snap Guides ─────────────────────────────────────────────────────────────
-export const snapGuidesAtom = atom<{ x?: number; y?: number }[]>([]);
+export const snapGuidesAtom = patom<{ x?: number; y?: number }[]>([]);
 
 // ─── Canvas Variables Panel ──────────────────────────────────────────────────
-export const variablesPanelOpenAtom = atom<boolean>(false);
+export const variablesPanelOpenAtom = patom<boolean>(false);
