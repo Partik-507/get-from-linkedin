@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback, useRef } from 'react';
 import { Provider, useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useTheme } from '@/contexts/ThemeContext';
 import './canvas.css';
 
 // State
@@ -48,12 +49,14 @@ export interface VivaCanvasProps {
 const VivaCanvasInner: React.FC<VivaCanvasProps> = ({
   canvasId: propCanvasId,
   canvasName: propName,
-  theme: propTheme = 'dark',
+  theme: propTheme,
   pages = [],
   onCanvasReady,
   onAddToPage,
   onClose,
 }) => {
+  const { resolvedTheme } = useTheme();
+  const effectiveTheme: 'light' | 'dark' = propTheme ?? (resolvedTheme === 'light' ? 'light' : 'dark');
   const [canvasId, setCanvasId] = useAtom(canvasIdAtom);
   const [canvasName, setCanvasName] = useAtom(canvasNameAtom);
   const [elements, setElements] = useAtom(elementsAtom);
@@ -96,7 +99,7 @@ const VivaCanvasInner: React.FC<VivaCanvasProps> = ({
     init();
   }, [propCanvasId]);
 
-  useEffect(() => { setTheme(propTheme); }, [propTheme]);
+  useEffect(() => { setTheme(effectiveTheme); }, [effectiveTheme, setTheme]);
 
   // Auto-save
   useEffect(() => {
@@ -125,7 +128,7 @@ const VivaCanvasInner: React.FC<VivaCanvasProps> = ({
   }, [isSaved, canvasId, elements]);
 
   return (
-    <div className={`vc-root${theme === 'light' ? ' vc-light' : ''}${focusMode ? ' vc-focus-mode' : ''}`}>
+    <div className={`vc-root${focusMode ? ' vc-focus-mode' : ''}`} data-canvas-theme={effectiveTheme}>
       {/* Tab bar */}
       <div className="vc-tabbar">
         <span className="vc-tab-name">✏ {canvasName}</span>

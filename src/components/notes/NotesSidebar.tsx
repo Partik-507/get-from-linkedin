@@ -307,8 +307,8 @@ export const NotesSidebar = ({
               New Page
             </button>
             <button
-              onClick={() => onCreateNote("root")}
-              title="New Canvas (board)"
+              onClick={() => onSetViewMode("canvas")}
+              title="Open Canvas board"
               className="flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-foreground transition-colors">
               <span className="text-sm leading-none">🎨</span>
             </button>
@@ -346,6 +346,7 @@ export const NotesSidebar = ({
         {[
           { id: "editor" as const, icon: FileText, label: "Pages" },
           { id: "graph" as const, icon: Network, label: "Graph" },
+          { id: "canvas" as const, icon: BookTemplate, label: "Canvas" },
           { id: "database" as const, icon: TableIcon, label: "Table" },
         ].map(tab => (
           <button key={tab.id}

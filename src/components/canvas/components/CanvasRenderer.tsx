@@ -48,13 +48,16 @@ export const CanvasRenderer: React.FC = () => {
     isDirtyRef.current = false;
     const ctx = canvas.getContext('2d')!;
     const { x: vpX, y: vpY, zoom, width, height } = viewport;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
+    // Reset to identity, scale by DPR, then clear in CSS-pixel space
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, width, height);
 
-    ctx.save();
-    ctx.setTransform(zoom, 0, 0, zoom, -vpX * zoom, -vpY * zoom);
+    // Apply viewport (zoom + pan), pre-multiplied with DPR
+    ctx.setTransform(zoom * dpr, 0, 0, zoom * dpr, -vpX * zoom * dpr, -vpY * zoom * dpr);
 
     // Grid
     if (gridEnabled) {
@@ -87,8 +90,6 @@ export const CanvasRenderer: React.FC = () => {
       renderElement(ctx, drawingPreview, false, zoom);
     }
 
-    ctx.restore();
-
     animRef.current = requestAnimationFrame(renderFrame);
   }, [viewport, elements, selectedIds, drawingPreview, gridEnabled, gridStep, gridStyle, bgColor, theme, snapGuides]);
 
@@ -97,20 +98,18 @@ export const CanvasRenderer: React.FC = () => {
     return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
   }, [renderFrame]);
 
-  // Resize observer
+  // Resize observer (DPR-aware; render loop bakes DPR into setTransform)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const observer = new ResizeObserver(entries => {
       const entry = entries[0];
       const { width, height } = entry.contentRect;
-      const dpr = Math.min(window.devicePixelRatio, 2);
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
       canvas.style.width = width + 'px';
       canvas.style.height = height + 'px';
-      const ctx = canvas.getContext('2d')!;
-      ctx.scale(dpr, dpr);
       setViewport(vp => ({ ...vp, width, height }));
       isDirtyRef.current = true;
     });
