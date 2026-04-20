@@ -297,7 +297,6 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
               )}
 
               <PWAInstallButton />
-              <DesktopAppButton />
 
               {/* Theme */}
               <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-muted-foreground hover:text-foreground h-8 w-8">
@@ -307,17 +306,6 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
               {/* Notifications */}
               {(user || isGuest) && <NotificationBell />}
               <OfflineIndicator className="ml-1" />
-
-              {/* Switch to Dock button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={switchToDock}
-                className="text-muted-foreground hover:text-primary h-8 w-8"
-                title="Switch to floating dock"
-              >
-                <Minimize2 className="h-3.5 w-3.5" />
-              </Button>
 
               {/* Profile menu */}
               {user ? (
@@ -340,6 +328,12 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate("/dashboard")} className="gap-2 font-body">
                       <LayoutDashboard className="h-4 w-4" /> Dashboard
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={switchToDock} className="gap-2 font-body">
+                      <Minimize2 className="h-4 w-4" /> Switch to Dock
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => alert("Look for the install icon in your URL bar to install the desktop app!")} className="gap-2 font-body">
+                      <Download className="h-4 w-4" /> Download Desktop App
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleSwitchCollege} className="gap-2 font-body">
