@@ -10,10 +10,18 @@ import {
 } from "@/lib/notesLocalFS";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { FileText, Globe, Plus, BookOpen, PanelLeftOpen, Lock, Users, ChevronRight, FolderOpen, Loader2 } from "lucide-react";
+import { FileText, Globe, Plus, BookOpen, PanelLeftOpen, Lock, Users, ChevronRight, FolderOpen, Loader2, Menu, Search, MoreHorizontal } from "lucide-react";
+import { MobilePageHeader, MobileHeaderIconBtn, MobileSearchBar, MobileSegmentControl } from "@/components/MobilePageHeader";
 import { NotesSidebar } from "@/components/notes/NotesSidebar";
 import { NoteEditor } from "@/components/notes/NoteEditor";
 import { CommandPalette } from "@/components/notes/CommandPalette";
@@ -713,38 +721,82 @@ const Notes = () => {
           }}
         >
 
-          {/* Mobile: compact top bar (no navbar visible on mobile) */}
+          {/* Mobile: full-bleed header — hamburger | title | search | three-dot */}
           {!focusMode && (
-            <div className="md:hidden flex items-center h-12 px-3 border-b border-border/40 bg-background/95 backdrop-blur-sm shrink-0 gap-2">
-              <button onClick={() => setMobileDrawerOpen(prev => !prev)}
-                className="p-1.5 -ml-1.5 rounded-lg text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors shrink-0">
-                <PanelLeftOpen className="h-5 w-5" />
-              </button>
-              {/* Workspace switcher */}
-              <div className="flex items-center bg-muted/40 rounded-lg p-0.5 shrink-0">
-                {(["my", "public", "space"] as World[]).map(w => (
-                  <button key={w} onClick={() => setWorld(w)}
-                    className={cn("px-2.5 py-1 text-[11px] font-body font-medium rounded-md transition-all",
-                      world === w ? "bg-background text-foreground shadow-sm" : "text-muted-foreground")}>
-                    {w === "my" ? "Mine" : w === "public" ? "Public" : "Space"}
-                  </button>
-                ))}
+            <MobilePageHeader>
+              {/* Row 1: hamburger | "Notes OS" | search | three-dot */}
+              <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+                <MobileHeaderIconBtn onClick={() => setMobileDrawerOpen(true)} label="Open menu" className="-ml-2">
+                  <Menu className="h-5 w-5" />
+                </MobileHeaderIconBtn>
+
+                <span className="font-heading font-bold text-[22px] leading-none shrink-0">Notes OS</span>
+
+                <MobileSearchBar
+                  value={search}
+                  onChange={setSearch}
+                  placeholder="Search notes…"
+                  className="flex-1 min-w-0"
+                />
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <MobileHeaderIconBtn label="Switch workspace">
+                      <MoreHorizontal className="h-5 w-5" />
+                    </MobileHeaderIconBtn>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-40 font-body">
+                    <DropdownMenuItem onClick={() => setWorld("my")}>
+                      Mine {world === "my" && <span className="ml-auto text-primary">✓</span>}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setWorld("public")}>
+                      Public {world === "public" && <span className="ml-auto text-primary">✓</span>}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setWorld("space")}>
+                      Space {world === "space" && <span className="ml-auto text-primary">✓</span>}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-              {selectedNote && (
-                <div className="flex items-center gap-1 min-w-0 flex-1">
-                  <span className="text-[11px] font-body font-medium truncate text-foreground">
-                    {selectedNote.icon ? `${selectedNote.icon} ` : ""}{selectedNote.title}
-                  </span>
+
+              {/* Row 2: left[New Page] | right[Mine/Public/Space switcher] */}
+              <div className="px-4 pb-3 flex items-center gap-2">
+                <button
+                  onClick={() => handleCreateNote()}
+                  className="h-8 px-3 rounded-lg text-[11px] font-body font-medium inline-flex items-center gap-1.5 shrink-0 bg-primary text-primary-foreground active:scale-[0.97] transition-all"
+                >
+                  <Plus className="h-3 w-3" strokeWidth={2.4} />
+                  New Page
+                </button>
+
+                <div className="flex-1" />
+
+                {/* Mine/Public/Space segment control */}
+                <div className="flex items-center shrink-0 h-8 bg-muted/60 rounded-lg p-0.5 gap-0.5 border border-border/30">
+                  {(["my", "public", "space"] as const).map((w) => (
+                    <button
+                      key={w}
+                      onClick={() => setWorld(w)}
+                      className={cn(
+                        "h-7 px-2.5 rounded-md text-[11px] font-body font-medium transition-all whitespace-nowrap",
+                        world === w
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground/80"
+                      )}
+                    >
+                      {w === "my" ? "Mine" : w === "public" ? "Public" : "Space"}
+                    </button>
+                  ))}
                 </div>
-              )}
-            </div>
+              </div>
+            </MobilePageHeader>
           )}
 
           {/* Desktop: top tab bar — tabs LEFT, workspace switcher FAR RIGHT */}
           {!focusMode && (
-            <div className="hidden md:flex items-center h-10 border-b border-border/40 bg-muted/10 shrink-0 px-1">
+            <div className="hidden md:flex items-center h-10 border-b border-border/30 bg-muted/20 shrink-0 px-2 gap-2">
               {/* Open tabs — flex-1 takes all space first */}
-              <div className="flex items-center flex-1 overflow-x-auto scrollbar-none gap-px">
+              <div className="flex items-center flex-1 overflow-x-auto scrollbar-none gap-0.5">
                 {openTabIds.length > 1 && openTabIds.map(tabId => {
                   const tabNote = displayNotes.find(n => n.id === tabId);
                   if (!tabNote) return null;
@@ -752,14 +804,16 @@ const Notes = () => {
                   return (
                     <div key={tabId}
                       className={cn(
-                        "flex items-center gap-1.5 px-3 h-full text-[11px] font-body cursor-pointer min-w-0 max-w-[160px] group transition-all shrink-0 border-r border-border/30",
-                        isActive ? "bg-background text-foreground shadow-[inset_0_-2px_0_hsl(var(--primary))]" : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                        "flex items-center gap-1.5 px-2.5 h-7 text-[11px] font-body cursor-pointer min-w-0 max-w-[160px] group transition-all shrink-0 rounded-md",
+                        isActive
+                          ? "bg-background text-foreground shadow-sm border border-border/50"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                       )}
                       onClick={() => openNote(tabNote)}>
                       <span className="text-[11px] shrink-0">{tabNote.icon || "📄"}</span>
                       <span className="truncate flex-1">{tabNote.title || "Untitled"}</span>
                       <button onClick={e => { e.stopPropagation(); closeTab(tabId); }}
-                        className="opacity-0 group-hover:opacity-100 shrink-0 hover:text-destructive transition-opacity text-sm leading-none">
+                        className="opacity-0 group-hover:opacity-100 shrink-0 hover:text-destructive transition-all text-sm leading-none ml-0.5 w-3.5 h-3.5 flex items-center justify-center rounded">
                         ×
                       </button>
                     </div>
@@ -768,26 +822,30 @@ const Notes = () => {
               </div>
               {/* Workspace switcher — far RIGHT, always visible */}
               {isReadOnly && (
-                <span className="text-[10px] font-body text-amber-500 font-medium mr-2 flex items-center gap-1">
+                <span className="text-[10px] font-body text-amber-500 font-semibold flex items-center gap-1 shrink-0">
                   <Lock className="h-3 w-3" /> Read-only
                 </span>
               )}
-              <div className="flex items-center shrink-0 mr-1 rounded-lg overflow-hidden border border-border/40 bg-muted/30">
-                <button onClick={() => setWorld("my")}
-                  className={cn("px-3 py-1 text-[11px] font-body font-medium transition-all",
-                    world === "my" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/60")}>
-                  My Workspace
-                </button>
-                <button onClick={() => setWorld("public")}
-                  className={cn("px-3 py-1 text-[11px] font-body font-medium transition-all flex items-center gap-1",
-                    world === "public" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/60")}>
-                  <Lock className="h-3 w-3" /> Public
-                </button>
-                <button onClick={() => setWorld("space")}
-                  className={cn("px-3 py-1 text-[11px] font-body font-medium transition-all flex items-center gap-1",
-                    world === "space" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/60")}>
-                  <Globe className="h-3 w-3" /> Space
-                </button>
+              <div className="flex items-center shrink-0 bg-muted/50 rounded-lg p-0.5 gap-0.5 border border-border/30">
+                {([
+                  { id: "my" as const, label: "My Workspace", icon: null },
+                  { id: "public" as const, label: "Public", icon: Users },
+                  { id: "space" as const, label: "Space", icon: Globe },
+                ] as const).map(w => {
+                  const Icon = w.icon;
+                  return (
+                    <button key={w.id} onClick={() => setWorld(w.id)}
+                      className={cn(
+                        "px-2.5 py-1 text-[11px] font-body font-medium transition-all rounded-md flex items-center gap-1 whitespace-nowrap",
+                        world === w.id
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}>
+                      {Icon && <Icon className="h-3 w-3" />}
+                      {w.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -800,7 +858,7 @@ const Notes = () => {
               {world === "space" ? (
                 <motion.div key="space" className="flex-1 overflow-y-auto pb-16 md:pb-4"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-                  <PublicLibrary />
+                  <PublicLibrary externalSearch={search} />
                 </motion.div>
 
               /* GRAPH VIEW */

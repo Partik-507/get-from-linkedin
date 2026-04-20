@@ -29,7 +29,9 @@ import {
   Music, Headphones, ArrowRight, GripVertical,
   Inbox, FolderKanban, CalendarRange, Circle,
   Heart, Target, TrendingUp, AlertTriangle, Menu, PanelLeftClose,
+  User, Camera,
 } from "lucide-react";
+import { MobilePageHeader, MobileHeaderIconBtn, MobileSearchBar, MobileTabStrip } from "@/components/MobilePageHeader";
 import {
   format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks,
   startOfMonth, endOfMonth, addMonths, subMonths,
@@ -217,6 +219,7 @@ const StudyMode = () => {
   const [isResizing, setIsResizing] = useState(false);
   const [activeSection, setActiveSection] = useState<"calendar" | "tasks" | "habits" | "focus" | "analytics">("calendar");
   const [searchQuery, setSearchQuery] = useState("");
+  const prevTabIndex = useRef(0);
 
   // Calendar state
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -583,8 +586,8 @@ const StudyMode = () => {
     { id: "calendar" as const, icon: CalendarDays, label: "Calendar", shortcut: "1" },
     { id: "tasks" as const, icon: CheckSquare, label: "Tasks", shortcut: "2" },
     { id: "habits" as const, icon: Flame, label: "Habits", shortcut: "3" },
-    { id: "focus" as const, icon: Zap, label: "Focus", shortcut: "4" },
-    { id: "analytics" as const, icon: BarChart3, label: "Analytics", shortcut: "5" },
+    { id: "analytics" as const, icon: BarChart3, label: "Analytics", shortcut: "4" },
+    { id: "focus" as const, icon: Zap, label: "Focus", shortcut: "5" },
   ];
 
   // Analytics data
@@ -652,70 +655,109 @@ const StudyMode = () => {
 
   // ============ RENDER: TASKS ============
   const renderTasks = () => {
-    const taskViews = [
-      { id: "today" as const, label: "Today", icon: Target },
-      { id: "inbox" as const, label: "Inbox", icon: Inbox },
-      { id: "projects" as const, label: "Projects", icon: FolderKanban },
-      { id: "upcoming" as const, label: "Upcoming", icon: CalendarRange },
-    ];
-    let displayTasks: Task[] = [];
-    switch (taskView) {
-      case "today": displayTasks = [...overdueTasks, ...todayTasks]; break;
-      case "inbox": displayTasks = inboxTasks; break;
-      case "upcoming": displayTasks = tasks.filter(t => t.dueDate && t.dueDate > todayStr && t.status !== "done").sort((a, b) => (a.dueDate || "").localeCompare(b.dueDate || "")); break;
-      default: displayTasks = tasks.filter(t => t.status !== "done");
+    let displayTasks = tasks.filter(t => t.status !== "done");
+    if (searchQuery.trim()) {
+      displayTasks = displayTasks.filter(t =>
+        t.title.toLowerCase().includes(searchQuery.toLowerCase())
+      );
     }
 
     return (
-      <div className="flex-1 flex flex-col md:flex-row view-fade-enter">
-        <div className="w-full md:w-48 border-b md:border-b-0 md:border-r border-border/50 p-2 md:p-3 flex md:flex-col overflow-x-auto scrollbar-none gap-2 shrink-0">
-          {taskViews.map(v => (
-            <button key={v.id} onClick={() => setTaskView(v.id)} className={cn("md:w-full shrink-0 flex items-center gap-2 px-3 py-1.5 md:py-2 rounded-full md:rounded-lg text-sm font-body transition-colors", taskView === v.id ? "bg-primary/10 text-primary font-medium shadow-sm" : "text-muted-foreground hover:bg-secondary/50 border border-border/50 md:border-none")}>
-              <v.icon className="h-4 w-4 shrink-0" /><span>{v.label}</span>
-              {v.id === "today" && todayTasks.length > 0 && <Badge variant="secondary" className="ml-0.5 md:ml-auto text-[10px] h-5 px-1.5">{todayTasks.length}</Badge>}
-              {v.id === "inbox" && inboxTasks.length > 0 && <Badge variant="secondary" className="ml-0.5 md:ml-auto text-[10px] h-5 px-1.5">{inboxTasks.length}</Badge>}
-            </button>
-          ))}
+      <div className="flex-1 overflow-y-auto p-5 md:p-6 view-fade-enter">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-lg font-heading font-bold">Tasks</h2>
+            <p className="text-xs text-muted-foreground font-body mt-0.5">{todayTasks.length} due today{overdueTasks.length > 0 ? ` · ${overdueTasks.length} overdue` : ""}</p>
+          </div>
+          <Button size="sm" className="h-8 gap-1.5 font-body text-xs rounded-lg shadow-sm" onClick={() => setShowQuickCapture(true)}>
+            <Plus className="h-3.5 w-3.5" /> Add Task
+          </Button>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-xs text-muted-foreground font-body">{displayTasks.length} tasks{taskView === "today" ? ` · est. ${Math.round(displayTasks.reduce((s, t) => s + (t.estimatedMinutes || 30), 0) / 60)}h` : ""}</p>
+
+        {/* Inline add task card — shown when showQuickCapture */}
+        <AnimatePresence>
+          {showQuickCapture && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="mb-4 p-4 rounded-2xl bg-card border border-border/50 shadow-sm"
+            >
+              <p className="text-xs font-body font-semibold text-muted-foreground mb-2">New Task</p>
+              <Input
+                placeholder='e.g. "finish report tomorrow 3pm high"'
+                value={quickCaptureInput}
+                onChange={e => setQuickCaptureInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && quickCaptureInput.trim()) {
+                    handleCreateTask(parseNaturalLanguageTask(quickCaptureInput));
+                  }
+                  if (e.key === "Escape") setShowQuickCapture(false);
+                }}
+                className="h-10 text-sm font-body bg-muted/30 border-border/40 rounded-xl mb-3"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <Button size="sm" className="flex-1 h-9 font-body text-xs rounded-xl"
+                  onClick={() => { if (quickCaptureInput.trim()) handleCreateTask(parseNaturalLanguageTask(quickCaptureInput)); }}>
+                  Add Task
+                </Button>
+                <Button size="sm" variant="outline" className="h-9 px-3 font-body text-xs rounded-xl"
+                  onClick={() => { setShowQuickCapture(false); setQuickCaptureInput(""); }}>
+                  Cancel
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {displayTasks.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="h-16 w-16 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-4">
+              <CheckSquare className="h-7 w-7 text-muted-foreground/40" />
+            </div>
+            <p className="text-sm font-body font-medium mb-1">All clear</p>
+            <p className="text-xs text-muted-foreground font-body">No tasks yet. Tap Add Task to get started.</p>
           </div>
-          <div className="mb-4 flex gap-2">
-            <Input placeholder='Add a task... press T anywhere' value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && newTaskTitle.trim()) { handleCreateTask(parseNaturalLanguageTask(newTaskTitle)); } }}
-              className="h-9 text-sm font-body bg-secondary/30 border-border/30" />
-            <Button size="sm" className="h-9 shrink-0" onClick={() => { if (newTaskTitle.trim()) handleCreateTask(parseNaturalLanguageTask(newTaskTitle)); }}><Plus className="h-3.5 w-3.5" /></Button>
-          </div>
-          {displayTasks.length === 0 ? (
-            <div className="text-center py-12"><CheckSquare className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" /><p className="text-sm text-muted-foreground font-body">{taskView === "inbox" ? "Your inbox is clear. Press T to add a task." : "No tasks here."}</p></div>
-          ) : (
-            <div className="space-y-1">
-              {taskView === "today" && overdueTasks.length > 0 && <p className="text-xs font-body font-medium text-destructive mb-2">Overdue ({overdueTasks.length})</p>}
-              {displayTasks.map(task => (
-                <motion.div key={task.id} layout initial={{ opacity: 0, y: 4 }} animate={{ opacity: task.status === "done" ? 0.5 : 1, y: 0 }}
-                  className={cn("flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/30 transition-all group cursor-pointer", task.status === "done" && "line-through opacity-50")}
+        ) : (
+          <div className="space-y-2">
+            {displayTasks.map(task => {
+              const isOverdue = task.dueDate && task.dueDate < todayStr && task.status !== "done";
+              return (
+                <motion.div key={task.id} layout initial={{ opacity: 0, y: 4 }} animate={{ opacity: task.status === "done" ? 0.4 : 1, y: 0 }}
+                  className={cn(
+                    "flex items-center gap-3 px-3.5 py-3 rounded-xl bg-card border transition-all group cursor-pointer",
+                    isOverdue ? "border-destructive/30 bg-destructive/[0.02]" : "border-border/50 hover:border-primary/20 hover:shadow-sm"
+                  )}
                   onClick={() => setSelectedTask(task)}>
-                  <button className={cn("h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all", task.status === "done" ? "bg-primary border-primary" : "border-muted-foreground/40 hover:border-primary")}
+                  <button
+                    className={cn("h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                      task.status === "done" ? "bg-primary border-primary" : "border-muted-foreground/30 hover:border-primary")}
                     onClick={(e) => { e.stopPropagation(); handleToggleTask(task.id); }}>
-                    {task.status === "done" && <CheckSquare className="h-3 w-3 text-primary-foreground" />}
+                    {task.status === "done" && <div className="h-2.5 w-2.5 rounded-full bg-primary-foreground" />}
                   </button>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-body font-medium truncate">{task.title}</p>
+                    <p className={cn("text-sm font-body font-medium truncate", task.status === "done" && "line-through text-muted-foreground")}>{task.title}</p>
                     <div className="flex items-center gap-2 mt-0.5">
+                      {task.dueDate && <span className={cn("text-[10px] font-body", isOverdue ? "text-destructive font-medium" : "text-muted-foreground")}>{isOverdue ? "Overdue · " : ""}{task.dueDate}</span>}
                       {task.dueTime && <span className="text-[10px] text-muted-foreground font-body">{task.dueTime}</span>}
-                      {task.project && <Badge variant="outline" className="text-[9px] py-0 h-4">{task.project}</Badge>}
                     </div>
                   </div>
-                  <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: PRIORITY_COLORS[task.priority] }} />
-                  <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}>
+                  {task.priority !== "none" && (
+                    <span className="text-[10px] font-body font-semibold px-1.5 py-0.5 rounded-md shrink-0 capitalize"
+                      style={{ backgroundColor: `${PRIORITY_COLORS[task.priority]}18`, color: PRIORITY_COLORS[task.priority] }}>
+                      {task.priority}
+                    </span>
+                  )}
+                  <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 rounded-lg"
+                    onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}>
                     <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
                   </Button>
                 </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   };
@@ -724,33 +766,73 @@ const StudyMode = () => {
   const renderHabits = () => {
     const todayLogs = habitLogs[todayStr] || {};
     const last7 = Array.from({ length: 7 }, (_, i) => format(subDays(new Date(), 6 - i), "yyyy-MM-dd"));
+    const dayLabels = last7.map(d => format(new Date(d + "T00:00:00"), "EEE")[0]);
+    const completedToday = habits.filter(h => todayLogs[h.id]).length;
+
+    let displayHabits = habits;
+    if (searchQuery.trim()) {
+      displayHabits = habits.filter(h => h.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+
     return (
-      <div className="flex-1 overflow-y-auto p-6 view-fade-enter">
+      <div className="flex-1 overflow-y-auto p-5 md:p-6 view-fade-enter">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-heading font-bold">Habits</h2>
-          <Button size="sm" className="h-8 gap-1 font-body text-xs" onClick={() => setShowNewHabit(true)}><Plus className="h-3.5 w-3.5" /> New Habit</Button>
+          <div>
+            <h2 className="text-lg font-heading font-bold">Habits</h2>
+            <p className="text-xs text-muted-foreground font-body mt-0.5">{completedToday}/{habits.length} done today</p>
+          </div>
+          <Button size="sm" className="h-8 gap-1.5 font-body text-xs rounded-lg shadow-sm" onClick={() => setShowNewHabit(true)}>
+            <Plus className="h-3.5 w-3.5" /> New Habit
+          </Button>
         </div>
-        {habits.length === 0 ? (
-          <div className="text-center py-16"><Heart className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" /><p className="text-sm text-muted-foreground font-body">No habits yet. Build your first one.</p>
-            <Button variant="outline" size="sm" className="mt-3 font-body text-xs" onClick={() => setShowNewHabit(true)}><Plus className="h-3 w-3 mr-1" /> Create Habit</Button></div>
+        {displayHabits.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="h-16 w-16 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-4">
+              <Heart className="h-7 w-7 text-muted-foreground/40" />
+            </div>
+            <p className="text-sm font-body font-medium mb-1">{searchQuery.trim() ? "No results" : "No habits yet"}</p>
+            <p className="text-xs text-muted-foreground font-body">{searchQuery.trim() ? "Try a different search." : "Build your first streak."}</p>
+            {!searchQuery.trim() && <Button variant="outline" size="sm" className="mt-4 font-body text-xs rounded-lg" onClick={() => setShowNewHabit(true)}><Plus className="h-3 w-3 mr-1" /> Create Habit</Button>}
+          </div>
         ) : (
-          <div className="space-y-3">
-            {habits.map(habit => (
-              <div key={habit.id} className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border/50 hover:border-primary/20 transition-all">
-                <div className="h-10 w-10 rounded-full flex items-center justify-center text-lg shrink-0" style={{ backgroundColor: `${habit.color}20` }}>{habit.emoji}</div>
+          <div className="space-y-2.5">
+            {/* Day labels header */}
+            <div className="flex items-center gap-4 px-4 mb-1">
+              <div className="flex-1" />
+              <div className="flex items-center gap-1.5">
+                {dayLabels.map((d, i) => (
+                  <div key={i} className={cn("text-center text-[9px] font-body font-medium",
+                    i === 6 ? "w-7 text-primary" : "w-5 text-muted-foreground/50")}>{d}</div>
+                ))}
+              </div>
+            </div>
+            {displayHabits.map(habit => (
+              <div key={habit.id} className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-card border border-border/50 hover:border-primary/20 hover:shadow-sm transition-all">
+                <div className="h-9 w-9 rounded-xl flex items-center justify-center text-base shrink-0" style={{ backgroundColor: `${habit.color}18` }}>{habit.emoji}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-body font-semibold">{habit.name}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">{(habit.streak || 0) >= 7 && <span className="text-xs">🔥</span>}<span className="text-xs text-muted-foreground font-body">{habit.streak || 0} day streak</span></div>
+                  <p className="text-sm font-body font-semibold truncate">{habit.name}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    {(habit.streak || 0) >= 3 && <span className="text-[10px]">🔥</span>}
+                    <span className="text-[11px] text-muted-foreground font-body">{habit.streak || 0}d streak</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 shrink-0">
                   {last7.map((dateStr, i) => {
-                    const logs = habitLogs[dateStr] || {};
-                    const done = logs[habit.id];
+                    const done = (habitLogs[dateStr] || {})[habit.id];
                     const isLast = i === 6;
                     return (
                       <button key={dateStr} onClick={() => isLast ? handleToggleHabit(habit.id) : undefined}
-                        className={cn("rounded-full border-2 flex items-center justify-center transition-all", isLast ? "h-7 w-7 cursor-pointer" : "h-5 w-5", done ? "bg-primary border-primary" : "border-muted-foreground/30 hover:border-primary/50")}>
-                        {done && <CheckSquare className={cn("text-primary-foreground", isLast ? "h-3.5 w-3.5" : "h-2.5 w-2.5")} />}
+                        className={cn(
+                          "rounded-full flex items-center justify-center transition-all",
+                          isLast ? "h-7 w-7 cursor-pointer border-2" : "h-5 w-5 border",
+                          done
+                            ? "border-primary bg-primary"
+                            : isLast
+                              ? "border-muted-foreground/30 hover:border-primary/60 hover:bg-primary/5"
+                              : "border-muted-foreground/20 bg-muted/30"
+                        )}>
+                        {done && isLast && <div className="h-2.5 w-2.5 rounded-full bg-primary-foreground" />}
+                        {done && !isLast && <div className="h-2 w-2 rounded-full bg-primary-foreground" />}
                       </button>
                     );
                   })}
@@ -764,141 +846,128 @@ const StudyMode = () => {
   };
 
   // ============ RENDER: FOCUS ============
-  const renderFocusSection = () => (
-    <div className="flex-1 overflow-y-auto p-5 view-fade-enter">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-heading font-bold">Focus Engine</h2>
-          <p className="text-xs text-muted-foreground font-body mt-0.5">Deep work sessions with soundscapes, wallpapers &amp; discipline tools.</p>
-        </div>
-        {focusSessions.length > 0 && (
-          <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-primary/5 border border-primary/10">
-            <Zap className="h-3 w-3 text-primary" />
-            <span className="text-xs font-body font-medium text-primary tabular-nums">{focusSessions.filter(s => !s.abandoned).length} sessions</span>
+  const renderFocusSection = () => {
+    const completedSessions = focusSessions.filter(s => !s.abandoned).length;
+    return (
+      <div className="flex-1 overflow-y-auto p-5 md:p-6 view-fade-enter">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-heading font-bold">Focus Engine</h2>
+            <p className="text-xs text-muted-foreground font-body mt-0.5">Deep work · soundscapes · discipline</p>
           </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* ── Left column: Session launcher ── */}
-        <div className="lg:col-span-3 space-y-4">
-
-          {/* Launcher card */}
-          <div className="vv-card p-5 bg-primary/[0.02]">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Zap className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-heading font-semibold">Start a Session</p>
-                <p className="text-[11px] text-muted-foreground font-body">Choose duration and mode</p>
-              </div>
-            </div>
-
-            {/* Duration presets */}
-            <p className="text-xs font-body font-medium text-muted-foreground mb-2">Duration</p>
-            <div className="flex gap-2 mb-3">
-              {[25, 50, 90].map(d => (
-                <button key={d} onClick={() => setFocusDuration(d)}
-                  className={cn("flex-1 h-9 rounded-xl text-xs font-body font-medium transition-all border",
-                    focusDuration === d
-                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                      : "bg-card border-border/50 text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                  )}>
-                  {d}m
-                </button>
-              ))}
-              <input type="number" min={5} max={240} value={focusDuration}
-                onChange={e => setFocusDuration(parseInt(e.target.value) || 25)}
-                className="w-16 h-9 text-xs font-body text-center bg-card border border-border/50 rounded-xl outline-none focus:border-primary/50 text-foreground"
-              />
-            </div>
-
-            {/* Mode selector */}
-            <p className="text-xs font-body font-medium text-muted-foreground mb-2">Mode</p>
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              {[{ id: "normal" as const, label: "Normal", desc: "Pause & exit freely", icon: "🌿" }, { id: "strict" as const, label: "Strict", desc: "Locked — exit penalty", icon: "🔒" }].map(m => (
-                <button key={m.id} onClick={() => setFocusMode(m.id)}
-                  className={cn("p-3 rounded-xl border-2 text-left transition-all",
-                    focusMode === m.id ? "border-primary bg-primary/5" : "border-border/40 hover:border-primary/30"
-                  )}>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-sm">{m.icon}</span>
-                    <p className="text-xs font-body font-semibold">{m.label}</p>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground font-body">{m.desc}</p>
-                </button>
-              ))}
-            </div>
-
-            <Button className="w-full font-body gap-2 btn-premium" size="lg" onClick={() => setShowQuickFocus(true)}>
-              <Zap className="h-4 w-4" /> Start Focus Session
-            </Button>
-          </div>
-
-          {/* Recent sessions */}
-          {focusSessions.length > 0 && (
-            <div className="vv-card p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <BarChart3 className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-heading font-semibold">Recent Sessions</h3>
-              </div>
-              <div className="space-y-1.5">
-                {focusSessions.slice(-6).reverse().map(s => (
-                  <div key={s.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors">
-                    <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center shrink-0", s.abandoned ? "bg-destructive/10" : "bg-[hsl(var(--success))]/10")}>
-                      {s.abandoned ? <X className="h-3.5 w-3.5 text-destructive" /> : <Zap className="h-3.5 w-3.5 text-[hsl(var(--success))]" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-body font-medium">{s.duration} min · <span className="text-muted-foreground capitalize">{s.mode}</span></p>
-                      <p className="text-[10px] text-muted-foreground font-body">{s.date}</p>
-                    </div>
-                    {s.mood && <span className="text-sm shrink-0">{s.mood === 1 ? "😤" : s.mood === 2 ? "😊" : "🌊"}</span>}
-                  </div>
-                ))}
-              </div>
+          {completedSessions > 0 && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/[0.08] border border-primary/15">
+              <Zap className="h-3 w-3 text-primary" />
+              <span className="text-xs font-body font-semibold text-primary tabular-nums">{completedSessions} sessions</span>
             </div>
           )}
         </div>
 
-        {/* ── Right column: Tools ── */}
-        <div className="lg:col-span-2 space-y-4">
+        {/* Launcher card */}
+        <div className="vv-card p-5 mb-4">
+          <div className="grid grid-cols-2 gap-2.5 mb-5">
+            {[
+              { id: "normal" as const, label: "Normal", desc: "Pause & exit freely", icon: "🌿" },
+              { id: "strict" as const, label: "Strict", desc: "Locked — exit penalty", icon: "🔒" },
+            ].map(m => (
+              <button key={m.id} onClick={() => setFocusMode(m.id)}
+                className={cn("p-4 rounded-xl border-2 text-left transition-all",
+                  focusMode === m.id
+                    ? "border-primary bg-primary/5 shadow-sm shadow-primary/10"
+                    : "border-border/50 hover:border-primary/25 bg-muted/20"
+                )}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-lg">{m.icon}</span>
+                  <p className="text-sm font-body font-semibold">{m.label}</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground font-body leading-relaxed">{m.desc}</p>
+              </button>
+            ))}
+          </div>
 
-          {/* Today's stats */}
+          <p className="text-xs font-body font-semibold text-muted-foreground mb-2.5 uppercase tracking-wide">Duration</p>
+          <div className="flex gap-2 mb-5">
+            {[25, 50, 90].map(d => (
+              <button key={d} onClick={() => setFocusDuration(d)}
+                className={cn("flex-1 h-9 rounded-xl text-xs font-body font-semibold transition-all border",
+                  focusDuration === d
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-transparent border-border/50 text-muted-foreground hover:border-primary/30 hover:text-foreground hover:bg-muted/30"
+                )}>
+                {d}m
+              </button>
+            ))}
+            <input type="number" min={5} max={240} value={focusDuration}
+              onChange={e => setFocusDuration(parseInt(e.target.value) || 25)}
+              className="w-16 h-9 text-xs font-body font-semibold text-center bg-transparent border border-border/50 rounded-xl outline-none focus:border-primary/50 text-foreground"
+            />
+          </div>
+          <Button className="w-full font-body gap-2 btn-premium shadow-md shadow-primary/20" size="lg" onClick={() => setShowQuickFocus(true)}>
+            <Zap className="h-4 w-4" /> Start Focus Session
+          </Button>
+        </div>
+
+        {/* Recent sessions */}
+        {focusSessions.length > 0 && (
+          <div className="vv-card p-4 mb-4">
+            <div className="flex items-center gap-2 mb-3">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-heading font-semibold">Recent Sessions</h3>
+            </div>
+            <div className="space-y-1.5">
+              {focusSessions.slice(-6).reverse().map(s => (
+                <div key={s.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors">
+                  <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center shrink-0", s.abandoned ? "bg-destructive/10" : "bg-emerald-500/10")}>
+                    {s.abandoned ? <X className="h-3.5 w-3.5 text-destructive" /> : <Zap className="h-3.5 w-3.5 text-emerald-500" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-body font-medium">{s.duration} min · <span className="text-muted-foreground capitalize">{s.mode}</span></p>
+                    <p className="text-[10px] text-muted-foreground font-body">{s.date}</p>
+                  </div>
+                  {s.mood && <span className="text-sm shrink-0">{s.mood === 1 ? "😤" : s.mood === 2 ? "😊" : "🌊"}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tools */}
+        <div className="space-y-3">
           <div className="vv-card p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Target className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-heading font-semibold">Today</h3>
+              <Target className="h-3.5 w-3.5 text-primary" />
+              <h3 className="text-sm font-heading font-semibold">Today's Stats</h3>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5">
               {[
-                { label: "Focus time", value: `${Math.floor(todayFocusMinutes / 60)}h ${todayFocusMinutes % 60}m`, icon: Clock },
-                { label: "Day streak", value: `${currentStreak}d`, icon: Flame },
-                { label: "Tasks done", value: `${tasks.filter(t => t.dueDate === todayStr && t.status === "done").length}`, icon: CheckSquare },
-                { label: "Total focus", value: `${focusSessions.filter(s => !s.abandoned).length} sessions`, icon: BarChart3 },
+                { label: "Focus time", value: `${Math.floor(todayFocusMinutes / 60)}h ${todayFocusMinutes % 60}m`, icon: Clock, accent: false },
+                { label: "Day streak", value: `${currentStreak}d`, icon: Flame, accent: currentStreak > 0 },
+                { label: "Tasks done", value: `${tasks.filter(t => t.dueDate === todayStr && t.status === "done").length}`, icon: CheckSquare, accent: false },
+                { label: "Sessions", value: `${focusSessions.filter(s => !s.abandoned).length}`, icon: BarChart3, accent: false },
               ].map(stat => (
-                <div key={stat.label} className="bg-secondary/30 rounded-xl p-3">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <stat.icon className="h-3 w-3 text-primary" />
-                    <p className="text-[10px] text-muted-foreground font-body">{stat.label}</p>
+                <div key={stat.label} className={cn("rounded-xl p-3 border", stat.accent ? "bg-orange-500/5 border-orange-500/15" : "bg-muted/40 border-transparent")}>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <stat.icon className={cn("h-3 w-3", stat.accent ? "text-orange-500" : "text-primary")} />
+                    <p className="text-[10px] text-muted-foreground font-body uppercase tracking-wide">{stat.label}</p>
                   </div>
-                  <p className="text-sm font-heading font-bold tabular-nums">{stat.value}</p>
+                  <p className="text-base font-heading font-bold tabular-nums">{stat.value}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Soundscape picker */}
           <div className="vv-card p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Volume2 className="h-4 w-4 text-primary" />
+              <Volume2 className="h-3.5 w-3.5 text-primary" />
               <h3 className="text-sm font-heading font-semibold">Soundscape</h3>
             </div>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-2 gap-1">
               {SOUNDSCAPES.map(s => (
                 <button key={s.id} onClick={() => setSoundscape(s.id)}
-                  className={cn("flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-body transition-all",
-                    soundscape === s.id ? "bg-primary/10 text-primary" : "hover:bg-secondary/50 text-muted-foreground hover:text-foreground"
+                  className={cn("flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-body font-medium transition-all",
+                    soundscape === s.id
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                   )}>
                   <s.icon className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">{s.name}</span>
@@ -907,35 +976,45 @@ const StudyMode = () => {
             </div>
           </div>
 
-          {/* Wallpaper picker */}
           <div className="vv-card p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Image className="h-4 w-4 text-primary" />
+              <Image className="h-3.5 w-3.5 text-primary" />
               <h3 className="text-sm font-heading font-semibold">Wallpaper</h3>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {WALLPAPER_PRESETS.map(wp => (
                 <button key={wp.id} onClick={() => setWallpaper(wp.id)}
-                  className={cn("h-12 rounded-xl transition-all", wallpaper === wp.id ? "ring-2 ring-primary ring-offset-2 ring-offset-card" : "opacity-70 hover:opacity-100")}
+                  className={cn("h-14 rounded-xl transition-all relative overflow-hidden group",
+                    wallpaper === wp.id
+                      ? "ring-2 ring-primary ring-offset-2 ring-offset-card scale-[0.97]"
+                      : "opacity-60 hover:opacity-90 hover:scale-[0.98]"
+                  )}
                   style={{ background: wp.gradient }}
-                  title={wp.name}
-                />
+                  title={wp.name}>
+                  {wallpaper === wp.id && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="h-4 w-4 rounded-full bg-white/90 flex items-center justify-center">
+                        <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                      </div>
+                    </div>
+                  )}
+                </button>
               ))}
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // ============ RENDER: ANALYTICS ============
   const renderAnalytics = () => {
     const completionRate = tasks.length > 0 ? Math.round((tasks.filter(t => t.status === "done").length / tasks.length) * 100) : 0;
     return (
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 view-fade-enter">
+      <div className="flex-1 overflow-y-auto p-5 md:p-6 space-y-4 view-fade-enter">
         {/* Focus Heatmap */}
-        <div className="rounded-2xl border border-border/50 bg-card p-5">
-          <h3 className="text-base font-heading font-bold mb-4 flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /> Focus Heatmap</h3>
+        <div className="vv-card p-5">
+          <h3 className="text-sm font-heading font-bold mb-4 flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /> Focus Heatmap</h3>
           <div className="overflow-x-auto">
             <div className="flex gap-[2px]">
               {(() => {
@@ -957,8 +1036,8 @@ const StudyMode = () => {
         </div>
 
         {/* Daily Patterns */}
-        <div className="rounded-2xl border border-border/50 bg-card p-5">
-          <h3 className="text-base font-heading font-bold mb-4 flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Daily Focus Patterns</h3>
+        <div className="vv-card p-5">
+          <h3 className="text-sm font-heading font-bold mb-4 flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Daily Focus Patterns</h3>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dailyPatterns}>
@@ -974,8 +1053,8 @@ const StudyMode = () => {
         </div>
 
         {/* Task Completion Rate */}
-        <div className="rounded-2xl border border-border/50 bg-card p-5">
-          <h3 className="text-base font-heading font-bold mb-4 flex items-center gap-2"><Target className="h-4 w-4 text-primary" /> Task Completion Rate</h3>
+        <div className="vv-card p-5">
+          <h3 className="text-sm font-heading font-bold mb-4 flex items-center gap-2"><Target className="h-4 w-4 text-primary" /> Task Completion Rate</h3>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={taskCompletionData}>
@@ -993,15 +1072,15 @@ const StudyMode = () => {
             <span className="text-xs text-muted-foreground font-body">overall completion rate</span>
           </div>
           {completionRate < 60 && (
-            <div className="mt-3 p-3 rounded-xl bg-[hsl(var(--warning))]/10 border border-[hsl(var(--warning))]/20">
-              <p className="text-xs text-[hsl(var(--warning))] font-body flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" />Your completion rate is low. Consider scheduling fewer tasks per day.</p>
+            <div className="mt-3 p-3 rounded-xl bg-amber-500/[0.08] border border-amber-500/20">
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-body flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" />Your completion rate is low. Consider scheduling fewer tasks per day.</p>
             </div>
           )}
         </div>
 
         {/* Habit Consistency */}
-        <div className="rounded-2xl border border-border/50 bg-card p-5">
-          <h3 className="text-base font-heading font-bold mb-4 flex items-center gap-2"><Flame className="h-4 w-4 text-primary" /> Habit Consistency</h3>
+        <div className="vv-card p-5">
+          <h3 className="text-sm font-heading font-bold mb-4 flex items-center gap-2"><Flame className="h-4 w-4 text-primary" /> Habit Consistency</h3>
           {habits.length === 0 ? <p className="text-sm text-muted-foreground font-body">No habits to track yet.</p> : (
             <div className="overflow-x-auto">
               <table className="w-full"><thead><tr>
@@ -1009,8 +1088,18 @@ const StudyMode = () => {
                 {Array.from({ length: 8 }, (_, i) => <th key={i} className="text-center text-[9px] font-body text-muted-foreground pb-2 px-1">{format(subWeeks(new Date(), 7 - i), "MMM d")}</th>)}
               </tr></thead><tbody>
                 {habits.map(habit => (
-                  <tr key={habit.id}><td className="text-sm font-body py-1.5 pr-4">{habit.emoji} {habit.name}</td>
-                    {Array.from({ length: 8 }, (_, i) => <td key={i} className="text-center py-1.5 px-1"><div className="h-6 w-6 mx-auto rounded-md" style={{ backgroundColor: `hsl(263, 70%, 58%, ${Math.random() * 0.8 + 0.1})` }} /></td>)}
+                  <tr key={habit.id}><td className="text-sm font-body py-1.5 pr-4 whitespace-nowrap">{habit.emoji} {habit.name}</td>
+                    {Array.from({ length: 8 }, (_, i) => {
+                      const weekDate = format(subWeeks(new Date(), 7 - i), "yyyy-MM-dd");
+                      const done = (habitLogs[weekDate] || {})[habit.id];
+                      return (
+                        <td key={i} className="text-center py-1.5 px-1">
+                          <div className={cn("h-6 w-6 mx-auto rounded-md transition-colors",
+                            done ? "bg-primary/[0.08]0" : "bg-muted/50"
+                          )} />
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody></table>
@@ -1019,8 +1108,8 @@ const StudyMode = () => {
         </div>
 
         {/* Session Quality */}
-        <div className="rounded-2xl border border-border/50 bg-card p-5">
-          <h3 className="text-base font-heading font-bold mb-4 flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Session Quality Trends</h3>
+        <div className="vv-card p-5">
+          <h3 className="text-sm font-heading font-bold mb-4 flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Session Quality Trends</h3>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={Array.from({ length: 30 }, (_, i) => ({ date: format(subDays(new Date(), 29 - i), "MMM d"), focus: Math.round(Math.random() * 120 + 30), mood: Math.round(Math.random() * 2 + 1) }))}>
@@ -1137,8 +1226,13 @@ const StudyMode = () => {
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-sidebar overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 pt-3 pb-2 shrink-0">
-        <span className="text-[12px] font-body font-semibold text-muted-foreground uppercase tracking-widest">Study OS</span>
+      <div className="flex items-center justify-between px-4 pt-4 pb-3 shrink-0 border-b border-border/20">
+        <div className="flex items-center gap-2.5">
+          <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shrink-0">
+            <Zap className="h-3.5 w-3.5 text-primary-foreground" />
+          </div>
+          <span className="text-sm font-heading font-bold">Study OS</span>
+        </div>
         <button onClick={() => setSidebarCollapsed(true)}
           className="hidden md:flex p-1.5 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-foreground transition-colors"
           title="Collapse sidebar">
@@ -1147,14 +1241,18 @@ const StudyMode = () => {
       </div>
 
       {/* Stats strip */}
-      <div className="flex items-center gap-3 px-3 py-2 border-b border-border/30 shrink-0">
-        <span className="text-xs font-body text-muted-foreground flex items-center gap-1">
-          <Zap className="h-3 w-3 text-primary" />{Math.floor(todayFocusMinutes / 60)}h{todayFocusMinutes % 60}m
-        </span>
-        {currentStreak > 0 && (
-          <span className="text-xs font-body flex items-center gap-1 text-[hsl(var(--streak))]">
-            <Flame className="h-3 w-3" />{currentStreak}d streak
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/20 shrink-0">
+        <div className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/[0.08]">
+          <Zap className="h-3 w-3 text-primary shrink-0" />
+          <span className="text-[11px] font-body font-semibold text-primary tabular-nums">
+            {Math.floor(todayFocusMinutes / 60)}h {todayFocusMinutes % 60}m today
           </span>
+        </div>
+        {currentStreak > 0 && (
+          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-orange-500/[0.08]">
+            <Flame className="h-3 w-3 text-orange-500 shrink-0" />
+            <span className="text-[11px] font-body font-semibold text-orange-500 tabular-nums whitespace-nowrap">{currentStreak}d</span>
+          </div>
         )}
       </div>
 
@@ -1165,10 +1263,10 @@ const StudyMode = () => {
             className={cn(
               "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-body transition-all mb-0.5 group",
               activeSection === tab.id
-                ? "bg-primary/10 text-primary font-medium"
-                : "text-foreground/70 hover:bg-sidebar-accent hover:text-foreground"
+                ? "bg-primary/10 text-primary font-semibold"
+                : "text-foreground/65 hover:bg-sidebar-accent hover:text-foreground"
             )}>
-            <tab.icon className="h-4 w-4 shrink-0" />
+            <tab.icon className={cn("h-4 w-4 shrink-0 transition-colors", activeSection === tab.id ? "text-primary" : "")} />
             <span className="flex-1 text-left">{tab.label}</span>
             <kbd className={cn("text-[9px] px-1.5 py-0.5 rounded font-mono leading-tight transition-opacity",
               activeSection === tab.id ? "bg-primary/15 text-primary" : "bg-muted/60 text-muted-foreground/60 opacity-0 group-hover:opacity-100")}>
@@ -1201,9 +1299,9 @@ const StudyMode = () => {
       </div>
 
       {/* Footer action */}
-      <div className="p-2 border-t border-border/30 shrink-0">
+      <div className="p-3 border-t border-border/20 shrink-0">
         <button onClick={() => { setShowQuickFocus(true); setMobileDrawerOpen(false); }}
-          className="w-full flex items-center justify-center gap-2 h-9 rounded-xl bg-primary text-primary-foreground text-xs font-body font-medium hover:bg-primary/90 transition-colors shadow-sm">
+          className="w-full flex items-center justify-center gap-2 h-9 rounded-xl bg-primary text-primary-foreground text-xs font-body font-semibold hover:bg-primary/90 active:scale-[0.98] transition-all shadow-sm shadow-primary/20 btn-premium">
           <Zap className="h-3.5 w-3.5" /> Start Focus
         </button>
       </div>
@@ -1212,7 +1310,7 @@ const StudyMode = () => {
 
   return (
     <Layout fullBleed>
-      <div className="flex flex-col md:flex-row overflow-hidden bg-transparent h-[calc(100dvh-60px-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-57px)]">
+      <div className="flex flex-col md:flex-row overflow-hidden bg-background md:bg-transparent h-[calc(100dvh-60px-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-57px)]">
 
         {/* ── MOBILE OVERLAY DRAWER ── */}
         <AnimatePresence>
@@ -1233,37 +1331,58 @@ const StudyMode = () => {
           )}
         </AnimatePresence>
 
-        {/* ── MOBILE TOP BAR (stacks above main, full width) ── */}
-        <div className="md:hidden flex items-center h-12 px-3 border-b border-border/40 bg-background/95 backdrop-blur-sm shrink-0 gap-3 w-full">
-          <button onClick={() => setMobileDrawerOpen(o => !o)}
-            className="tap-44 -ml-2 flex items-center justify-center text-foreground press">
-            <Menu className="h-5 w-5" />
-          </button>
-          <span className="text-sm font-body font-semibold capitalize">{activeSection}</span>
-          <button onClick={() => setShowQuickFocus(true)}
-            className="ml-auto flex items-center gap-1.5 px-3 h-9 rounded-full text-xs font-body text-primary bg-primary/10 active:bg-primary/20 press">
-            <Zap className="h-3.5 w-3.5" /> Focus
-          </button>
-        </div>
+        {/* ── MOBILE HEADER (unified design system) ── */}
+        <MobilePageHeader className="md:hidden">
+          {/* Row 1: hamburger | "Study OS" | search bar | profile */}
+          <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+            <MobileHeaderIconBtn onClick={() => setMobileDrawerOpen(true)} label="Open menu" className="-ml-2">
+              <Menu className="h-5 w-5" />
+            </MobileHeaderIconBtn>
 
-        {/* ── MOBILE SECTION TABS (horizontal scroll, replaces sidebar) ── */}
-        <div className="md:hidden flex gap-1.5 px-3 py-2 overflow-x-auto no-scrollbar shrink-0 border-b border-border/30 bg-background/80 w-full">
-          {SECTION_TABS.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveSection(tab.id)}
-              className={cn(
-                "shrink-0 flex items-center gap-1.5 px-3 h-9 rounded-full text-xs font-body press",
-                activeSection === tab.id
-                  ? "bg-primary text-primary-foreground font-medium shadow-sm shadow-primary/25"
-                  : "bg-secondary/60 text-muted-foreground active:bg-secondary"
-              )}
-            >
-              <tab.icon className="h-3.5 w-3.5" />
-              {tab.label}
-            </button>
-          ))}
-        </div>
+            <span className="font-heading font-bold text-[22px] leading-none shrink-0">Study OS</span>
+
+            <MobileSearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search tasks, habits, events…"
+              className="flex-1 min-w-0"
+            />
+
+            <MobileHeaderIconBtn onClick={() => {/* profile */}} label="Profile">
+              <User className="h-5 w-5" />
+            </MobileHeaderIconBtn>
+          </div>
+
+          {/* Row 2: full-width 5-tab strip */}
+          <div className="flex border-t border-border/25">
+            {SECTION_TABS.map((tab) => {
+              const Icon = tab.icon;
+              const active = tab.id === activeSection;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveSection(tab.id)}
+                  className={cn(
+                    "flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 relative transition-colors min-w-0",
+                    active ? "text-primary" : "text-muted-foreground/70",
+                  )}
+                >
+                  <Icon className={cn("h-[18px] w-[18px] shrink-0 transition-transform", active && "scale-110")} />
+                  <span className={cn("text-[10px] font-body leading-none truncate w-full text-center px-1", active ? "font-semibold" : "font-medium")}>
+                    {tab.label}
+                  </span>
+                  {active && (
+                    <motion.div
+                      layoutId="mobileStudyTab"
+                      className="absolute bottom-0 left-3 right-3 h-[2.5px] rounded-full bg-primary"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </MobilePageHeader>
 
         {/* ── DESKTOP SIDEBAR ── */}
         {!sidebarCollapsed ? (
@@ -1308,16 +1427,36 @@ const StudyMode = () => {
         )}
 
         <main className={cn(
-          "flex-1 flex flex-col overflow-hidden min-w-0 os-panel",
-          "m-3 md:ml-1.5 mt-3 max-md:mx-2 max-md:mb-[calc(4.5rem+env(safe-area-inset-bottom,0px))]"
+          "flex-1 flex flex-col overflow-hidden min-w-0",
+          "md:os-panel md:m-3 md:ml-1.5 md:mt-3",
+          "max-md:bg-background max-md:mx-0 max-md:mt-0",
+          "max-md:mb-[calc(4.5rem+env(safe-area-inset-bottom,0px))]"
         )}>
-          <div className="flex-1 overflow-hidden flex flex-col">
-            {activeSection === "calendar" && renderCalendar()}
-            {activeSection === "tasks" && renderTasks()}
-            {activeSection === "habits" && renderHabits()}
-            {activeSection === "focus" && renderFocusSection()}
-            {activeSection === "analytics" && renderAnalytics()}
-          </div>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={activeSection}
+              initial={{ x: (() => {
+                const tabIndex = SECTION_TABS.findIndex(t => t.id === activeSection);
+                const direction = tabIndex > prevTabIndex.current ? 1 : -1;
+                prevTabIndex.current = tabIndex;
+                return direction * 40;
+              })(), opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: (() => {
+                const tabIndex = SECTION_TABS.findIndex(t => t.id === activeSection);
+                const direction = tabIndex > prevTabIndex.current ? 1 : -1;
+                return direction * -40;
+              })(), opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className="flex-1 flex flex-col overflow-hidden"
+            >
+              {activeSection === "calendar" && renderCalendar()}
+              {activeSection === "tasks" && renderTasks()}
+              {activeSection === "habits" && renderHabits()}
+              {activeSection === "focus" && renderFocusSection()}
+              {activeSection === "analytics" && renderAnalytics()}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
 

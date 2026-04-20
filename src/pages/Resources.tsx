@@ -29,8 +29,15 @@ import {
   Search, Plus, FolderOpen, Folder, ChevronRight, ChevronDown, FileText,
   ExternalLink, Eye, Trash2, Pencil, Upload, Link2, Code, StickyNote,
   Grid3x3, List, Youtube, Github, HardDrive, BookOpen, Bookmark, X, Loader2,
-  SlidersHorizontal, ArrowLeft,
+  SlidersHorizontal, ArrowLeft, MoreHorizontal,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MobilePageHeader, MobileHeaderIconBtn, MobileSearchBar } from "@/components/MobilePageHeader";
 import { cn } from "@/lib/utils";
 
 interface Resource {
@@ -331,106 +338,98 @@ const Resources = () => {
     return (
       <Layout fullBleed>
         <div className="min-h-[100dvh] bg-background flex flex-col pb-20">
-          <header
-            className="sticky top-0 z-30 bg-background/85 backdrop-blur-2xl border-b border-border/50"
-            style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
-          >
-            <div className="px-4 pt-3 pb-2 flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setDrawerOpen(true)}
-                className="h-9 w-9 -ml-2"
-                aria-label="Open folders"
-              >
+          <MobilePageHeader>
+            {/* Row 1: folder-drawer | "Library" | search | + add */}
+            <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+              <MobileHeaderIconBtn onClick={() => setDrawerOpen(true)} label="Open folders" className="-ml-2">
                 <FolderOpen className="h-5 w-5" />
-              </Button>
-              <h1 className="font-heading font-bold text-[22px] flex-1 leading-none">Library</h1>
-              {isAdmin && (
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => openAddModal()}
-                  className="h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md shadow-primary/20"
-                  aria-label="Add resource"
-                >
-                  <Plus className="h-5 w-5" strokeWidth={2.4} />
-                </motion.button>
-              )}
+              </MobileHeaderIconBtn>
+
+              <span className="font-heading font-bold text-[22px] leading-none shrink-0">Library</span>
+
+              <MobileSearchBar
+                value={search}
+                onChange={setSearch}
+                placeholder="Search resources…"
+                className="flex-1 min-w-0"
+              />
+
+              {/* + icon — always visible, opens add modal */}
+              <MobileHeaderIconBtn
+                label="Add resource"
+                onClick={() => openAddModal()}
+              >
+                <Plus className="h-5 w-5" />
+              </MobileHeaderIconBtn>
             </div>
 
-            <div className="px-4 pb-2">
-              <div className="bg-muted/60 rounded-full p-1 flex relative h-10">
-                <motion.div
-                  layout
-                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                  className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-card rounded-full shadow-sm"
-                  style={{ left: scope === "public" ? 4 : "50%" }}
-                />
-                {(["public", "private"] as const).map(s => (
+            {/* Row 2: [⊞] [Public|Private] ←→ [Courses ▾] [Categories ▾] */}
+            <div className="px-4 pb-3 flex items-center gap-2">
+
+              {/* View toggle */}
+              <button
+                onClick={() => setView(v => v === "grid" ? "list" : "grid")}
+                className="h-8 w-8 rounded-lg bg-muted/60 text-muted-foreground inline-flex items-center justify-center shrink-0 transition-colors active:bg-muted"
+                aria-label="Toggle view"
+              >
+                {view === "grid" ? <List className="h-3.5 w-3.5" /> : <Grid3x3 className="h-3.5 w-3.5" />}
+              </button>
+
+              {/* Public / Private — simple underline tab style */}
+              <div className="flex items-center gap-0 shrink-0 h-8 bg-muted/60 rounded-lg p-0.5">
+                {(["public", "private"] as const).map((s) => (
                   <button
                     key={s}
                     onClick={() => setScope(s)}
                     className={cn(
-                      "relative flex-1 text-sm font-body font-medium capitalize z-10 transition-colors",
-                      scope === s ? "text-foreground" : "text-muted-foreground"
+                      "h-7 px-3 rounded-md text-[11px] font-body font-medium capitalize transition-colors whitespace-nowrap",
+                      scope === s
+                        ? "bg-background text-foreground"
+                        : "text-muted-foreground"
                     )}
                   >
                     {s}
                   </button>
                 ))}
               </div>
-            </div>
 
-            <div className="px-4 pb-3">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search resources…"
-                  className="pl-11 h-11 rounded-full bg-muted/50 border-transparent font-body text-[15px] focus-visible:bg-card"
-                />
-              </div>
-            </div>
-
-            <div className="px-4 pb-3 flex items-center gap-2 overflow-x-auto scrollbar-none">
-              <button
-                onClick={() => setMobileFiltersOpen(true)}
-                className={cn(
-                  "h-8 px-3 rounded-full text-xs font-body inline-flex items-center gap-1.5 shrink-0 transition-colors",
-                  (courseFilter !== "all" || categoryFilter !== "all")
-                    ? "bg-primary/10 text-primary border border-primary/30"
-                    : "bg-muted/60 text-muted-foreground border border-transparent",
-                )}
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                Filters
-                {(courseFilter !== "all" || categoryFilter !== "all") && (
-                  <span className="ml-0.5 h-4 min-w-[16px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
-                    {(courseFilter !== "all" ? 1 : 0) + (categoryFilter !== "all" ? 1 : 0)}
-                  </span>
-                )}
-              </button>
-              {activeFolderId !== "root" && (
-                <button
-                  onClick={() => setActiveFolderId("root")}
-                  className="h-8 px-3 rounded-full text-xs font-body inline-flex items-center gap-1.5 shrink-0 bg-primary/10 text-primary border border-primary/30"
-                >
-                  <Folder className="h-3.5 w-3.5" />
-                  {folders.find(f => f.id === activeFolderId)?.name || "Folder"}
-                  <X className="h-3 w-3" />
-                </button>
-              )}
               <div className="flex-1" />
-              <button
-                onClick={() => setView(v => v === "grid" ? "list" : "grid")}
-                className="h-8 w-8 rounded-full bg-muted/60 text-muted-foreground inline-flex items-center justify-center shrink-0"
-                aria-label="Toggle view"
-              >
-                {view === "grid" ? <List className="h-4 w-4" /> : <Grid3x3 className="h-4 w-4" />}
-              </button>
+
+              {/* Courses dropdown */}
+              <Select value={courseFilter} onValueChange={setCourseFilter}>
+                <SelectTrigger className={cn(
+                  "h-8 px-2.5 text-[11px] font-body font-medium w-auto min-w-[80px] rounded-lg border-0 bg-muted/60 transition-colors shrink-0 focus:ring-0",
+                  courseFilter !== "all" && "bg-primary/10 text-primary"
+                )}>
+                  <SelectValue placeholder="Courses" />
+                </SelectTrigger>
+                <SelectContent className="font-body rounded-xl">
+                  <SelectItem value="all" className="text-[13px]">All Courses</SelectItem>
+                  {courses.map(c => (
+                    <SelectItem key={c.id} value={c.id} className="text-[13px]">{c.code} — {c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Categories dropdown */}
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className={cn(
+                  "h-8 px-2.5 text-[11px] font-body font-medium w-auto min-w-[90px] rounded-lg border-0 bg-muted/60 transition-colors shrink-0 focus:ring-0",
+                  categoryFilter !== "all" && "bg-primary/10 text-primary"
+                )}>
+                  <SelectValue placeholder="Categories" />
+                </SelectTrigger>
+                <SelectContent className="font-body rounded-xl">
+                  <SelectItem value="all" className="text-[13px]">All Categories</SelectItem>
+                  {[...PREDEFINED_CATEGORIES, ...categories.map(c => c.name)]
+                    .filter((v, i, a) => a.indexOf(v) === i)
+                    .map(c => (
+                      <SelectItem key={c} value={c} className="text-[13px]">{c}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
-          </header>
+          </MobilePageHeader>
 
           <main className="flex-1 px-4 pt-4">
             {loading ? (

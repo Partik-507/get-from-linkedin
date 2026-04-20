@@ -356,6 +356,26 @@
     background: hsl(var(--primary) / 0.06);
   }
 
+  /* ── Section card (study OS, notes OS inner panels) ─────── */
+  .section-card {
+    @apply rounded-2xl bg-card border border-border/50 transition-all duration-200;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  }
+
+  /* ── Stat pill ───────────────────────────────────────────── */
+  .stat-pill {
+    @apply flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-body font-semibold;
+  }
+
+  /* ── View fade animation ─────────────────────────────────── */
+  .view-fade-enter {
+    animation: viewFadeIn 0.15s ease-out;
+  }
+  @keyframes viewFadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
   /* ── Resizer divider ─────────────────────────────────────── */
   .os-resizer {
     @apply w-3 cursor-col-resize select-none relative flex-shrink-0;

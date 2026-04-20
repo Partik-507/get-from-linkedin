@@ -79,7 +79,7 @@ export const CourseCard = ({
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-base font-heading font-bold tracking-tight leading-tight">{code}</h3>
-              <p className="text-xs text-muted-foreground truncate font-body mt-0.5">{name}</p>
+              <p className="text-xs text-muted-foreground line-clamp-1 font-body mt-0.5">{name}</p>
             </div>
             {questionCount > 0 && (
               <Badge variant="outline" className="text-[10px] font-body tabular-nums shrink-0">

@@ -18,7 +18,7 @@ const hashGradient = (id: string): string => {
   return `linear-gradient(135deg, hsl(${hue1}, 60%, 50%), hsl(${hue2}, 70%, 40%))`;
 };
 
-export const PublicLibrary = () => {
+export const PublicLibrary = ({ externalSearch = "" }: { externalSearch?: string }) => {
   const { user } = useAuth();
   const [notes, setNotes] = useState<PublicNote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +26,9 @@ export const PublicLibrary = () => {
   const [selectedNote, setSelectedNote] = useState<PublicNote | null>(null);
   const [noteContent, setNoteContent] = useState("");
   const [activeSubject, setActiveSubject] = useState<string | null>(null);
+
+  // Use external search (from top bar) if provided
+  const effectiveSearch = externalSearch || search;
 
   useEffect(() => {
     const load = async () => {
@@ -44,8 +47,8 @@ export const PublicLibrary = () => {
 
   const filtered = useMemo(() => {
     let result = notes;
-    if (search) {
-      const s = search.toLowerCase();
+    if (effectiveSearch) {
+      const s = effectiveSearch.toLowerCase();
       result = result.filter(n =>
         n.title.toLowerCase().includes(s) || n.description?.toLowerCase().includes(s) ||
         n.tags?.some(t => t.toLowerCase().includes(s)) || n.authorName?.toLowerCase().includes(s)
@@ -152,66 +155,64 @@ export const PublicLibrary = () => {
   // Browse view
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-heading font-bold mb-2">Public Library</h1>
-          <p className="text-sm text-muted-foreground font-body">Discover and learn from shared notes by the community</p>
-        </div>
-
-        {/* Search */}
-        <div className="relative max-w-lg mx-auto mb-6">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search by title, tag, author..."
-            className="pl-10 h-10 font-body rounded-xl" />
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-6">
+        <div className="text-center mb-5">
+          <h1 className="text-xl font-heading font-bold mb-1">Public Library</h1>
+          <p className="text-xs text-muted-foreground font-body">Discover notes shared by the community</p>
         </div>
 
         {/* Subject filters */}
         {subjects.length > 0 && (
-          <div className="flex flex-wrap justify-center gap-2 mb-8">
+          <div className="flex flex-wrap justify-center gap-2 mb-5">
             {subjects.map(s => (
               <button key={s} onClick={() => setActiveSubject(activeSubject === s ? null : s)}
-                className={cn("px-3 py-1 rounded-full text-xs font-body transition-all",
-                  activeSubject === s ? "bg-primary text-primary-foreground" : "bg-accent/50 text-muted-foreground hover:bg-accent"
+                className={cn("px-3 py-1 rounded-lg text-xs font-body transition-all border",
+                  activeSubject === s
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card border-border/50 text-muted-foreground hover:border-primary/30"
                 )}>{s}</button>
             ))}
           </div>
         )}
 
-        {/* Grid */}
+        {/* Grid — 2-col on mobile, 3-col on desktop */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-56 skeleton-pulse rounded-xl" />)}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-44 skeleton-pulse rounded-2xl" />)}
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
-            <BookOpen className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
+            <BookOpen className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
             <p className="text-sm text-muted-foreground font-body">No public notes found</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {filtered.map(note => (
-              <div key={note.id} className="vv-card overflow-hidden cursor-pointer group" onClick={() => openNote(note)}>
-                {/* Cover gradient */}
-                <div className="h-24 relative" style={{ background: note.coverImage || hashGradient(note.id) }}>
+              <div
+                key={note.id}
+                className="bg-card rounded-2xl border border-border/40 overflow-hidden cursor-pointer active:scale-[0.97] transition-transform"
+                onClick={() => openNote(note)}
+              >
+                {/* Gradient cover — compact */}
+                <div className="h-16 relative" style={{ background: note.coverImage || hashGradient(note.id) }}>
                   {note.adminCreated && (
-                    <div className="absolute top-2 right-2">
-                      <Badge className="text-[9px] font-body gap-1 bg-background/80 text-foreground border-0 backdrop-blur-sm">
+                    <div className="absolute top-1.5 right-1.5">
+                      <Badge className="text-[9px] font-body gap-0.5 bg-background/80 text-foreground border-0 backdrop-blur-sm px-1.5 py-0.5">
                         <Shield className="h-2.5 w-2.5" /> Official
                       </Badge>
                     </div>
                   )}
                 </div>
-                <div className="p-4">
-                  <h3 className="text-sm font-heading font-semibold mb-1 line-clamp-1 group-hover:text-primary transition-colors">{note.title}</h3>
-                  <p className="text-xs text-muted-foreground font-body mb-3 line-clamp-2">{note.description || "No description"}</p>
+                <div className="p-3">
+                  <h3 className="text-[13px] font-heading font-semibold mb-1 line-clamp-2 leading-snug">{note.title}</h3>
+                  <p className="text-[11px] text-muted-foreground font-body line-clamp-1 mb-2">{note.description || "No description"}</p>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 font-body">
-                      <User className="h-3 w-3" /> {note.authorName}
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60 font-body min-w-0">
+                      <User className="h-2.5 w-2.5 shrink-0" />
+                      <span className="truncate">{note.authorName}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60 font-body">
-                      <span className="flex items-center gap-0.5"><Heart className="h-3 w-3" /> {note.likes || 0}</span>
-                      <span className="flex items-center gap-0.5"><Eye className="h-3 w-3" /> {note.views || 0}</span>
+                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 font-body shrink-0">
+                      <span className="flex items-center gap-0.5"><Heart className="h-2.5 w-2.5" />{note.likes || 0}</span>
                     </div>
                   </div>
                 </div>

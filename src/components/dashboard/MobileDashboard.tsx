@@ -1,25 +1,18 @@
 /**
- * MobileDashboard — Native vertical feed with full web-parity widgets.
- *
- *  Sections (top → bottom):
- *   1. Greeting + streak ring
- *   2. Today's plan (horizontally swipeable cards)
- *   3. At-a-glance stats (3 tiles)
- *   4. Quick actions (4 gradient tiles)
- *   5. Course progress (if any)
- *   6. Activity heatmap (compact)
- *   7. Recent activity feed
- *
- * Full-bleed, no card-in-card. Uses semantic tokens only.
+ * MobileDashboard — Premium mobile-native dashboard.
+ * Full-bleed bg-background. All sections use bg-card cards.
+ * Full web parity: every widget from the desktop, optimized for mobile.
  */
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
   Flame, Clock, CheckSquare, Heart, StickyNote, BookOpen, Zap,
-  Calendar, ArrowRight, Target, TrendingUp,
+  Calendar, ArrowRight, Target, TrendingUp, BarChart3, CalendarDays,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
+import { Progress } from "@/components/ui/progress";
 
 interface CourseStat {
   projectId: string;
@@ -46,10 +39,10 @@ interface Props {
   habitsDone: number;
   habitsTotal: number;
   upcoming: { id: string; title: string; start: any; color?: string }[];
-  /** Optional widgets (web parity) */
   courses?: CourseStat[];
-  activity?: Record<string, number>;        // date "yyyy-MM-dd" → reviews count
+  activity?: Record<string, number>;
   recentActivity?: ActivityItem[];
+  habits?: { id: string; name: string; emoji: string; color: string; done?: boolean }[];
 }
 
 const greet = () => {
@@ -59,36 +52,6 @@ const greet = () => {
   return "Good evening";
 };
 
-const StreakRing = ({ value }: { value: number }) => {
-  const cap = Math.min(value, 30);
-  const pct = (cap / 30) * 100;
-  const C = 2 * Math.PI * 28;
-  return (
-    <div className="relative h-[72px] w-[72px] shrink-0">
-      <svg viewBox="0 0 64 64" className="h-full w-full -rotate-90">
-        <circle cx="32" cy="32" r="28" fill="none" stroke="hsl(var(--muted))" strokeWidth="5" />
-        <motion.circle
-          cx="32" cy="32" r="28" fill="none" stroke="url(#streakGrad)" strokeWidth="5"
-          strokeLinecap="round" strokeDasharray={C}
-          initial={{ strokeDashoffset: C }}
-          animate={{ strokeDashoffset: C - (C * pct) / 100 }}
-          transition={{ duration: 1, ease: "easeOut" }}
-        />
-        <defs>
-          <linearGradient id="streakGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="hsl(var(--primary))" />
-            <stop offset="100%" stopColor="hsl(var(--streak))" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <div className="absolute inset-0 grid place-items-center">
-        <Flame className="h-5 w-5 text-primary" fill="currentColor" />
-      </div>
-    </div>
-  );
-};
-
-/** Compact 7-week horizontal heatmap (49 cells). */
 const CompactHeatmap = ({ data }: { data: Record<string, number> }) => {
   const cells = Array.from({ length: 49 }).map((_, i) => {
     const d = format(subDays(new Date(), 48 - i), "yyyy-MM-dd");
@@ -98,203 +61,280 @@ const CompactHeatmap = ({ data }: { data: Record<string, number> }) => {
   const max = Math.max(1, ...cells.map(c => c.v));
   return (
     <div className="grid grid-cols-7 grid-rows-7 grid-flow-col gap-[3px]">
-      {cells.map((c) => {
-        const intensity = c.v / max;
-        return (
-          <div
-            key={c.d}
-            className="h-3 w-3 rounded-[3px]"
-            style={{
-              backgroundColor:
-                c.v === 0
-                  ? "hsl(var(--muted))"
-                  : `hsl(var(--primary) / ${0.25 + intensity * 0.75})`,
-            }}
-            title={`${c.d}: ${c.v}`}
-          />
-        );
-      })}
+      {cells.map((c) => (
+        <div
+          key={c.d}
+          className="h-3 w-3 rounded-[3px]"
+          style={{
+            backgroundColor: c.v === 0
+              ? "hsl(var(--muted))"
+              : `hsl(var(--primary) / ${0.2 + (c.v / max) * 0.8})`,
+          }}
+        />
+      ))}
     </div>
   );
 };
+
+// Reusable section header
+const SectionHeader = ({
+  title, icon: Icon, to, linkLabel = "Manage",
+}: {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  to?: string;
+  linkLabel?: string;
+}) => (
+  <div className="flex items-center justify-between mb-2.5">
+    <h2 className="text-sm font-heading font-semibold flex items-center gap-1.5">
+      <Icon className="h-3.5 w-3.5 text-primary" />
+      {title}
+    </h2>
+    {to && (
+      <Link to={to} className="text-[11px] text-primary font-body flex items-center gap-0.5 font-medium">
+        {linkLabel} <ArrowRight className="h-3 w-3" />
+      </Link>
+    )}
+  </div>
+);
 
 export const MobileDashboard = ({
   name, streak, focusMinutes, tasksDone, tasksTotal,
   habitsDone, habitsTotal, upcoming,
   courses = [], activity = {}, recentActivity = [],
+  habits = [],
 }: Props) => {
-  const stats = [
-    { icon: Clock,       label: "Focus",  value: `${Math.floor(focusMinutes / 60)}h ${focusMinutes % 60}m`, tint: "text-primary",       bg: "bg-primary/10" },
-    { icon: CheckSquare, label: "Tasks",  value: `${tasksDone}/${tasksTotal}`,                              tint: "text-[hsl(var(--success))]", bg: "bg-[hsl(var(--success))]/10" },
-    { icon: Heart,       label: "Habits", value: `${habitsDone}/${habitsTotal}`,                            tint: "text-[hsl(var(--streak))]",  bg: "bg-[hsl(var(--streak))]/10" },
-  ];
 
-  const actions = [
-    { to: "/notes",     icon: StickyNote, label: "Notes",   gradient: "from-primary to-[hsl(280_70%_55%)]" },
-    { to: "/focus",     icon: Zap,        label: "Focus",   gradient: "from-[hsl(var(--streak))] to-[hsl(38_92%_50%)]" },
-    { to: "/study",     icon: Calendar,   label: "Study",   gradient: "from-[hsl(210_80%_50%)] to-primary" },
-    { to: "/resources", icon: BookOpen,   label: "Library", gradient: "from-[hsl(142_71%_45%)] to-[hsl(180_70%_45%)]" },
+  const stats = [
+    { icon: Clock, label: "Focus", value: `${Math.floor(focusMinutes / 60)}h ${focusMinutes % 60}m`, tint: "text-primary", bg: "bg-primary/10" },
+    { icon: CheckSquare, label: "Tasks", value: `${tasksDone}/${tasksTotal}`, tint: "text-[hsl(var(--success))]", bg: "bg-[hsl(var(--success))]/10" },
+    { icon: Heart, label: "Habits", value: `${habitsDone}/${habitsTotal}`, tint: "text-[hsl(var(--streak))]", bg: "bg-[hsl(var(--streak))]/10" },
   ];
 
   return (
-    <div className="md:hidden flex flex-col gap-5 px-4 pt-3 pb-[calc(5rem+env(safe-area-inset-bottom,0px))]">
-      {/* 1 — Greeting + streak */}
-      <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4">
-        <StreakRing value={streak} />
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-muted-foreground font-body">{greet()}</p>
-          <h1 className="text-xl font-heading font-bold tracking-tight truncate">{name}</h1>
-          <p className="text-[11px] text-muted-foreground font-body mt-0.5">
-            {streak > 0 ? `🔥 ${streak} day streak — keep going` : "Start a streak today"}
-          </p>
-        </div>
-      </motion.section>
+    <div className="md:hidden flex flex-col bg-background pb-[calc(5rem+env(safe-area-inset-bottom,0px))]">
 
-      {/* 2 — Today's plan */}
-      <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.05 } }}>
-        <div className="flex items-center justify-between mb-2.5">
-          <h2 className="text-sm font-heading font-semibold">Today's Plan</h2>
-          <Link to="/study" className="text-[11px] text-primary font-body flex items-center gap-1">
-            All <ArrowRight className="h-3 w-3" />
-          </Link>
+      {/* Sticky header */}
+      <MobilePageHeader>
+        <div className="px-4 pt-3 pb-3">
+          <span className="font-heading font-bold text-[22px] leading-none text-foreground">Dashboard</span>
         </div>
-        {upcoming.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border/60 px-4 py-6 text-center">
-            <Calendar className="h-5 w-5 text-muted-foreground/60 mx-auto mb-2" />
-            <p className="text-xs text-muted-foreground font-body">Nothing scheduled. Enjoy the calm.</p>
+      </MobilePageHeader>
+
+      <div className="flex flex-col gap-5 px-4 pt-4">
+
+        {/* 1 — Greeting card */}
+        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/15">
+            <div className="h-14 w-14 rounded-full bg-gradient-to-br from-primary to-[hsl(240,70%,50%)] flex items-center justify-center text-primary-foreground font-heading font-bold text-xl shrink-0 shadow-md shadow-primary/20">
+              {name.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] text-muted-foreground font-body">{greet()}</p>
+              <h2 className="text-[18px] font-heading font-bold tracking-tight truncate">{name}</h2>
+              <div className="flex items-center gap-1.5 mt-1">
+                {streak > 0 ? (
+                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[hsl(var(--streak))]/10 border border-[hsl(var(--streak))]/20">
+                    <Flame className="h-3 w-3 text-[hsl(var(--streak))]" />
+                    <span className="text-[11px] font-body font-semibold text-[hsl(var(--streak))]">{streak} day streak</span>
+                  </div>
+                ) : (
+                  <span className="text-[11px] text-muted-foreground font-body">Start a streak today 🎯</span>
+                )}
+              </div>
+            </div>
           </div>
-        ) : (
-          <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 snap-x snap-mandatory">
-            {upcoming.slice(0, 5).map((e) => {
-              const start = e.start?.toDate ? e.start.toDate() : new Date(e.start);
+        </motion.section>
+
+        {/* 2 — At a Glance */}
+        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.04 } }}>
+          <SectionHeader title="At a Glance" icon={BarChart3} />
+          <div className="grid grid-cols-3 gap-2.5">
+            {stats.map((s) => {
+              const Icon = s.icon;
+              return (
+                <div key={s.label} className="rounded-2xl bg-card border border-border/50 p-3 flex flex-col gap-1.5">
+                  <div className={cn("h-7 w-7 rounded-xl grid place-items-center", s.bg)}>
+                    <Icon className={cn("h-3.5 w-3.5", s.tint)} />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground font-body">{s.label}</p>
+                  <p className="text-sm font-heading font-bold tabular-nums leading-none">{s.value}</p>
+                </div>
+              );
+            })}
+          </div>
+        </motion.section>
+
+        {/* 3 — Habits + Upcoming in 2-col */}
+        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.07 } }}>
+          <div className="grid grid-cols-2 gap-3">
+            {/* Habits card */}
+            <div className="rounded-2xl bg-card border border-border/50 p-3.5 flex flex-col">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                  <Heart className="h-3.5 w-3.5 text-pink-500" />
+                  <span className="text-xs font-heading font-semibold">Habits</span>
+                </div>
+                <Link to="/study" className="text-[10px] text-primary font-body font-medium">Manage</Link>
+              </div>
+              {habits.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground font-body flex-1">No habits yet.</p>
+              ) : (
+                <div className="space-y-2 flex-1">
+                  {habits.slice(0, 4).map((h) => (
+                    <div key={h.id} className="flex items-center gap-2">
+                      <span className="text-sm shrink-0">{h.emoji}</span>
+                      <span className="text-[11px] font-body flex-1 truncate">{h.name}</span>
+                      <div className={cn(
+                        "h-4 w-4 rounded-full border flex items-center justify-center text-[8px] shrink-0",
+                        h.done ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30"
+                      )}>
+                        {h.done && "✓"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Upcoming card */}
+            <div className="rounded-2xl bg-card border border-border/50 p-3.5 flex flex-col">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5 text-primary" />
+                  <span className="text-xs font-heading font-semibold">Upcoming</span>
+                </div>
+                <Link to="/study" className="text-[10px] text-primary font-body font-medium">Manage</Link>
+              </div>
+              {upcoming.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground font-body flex-1">Nothing scheduled.</p>
+              ) : (
+                <div className="space-y-2 flex-1">
+                  {upcoming.slice(0, 4).map((e) => {
+                    const start = e.start?.toDate ? e.start.toDate() : new Date(e.start);
+                    return (
+                      <div key={e.id} className="flex items-start gap-2">
+                        <div className="h-2 w-2 rounded-full mt-1 shrink-0" style={{ backgroundColor: e.color || "hsl(var(--primary))" }} />
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-body font-medium leading-tight line-clamp-1">{e.title}</p>
+                          <p className="text-[10px] text-muted-foreground font-body tabular-nums">
+                            {isNaN(start.getTime?.()) ? "—" : format(start, "EEE h:mm a")}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.section>
+
+        {/* 4 — Course Progress */}
+        {courses.length > 0 && (
+          <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.1 } }}>
+            <SectionHeader title="Course Progress" icon={Target} to="/" linkLabel="All courses" />
+            <div className="rounded-2xl bg-card border border-border/50 divide-y divide-border/40">
+              {courses.slice(0, 4).map((c) => (
+                <div key={c.projectId} className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+                        {c.projectCode.slice(0, 2)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-body font-semibold truncate">{c.projectCode}</p>
+                        <p className="text-[10px] text-muted-foreground font-body truncate">{c.projectName}</p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-body tabular-nums text-muted-foreground shrink-0 ml-2">
+                      {c.studiedCount}/{c.totalQuestions} · {c.progress}%
+                    </span>
+                  </div>
+                  <Progress value={c.progress} className="h-1.5" />
+                </div>
+              ))}
+            </div>
+          </motion.section>
+        )}
+
+        {/* 5 — Recent Notes */}
+        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.12 } }}>
+          <SectionHeader title="Recent Notes" icon={StickyNote} to="/notes" linkLabel="Open Notes" />
+          <div className="rounded-2xl bg-card border border-border/50 p-4 text-center">
+            <StickyNote className="h-7 w-7 text-muted-foreground/20 mx-auto mb-2" />
+            <p className="text-xs text-muted-foreground font-body">Open Notes OS to see recent pages here.</p>
+          </div>
+        </motion.section>
+
+        {/* 6 — Activity Heatmap */}
+        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.14 } }}>
+          <SectionHeader title="Study Activity" icon={BarChart3} />
+          <div className="rounded-2xl bg-card border border-border/50 p-4 flex items-center gap-4">
+            <CompactHeatmap data={activity} />
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] text-muted-foreground font-body leading-relaxed">
+                Each square = a study day. Darker = more reviews.
+              </p>
+              <p className="text-xs font-body font-semibold mt-1.5">
+                {Object.values(activity).reduce((a, b) => a + b, 0)} total reviews
+              </p>
+            </div>
+          </div>
+        </motion.section>
+
+        {/* 7 — Recent Activity */}
+        {recentActivity.length > 0 && (
+          <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.16 } }}>
+            <SectionHeader title="Recent Activity" icon={TrendingUp} />
+            <div className="rounded-2xl bg-card border border-border/50 divide-y divide-border/40">
+              {recentActivity.slice(0, 6).map((a) => {
+                const Icon = a.type === "focus" ? Zap : CheckSquare;
+                const tint = a.type === "focus" ? "text-primary" : "text-[hsl(var(--success))]";
+                return (
+                  <div key={a.id} className="flex items-center gap-3 px-4 py-3">
+                    <Icon className={cn("h-4 w-4 shrink-0", tint)} />
+                    <p className="flex-1 text-xs font-body truncate">{a.text}</p>
+                    {a.date && <span className="text-[10px] text-muted-foreground font-body shrink-0">{a.date}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </motion.section>
+        )}
+
+        {/* 8 — Quick nav */}
+        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.18 } }}>
+          <div className="grid grid-cols-2 gap-2.5">
+            {[
+              { to: "/study", icon: CalendarDays, label: "Study OS", sub: "Calendar & tasks", grad: "from-primary to-[hsl(240,70%,50%)]" },
+              { to: "/notes", icon: StickyNote, label: "Notes OS", sub: "Your workspace", grad: "from-[hsl(210,80%,50%)] to-primary" },
+              { to: "/resources", icon: BookOpen, label: "Library", sub: "Resources", grad: "from-[hsl(142,71%,45%)] to-[hsl(180,70%,45%)]" },
+              { to: "/focus", icon: Zap, label: "Focus", sub: "Deep work", grad: "from-[hsl(var(--streak))] to-[hsl(38,92%,50%)]" },
+            ].map((a) => {
+              const Icon = a.icon;
               return (
                 <Link
-                  key={e.id}
-                  to="/study"
-                  className="snap-start shrink-0 w-[78%] rounded-2xl bg-card border border-border/60 p-4 active:scale-[0.98] transition-transform"
+                  key={a.to}
+                  to={a.to}
+                  className={cn(
+                    "h-[72px] rounded-2xl p-3.5 flex flex-col items-start justify-between text-primary-foreground",
+                    "bg-gradient-to-br shadow-sm active:scale-[0.97] transition-transform",
+                    a.grad,
+                  )}
                 >
-                  <div className="h-1 w-10 rounded-full mb-3" style={{ backgroundColor: e.color || "hsl(var(--primary))" }} />
-                  <p className="font-heading font-semibold text-sm leading-tight line-clamp-2">{e.title}</p>
-                  <p className="text-[11px] text-muted-foreground font-body mt-1.5 tabular-nums">
-                    {isNaN(start.getTime?.()) ? "—" : format(start, "EEE · h:mm a")}
-                  </p>
+                  <Icon className="h-4 w-4 drop-shadow" />
+                  <div>
+                    <p className="font-heading font-semibold text-[13px] leading-none">{a.label}</p>
+                    <p className="text-[10px] opacity-80 font-body mt-0.5">{a.sub}</p>
+                  </div>
                 </Link>
               );
             })}
           </div>
-        )}
-      </motion.section>
-
-      {/* 3 — At a glance */}
-      <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.1 } }}>
-        <h2 className="text-sm font-heading font-semibold mb-2.5">At a Glance</h2>
-        <div className="grid grid-cols-3 gap-2.5">
-          {stats.map((s) => {
-            const Icon = s.icon;
-            return (
-              <div key={s.label} className="rounded-2xl bg-card border border-border/60 p-3 flex flex-col gap-1.5">
-                <div className={cn("h-7 w-7 rounded-xl grid place-items-center", s.bg)}>
-                  <Icon className={cn("h-3.5 w-3.5", s.tint)} />
-                </div>
-                <p className="text-[10px] text-muted-foreground font-body">{s.label}</p>
-                <p className="text-sm font-heading font-bold tabular-nums leading-none">{s.value}</p>
-              </div>
-            );
-          })}
-        </div>
-      </motion.section>
-
-      {/* 4 — Quick actions */}
-      <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.15 } }}>
-        <h2 className="text-sm font-heading font-semibold mb-2.5">Quick Actions</h2>
-        <div className="grid grid-cols-2 gap-2.5">
-          {actions.map((a) => {
-            const Icon = a.icon;
-            return (
-              <Link
-                key={a.to}
-                to={a.to}
-                className={cn(
-                  "h-20 rounded-2xl p-3 flex flex-col items-start justify-between text-primary-foreground",
-                  "bg-gradient-to-br shadow-md active:scale-[0.97] transition-transform",
-                  a.gradient,
-                )}
-              >
-                <Icon className="h-5 w-5 drop-shadow" />
-                <span className="font-heading font-semibold text-sm">{a.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </motion.section>
-
-      {/* 5 — Course progress */}
-      {courses.length > 0 && (
-        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.2 } }}>
-          <div className="flex items-center justify-between mb-2.5">
-            <h2 className="text-sm font-heading font-semibold flex items-center gap-1.5">
-              <Target className="h-3.5 w-3.5 text-primary" /> Course Progress
-            </h2>
-            <Link to="/" className="text-[11px] text-primary font-body flex items-center gap-1">
-              All <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-          <div className="rounded-2xl bg-card border border-border/60 divide-y divide-border/50">
-            {courses.slice(0, 4).map((c) => (
-              <div key={c.projectId} className="px-4 py-3">
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="min-w-0">
-                    <p className="text-sm font-body font-medium truncate">{c.projectCode}</p>
-                    <p className="text-[10px] text-muted-foreground font-body truncate">{c.projectName}</p>
-                  </div>
-                  <span className="text-[11px] font-body tabular-nums text-muted-foreground shrink-0 ml-2">
-                    {c.studiedCount}/{c.totalQuestions} · {c.progress}%
-                  </span>
-                </div>
-                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${c.progress}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
         </motion.section>
-      )}
 
-      {/* 6 — Activity heatmap */}
-      <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.22 } }}>
-        <h2 className="text-sm font-heading font-semibold mb-2.5">Last 7 Weeks</h2>
-        <div className="rounded-2xl bg-card border border-border/60 p-4 flex items-center gap-4">
-          <CompactHeatmap data={activity} />
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] text-muted-foreground font-body">Each square = a study day. Darker = more reviews.</p>
-            <p className="text-xs font-body font-medium mt-1">
-              {Object.values(activity).reduce((a, b) => a + b, 0)} total reviews
-            </p>
-          </div>
-        </div>
-      </motion.section>
-
-      {/* 7 — Recent activity */}
-      {recentActivity.length > 0 && (
-        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.25 } }}>
-          <h2 className="text-sm font-heading font-semibold mb-2.5 flex items-center gap-1.5">
-            <TrendingUp className="h-3.5 w-3.5 text-primary" /> Recent Activity
-          </h2>
-          <div className="rounded-2xl bg-card border border-border/60 divide-y divide-border/50">
-            {recentActivity.slice(0, 6).map((a) => {
-              const Icon = a.type === "focus" ? Zap : CheckSquare;
-              const tint = a.type === "focus" ? "text-primary" : "text-[hsl(var(--success))]";
-              return (
-                <div key={a.id} className="flex items-center gap-3 px-4 py-3">
-                  <Icon className={cn("h-4 w-4 shrink-0", tint)} />
-                  <p className="flex-1 text-xs font-body truncate">{a.text}</p>
-                  {a.date && <span className="text-[10px] text-muted-foreground font-body shrink-0">{a.date}</span>}
-                </div>
-              );
-            })}
-          </div>
-        </motion.section>
-      )}
+      </div>
     </div>
   );
 };

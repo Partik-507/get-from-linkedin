@@ -71,7 +71,7 @@ export const QuickActionSheet = ({ open, onClose }: QuickActionSheetProps) => {
       { icon: StickyNote,  label: "New Note",    variant: "primary",   onClick: () => go("/notes") },
       { icon: Zap,         label: "Quick Focus", variant: "primary",   onClick: () => go("/focus") },
       { icon: CheckSquare, label: "New Task",    variant: "secondary", onClick: () => go("/study") },
-      { icon: BookOpen,    label: "Library",     variant: "secondary", onClick: () => go("/resources") },
+      { icon: Heart,       label: "New Habit",   variant: "secondary", onClick: () => go("/study") },
     ];
   }
 

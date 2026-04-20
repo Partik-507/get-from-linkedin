@@ -168,7 +168,7 @@ const Dashboard = () => {
   }
 
   return (
-    <Layout title="Dashboard">
+    <Layout fullBleed>
       {/* ── MOBILE: native vertical feed with web parity ── */}
       <MobileDashboard
         name={user?.displayName?.split(" ")[0] || "Student"}
@@ -184,6 +184,7 @@ const Dashboard = () => {
           progress: p.progress, studiedCount: p.studiedCount, totalQuestions: p.totalQuestions,
         }))}
         activity={activity}
+        habits={habits.map(h => ({ ...h, done: !!habitLogs[h.id] }))}
         recentActivity={[
           ...focusSessions.slice(-4).reverse().map(s => ({
             id: `f-${s.id}`, type: "focus" as const,

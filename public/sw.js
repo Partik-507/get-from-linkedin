@@ -7,8 +7,8 @@
  *  - PDFs/docs: cached on-demand via the `itm-files-v1` cache (managed by syncEngine)
  */
 
-const SHELL_CACHE = "itm-shell-v1";
-const STATIC_CACHE = "itm-static-v1";
+const SHELL_CACHE = "itm-shell-v2";
+const STATIC_CACHE = "itm-static-v2";
 const FILE_CACHE = "itm-files-v1";
 
 const SHELL_URLS = ["/", "/index.html", "/manifest.json", "/icon.svg"];
