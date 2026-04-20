@@ -652,10 +652,20 @@ export const FloatingDock = ({ onRestoreNavbar }: FloatingDockProps) => {
   );
 };
 
-// ─── useDockMode (legacy export, unchanged) ───────────────────────────────────
+// ─── useDockMode ──────────────────────────────────────────────────────────────
+// Persists "dock" vs "navbar" mode and dispatches a window resize on switch
+// so child pages (Notes, StudyMode) recompute 100dvh-based heights.
 export function useDockMode() {
   const [mode, setMode] = useState<"dock" | "navbar">(() => load<"dock" | "navbar">(KEYS.mode, "dock"));
-  const switchToDock = useCallback(() => { setMode("dock"); save(KEYS.mode, "dock"); }, []);
-  const switchToNavbar = useCallback(() => { setMode("navbar"); save(KEYS.mode, "navbar"); }, []);
+  const switchToDock = useCallback(() => {
+    setMode("dock");
+    save(KEYS.mode, "dock");
+    setTimeout(() => window.dispatchEvent(new Event("resize")), 50);
+  }, []);
+  const switchToNavbar = useCallback(() => {
+    setMode("navbar");
+    save(KEYS.mode, "navbar");
+    setTimeout(() => window.dispatchEvent(new Event("resize")), 50);
+  }, []);
   return { mode, switchToDock, switchToNavbar };
 }
