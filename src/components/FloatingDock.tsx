@@ -51,8 +51,8 @@ function save(key: string, val: unknown) {
 const MIN_PANEL: Size = { w: 48, h: 48 };
 const MAX_PANEL: Size = { w: 900, h: 1100 };
 const DEFAULT_SIZE: Size = { w: 280, h: 480 };
-const SLAB_LEN = 96;
-const SLAB_THICK = 6;
+const SLAB_LEN = 140;
+const SLAB_THICK = 12;
 
 function clampPanel(pos: Pos, size: Size): Pos {
   return {
@@ -415,7 +415,7 @@ export const FloatingDock = ({ onRestoreNavbar }: FloatingDockProps) => {
         )}
         style={{
           ...slabStyle(slabEdge, slabOffset),
-          opacity: slabHover ? 0.7 : 0.22,
+          opacity: slabHover ? 0.95 : 0.55,
         }}
         onPointerEnter={() => setSlabHover(true)}
         onPointerLeave={() => setSlabHover(false)}
