@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAtom } from 'jotai';
+import { motion } from 'framer-motion';
+import { GripVertical } from 'lucide-react';
 import { activeToolAtom, isLockedAtom } from '../state/canvasStore';
 import type { Tool } from '../elements/types';
 
@@ -53,6 +55,18 @@ export const TopToolbar: React.FC = () => {
   const [showMoreShapes, setShowMoreShapes] = useState(false);
   const [tooltip, setTooltip] = useState<{ id: string; label: string; key: string } | null>(null);
   const tooltipTimer = React.useRef<ReturnType<typeof setTimeout>>();
+  const constraintsRef = useRef<HTMLDivElement>(null);
+
+  // Persist toolbar position
+  const [pos, setPos] = useState<{ x: number; y: number }>(() => {
+    try { return JSON.parse(localStorage.getItem('vc_toolbar_pos') || '{"x":0,"y":0}'); }
+    catch { return { x: 0, y: 0 }; }
+  });
+
+  useEffect(() => {
+    // Set up constraints to viewport
+    constraintsRef.current = document.body as any;
+  }, []);
 
   const handleTool = (id: Tool) => {
     setActiveTool(id);
@@ -60,7 +74,34 @@ export const TopToolbar: React.FC = () => {
   };
 
   return (
-    <div className="vc-toolbar">
+    <motion.div
+      drag
+      dragMomentum={false}
+      dragElastic={0}
+      initial={pos}
+      onDragEnd={(_, info) => {
+        const next = { x: pos.x + info.offset.x, y: pos.y + info.offset.y };
+        setPos(next);
+        try { localStorage.setItem('vc_toolbar_pos', JSON.stringify(next)); } catch {}
+      }}
+      style={{ touchAction: 'none' }}
+      className="vc-toolbar"
+    >
+      {/* Drag grip handle */}
+      <div
+        className="vc-toolbar-grip"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 6px',
+          cursor: 'grab',
+          color: 'hsl(var(--muted-foreground))',
+        }}
+        title="Drag to move toolbar"
+      >
+        <GripVertical size={14} />
+      </div>
+      <div className="vc-toolbar-divider" />
       {toolGroups.map((group, gi) => (
         <React.Fragment key={gi}>
           {gi > 0 && <div className="vc-toolbar-divider" />}
@@ -105,6 +146,6 @@ export const TopToolbar: React.FC = () => {
           )}
         </React.Fragment>
       ))}
-    </div>
+    </motion.div>
   );
 };
