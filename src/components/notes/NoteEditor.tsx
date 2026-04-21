@@ -281,7 +281,7 @@ export const NoteEditor = ({
 
 
   const editor = useEditor({
-    extensions: [
+    extensions: ([
       StarterKit.configure({
         heading: { levels: [1, 2, 3, 4] },
         codeBlock: false,
@@ -315,7 +315,7 @@ export const NoteEditor = ({
       PageLinkExtension.configure({
         onNavigate: (pageId) => onNavigateToNote?.(pageId),
       }),
-    ],
+    ] as any[]),
     content: content || "",
     editable: !readOnly,
     editorProps: {
