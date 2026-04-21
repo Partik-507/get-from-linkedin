@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { NotificationBell } from "@/components/NotificationBell";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { AnimatedAvatar } from "@/components/AnimatedAvatar";
 import { FloatingDock, useDockMode } from "@/components/FloatingDock";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -230,12 +231,7 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
                 </div>
                 <span className="font-heading font-bold text-lg tracking-tight hidden sm:block">VivaVault</span>
               </Link>
-              {title && (
-                <>
-                  <span className="text-border hidden sm:block">/</span>
-                  <span className="text-sm text-muted-foreground hidden sm:block truncate max-w-[200px] font-body">{title}</span>
-                </>
-              )}
+              {/* Breadcrumb removed — logo only on top nav per design */}
             </div>
 
             {/* Center: Nav links (desktop) */}
@@ -303,24 +299,28 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
                 {resolvedTheme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
               </Button>
 
-              {/* Notifications */}
-              {(user || isGuest) && <NotificationBell />}
-              <OfflineIndicator className="ml-1" />
+              {/* Notifications + sync moved into profile dropdown */}
 
               {/* Profile menu */}
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
-                      <div className="h-7 w-7 rounded-full bg-gradient-to-br from-primary to-[hsl(240,70%,50%)] flex items-center justify-center text-primary-foreground text-xs font-bold">
-                        {(user.displayName || user.email || "U")[0].toUpperCase()}
-                      </div>
+                    <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 p-0">
+                      <AnimatedAvatar size={32} />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56 dropdown-shadow">
-                    <div className="px-3 py-2">
-                      <p className="font-body font-medium text-sm">{user.displayName || "Student"}</p>
-                      <p className="text-xs text-muted-foreground font-body">{user.email}</p>
+                  <DropdownMenuContent align="end" className="w-64 dropdown-shadow">
+                    <div className="px-3 py-3 flex items-center gap-3">
+                      <AnimatedAvatar size={44} />
+                      <div className="min-w-0">
+                        <p className="font-body font-medium text-sm truncate">{user.displayName || "Student"}</p>
+                        <p className="text-xs text-muted-foreground font-body truncate">{user.email}</p>
+                      </div>
+                    </div>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-1 flex items-center gap-2">
+                      <div className="flex-1"><NotificationBell /></div>
+                      <OfflineIndicator />
                     </div>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => navigate("/profile")} className="gap-2 font-body">
@@ -364,7 +364,7 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
               <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-muted-foreground h-8 w-8">
                 {resolvedTheme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
               </Button>
-              {(user || isGuest) && <NotificationBell />}
+              {/* Bell moved into profile drawer on mobile too */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -538,7 +538,7 @@ export const Layout = ({ children, title, showBack, fullBleed, hideBottomNav }: 
           <button onClick={toggleTheme} className="tap-44 flex items-center justify-center text-muted-foreground press">
             {resolvedTheme === "dark" ? <Moon className="h-[18px] w-[18px]" /> : <Sun className="h-[18px] w-[18px]" />}
           </button>
-          {(user || isGuest) && <NotificationBell />}
+          {/* Bell removed from mobile top strip — accessible via profile drawer */}
         </div>
       </header>
       )}
