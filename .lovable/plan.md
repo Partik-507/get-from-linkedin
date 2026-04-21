@@ -1,151 +1,158 @@
 
 
-# Total UI Polish — Color System, Canvas Rebuild, Focus Page Overhaul, Floating Dock & Mobile Fixes
+# Final Polish Pass — Color Unification, Mobile-Native, Animated Profile, Focus Dashboard, Native Packaging
 
-Massive scope. Splitting into independent parallel tracks. All ship in one pass.
+All 8 tracks ship in one parallel pass. Independent, no blocking.
 
-## Track 0 — Build Errors (must fix first)
+## Track 1 — Color System Unification & Sweep
 
-**`src/components/canvas/state/canvasStore.ts`**: Fix Jotai inference — `atom<Set<string>>(new Set<string>())`. Add `'hand'` to `Tool` union (currently missing → causes engine comparison error).
+**`src/index.css`** — collapse to single-hue monotonic palette:
+- **Light**: `--background 0 0% 100%` · `--card 250 14% 98%` · `--sidebar-background 250 14% 96%` · `--muted 250 14% 94%`
+- **Dark**: `--background 240 12% 6%` · `--card 240 10% 9%` · `--sidebar-background 240 10% 8%` · `--muted 240 10% 12%`
+- Unify `--os-bg` → `--background`, `--os-panel-bg` → `--card`. Kill all drift.
+- Default theme: **light** (per request)
 
-**`canvasEngine.ts`, `ContextMenu.tsx`, `MermaidEditor.tsx`, `TextEditor.tsx`**: Replace bare `new Set(...)` with `new Set<string>(...)` where setting `selectedIdsAtom`. Cast where needed. These are the cascading "never has no call signatures" errors.
-
-## Track 1 — Color System Diagnosis & Unification
-
-**Root cause**: `--sidebar-background`, `--card`, `--background`, `--os-bg`, `--surface-elevated` drift across pages. NotesSidebar uses `bg-card`, main body uses `bg-background`, StudyOS calendar uses hardcoded grays.
-
-**`src/index.css`**:
-- **Light mode**: collapse to 3 tones — bg `0 0% 100%`, card `250 14% 98%`, sidebar `250 14% 96%` (each 2% darker, single hue).
-- **Dark mode**: bg `240 12% 6%`, card `240 10% 9%`, sidebar `240 10% 8%`. Single hue, monotonic.
-- Unify `--os-bg` = `--background`, `--os-panel-bg` = `--card`. Kill divergence.
-- Verify primary `263 70%` consistent both modes.
-
-**Project sweep** — `src/pages/*` + `src/components/*`:
+**Project-wide sweep** across `src/pages/*` + `src/components/*`:
 - `bg-white` → `bg-card` / `bg-background`
 - `text-black` → `text-foreground`
-- `bg-gray-{50-900}` → `bg-muted` / `bg-card` / `bg-secondary`
-- Stray hex (`#1a1a2e`, `#7C3AED`, etc.) → token equivalents
+- `bg-gray-{50-900}` → `bg-muted` / `bg-secondary` / `bg-card`
+- Stray hex (`#1a1a2e`, `#7C3AED`, `#fff`, etc.) → token equivalents
+- StudyOS calendar shell, NotesSidebar, sidebars: explicit `bg-sidebar text-sidebar-foreground border-sidebar-border`
+- Verify dark-mode contrast on every page
 
-**NotesSidebar + StudyOS panels**: explicit `bg-sidebar text-sidebar-foreground border-sidebar-border` everywhere. Same for the calendar shell.
+## Track 2 — FocusMode Total Redesign
 
-## Track 2 — Canvas Module Total Rebuild
+**`src/pages/FocusMode.tsx`** — full dashboard layout:
+- **Hero row**: today's minutes ring · streak · weekly total · best session
+- **Quick start**: Strict + Normal cards (both → existing duration picker)
+- **3 inline picker rows**: Themes / Music / Animations (horizontal scroll, 6 thumbs + "View all")
+- **Timer style picker** row
+- **Custom background upload** tile in Themes → file input → IndexedDB → registers as user theme
+- **Recent sessions** table + **weekly heatmap** + **4 stat tiles**
+- **Accurate exit tracking**: `actualSeconds = totalSeconds - remaining`, save real elapsed on early exit, show "Recorded X min (early exit)" toast
 
-**Theme integration** — `VivaCanvas.tsx`:
-- Replace hardcoded `#1a1a2e` background with `hsl(var(--background))`. 
-- Pass `theme={resolvedTheme}` from `useTheme()` instead of forcing `'dark'`.
-- Replace ALL `vc-*` CSS in `canvas.css` to consume tokens (`--vc-bg: hsl(var(--background))`, `--vc-text: hsl(var(--foreground))`, etc.). Both modes work.
+**`src/components/focus/SceneEngine.tsx`** — implement all 20 animations (snow, rain, cherry, leaves, fireflies, dust, aurora, stars, meteor, bubbles, smoke, embers, fog, lightning, gradient-aurora, candle, ocean, galaxy, neon, none) via canvas particle systems + CSS gradients.
 
-**Precision fix** — `canvasEngine.ts` `getWorldPos`:
-- Use `e.clientX/Y` against `canvas.getBoundingClientRect()` — verify devicePixelRatio scaling. `CanvasRenderer` must call `ctx.scale(dpr, dpr)` and set `canvas.width = rect.width * dpr` (currently likely scaled wrong, causing offset).
-- Disable grid snap by default (you said "no dot detection"). Set `snapToGridAtom` default to `false`, `gridStyleAtom` default to `'none'`.
+**`src/components/focus/MusicPicker.tsx`** — fix autoplay: `audio.crossOrigin='anonymous'`, await `play()`, catch rejection, show "Tap to play" fallback.
 
-**Top toolbar drag handle** — `TopToolbar.tsx`:
-- Add 6-dot grip icon at left, `framer-motion` `drag` with `dragConstraints` to viewport. Persist position to localStorage `vc_toolbar_pos`.
+## Track 3 — Canvas Polish
 
-**Right sidebar theme match** — `RightSidebar.tsx`:
-- Remove all custom backgrounds; use `bg-card border-border text-foreground`. Replace icon buttons with shadcn `Button variant="ghost" size="icon"`.
+**`src/components/canvas/components/TopToolbar.tsx`**:
+- Add 6-dot grip icon (left), `framer-motion drag` with viewport constraints
+- Persist `{x,y}` to `localStorage('vc_toolbar_pos')`, hydrate on mount
 
-**Open canvas from Notes sidebar**:
-- `Notes.tsx`: add `onClick={() => setViewMode('canvas')}` on the Canvas nav item. Currently the click handler is missing/broken.
+**`src/components/canvas/components/RightSidebar.tsx`**:
+- Strip all custom backgrounds → `bg-card border-border text-foreground`
+- Replace icon buttons with shadcn `<Button variant="ghost" size="icon">`
+- Section headers use `text-muted-foreground text-xs uppercase tracking-wide`
 
-**Wire add-to-page, export, library**:
-- `LibraryPanel.tsx`: load from IndexedDB `canvasLibrary` table (already in `canvasDB.ts`). Currently empty array.
-- `ExportModal.tsx`: implement PNG/SVG/JSON export via `canvas.toBlob`.
-- `AddToPageModal.tsx`: capture canvas region as PNG, call `onAddToPage` prop (already plumbed).
+## Track 4 — Mobile-Native Reconstruction (NotesOS / StudyOS / Resources / Dashboard)
 
-## Track 3 — Focus Mode Page Total Redesign
+**Wire `MobileTopBar` everywhere** — replace web-extended headers on mobile:
+- `src/pages/Notes.tsx` mobile branch: hamburger (left drawer with file tree) · profile chip · search pill · chips [Pages·Canvas·Graph·Library]
+- `src/pages/StudyMode.tsx` mobile branch: hamburger · profile · search · chips [Calendar·Tasks·Habits·Focus·Analytics]
+- `src/pages/Resources.tsx` mobile branch: hamburger · profile · search · chips [All·Notes·PDFs·Videos·Links] + **public/private toggle pill above search**
+- `src/pages/Dashboard.tsx` mobile: rebuild greeting card with native iOS-style "Start your day" CTA (replace broken web-extension)
+- All headers: auto-hide on scroll-down via `useScrollDirection`
 
-**`src/pages/FocusMode.tsx`** — make it look like Dashboard/StudyOS (full-filled dashboard, not a tiny choose screen):
+**Wire `usePullToRefresh`** into `Resources.tsx` and StudyMode mobile content area (rubber-band spinner matching Dashboard).
 
-**Layout**: Hero section (today's focus minutes, streak, animated ring) · Quick-start cards (Strict / Normal — both ask duration via existing flow) · 3 picker rows (Themes · Music · Animations — each horizontal scroll showing 6 thumbnails + "View all") · Timer style picker row · Recent sessions table · Weekly heatmap · Total stats grid (4 tiles).
+**Mobile action handlers**: audit every chip/button → ensure real `onClick` handlers wired (currently many are no-ops).
 
-**Both buttons unified**: Strict and Normal both open the duration picker, not separate flows.
+## Track 5 — Resources Web: Sidebar + Public/Private Toggle
 
-**Background image upload**: New "Custom Background" tile in theme picker → file input → `URL.createObjectURL` → save to IndexedDB → register as user theme.
+**`src/pages/Resources.tsx`** desktop branch:
+- Add **left sidebar** matching NotesSidebar pattern (`bg-sidebar`, same width, same chevron treatment)
+- Sidebar shows **nested folder tree** (folders within folders, infinite depth) using existing `resourcesFolders` lib
+- Click folder → **instant filter** (no search step)
+- Right-click / long-press → create sub-folder, rename, delete
+- **Public/Private toggle pill** at top of sidebar (segmented control), same on mobile
+- Folder tree drag-and-drop reordering (later, scoped out for now)
 
-**Music actually plays**: Bug — `audioRef.current.play()` never called when track changes. Fix in `MusicPicker` selection handler. Add `audio.crossOrigin = 'anonymous'`, handle promise rejection (autoplay policy), show "tap to play" if blocked.
+## Track 6 — Top Navbar Cleanup + Animated Profile Avatar
 
-**Animations actually render**: `SceneEngine.tsx` likely missing renderer for new animation IDs. Audit `focusAnimationLibrary.ts` IDs vs `SceneEngine` switch — add canvas/CSS renderers for all 20 entries (snow, rain, cherry, leaves, fireflies, dust, aurora, stars, meteor, bubbles, smoke, embers, fog, lightning, gradient-aurora, candle, ocean, galaxy, neon, none).
+**`src/components/Layout.tsx`**:
+- **Remove** sync indicator (the green-dot "Synced 2/20" pill)
+- **Remove** standalone notification bell from top bar
+- **Move** notifications + sync status into profile dropdown menu
+- **Remove** breadcrumb completely from top nav (logo only on left)
+- **Keep** Focus Mode icon + Full-Screen icon on top nav (per your confirmation)
+- Dropdown order: Animated Avatar → name/email · Notifications · Sync status · Theme toggle · Download Desktop App · Switch to Dock · Sign Out
 
-**Time tracking honesty**: `handleSessionComplete` records `totalSeconds`. Bug — also called on early exit. Fix: pass `actualSeconds = totalSeconds - remaining` to `saveFocusSession`. Show "Completed early — recorded X minutes" in complete screen.
+**`src/components/AnimatedAvatar.tsx`** (new) — pure SVG/CSS smiley:
+- Round face (gradient `from-primary to-purple-500`)
+- Two SVG eyes — periodic blink animation (`animate-[blink_4s_infinite]`)
+- Mouth that morphs between smile / open-smile / smirk every 6s (SVG path interpolation via CSS `d` keyframes)
+- No nose
+- 32px in navbar, 64px in profile dropdown header
+- Accessible: `aria-label="Profile"`, respects `prefers-reduced-motion`
 
-## Track 4 — Floating Dock Bug + Maximize Height
+## Track 7 — FloatingDock Polish
 
-**`FloatingDock.tsx`**:
-- Click works "sometimes": likely `pointerdown` on drag handle conflicts with click. Add `dragMoved` flag — only treat as click if no drag delta > 5px.
-- Maximize: when switching back to navbar mode, `Layout.tsx` must trigger window resize event so child pages (`Notes`, `StudyMode`) recompute `100dvh`. Add `window.dispatchEvent(new Event('resize'))` in `switchToNavbar`.
+**`src/components/FloatingDock.tsx`**:
+- Increase **width** from current ~180px → **260px** (more visible)
+- Increase **opacity** from `bg-card/70` → `bg-card/90` with stronger backdrop-blur
+- Keep height as-is
+- Fix click-vs-drag: 5px deadzone (already partially in place — verify)
 
-**Container height fix**: Notes/StudyMode pages use `h-[calc(100dvh-60px-...)]`. When dock mode is active, the navbar isn't present, so the calc is wrong. Use a single `--app-shell-offset` CSS var set by Layout (60px in navbar mode, 0 in dock mode) and consume it everywhere.
+## Track 8 — Native Packaging Diagnosis (Desktop + Mobile)
 
-## Track 5 — Top Bar Cleanup
+This is **diagnosis + setup guide**, not full packaging in this pass (requires user-side native toolchain).
 
-**`Layout.tsx`**:
-- Remove `<DesktopAppButton />` from top bar (right of bell).
-- Add "Download Desktop App" item inside profile dropdown menu (just above Sign Out).
-- Remove the standalone `Minimize2` switch-to-dock button (it lives in the dropdown already).
+**Desktop (Electron, Windows/Mac/Linux, offline)**:
+- Set `base: './'` in `vite.config.ts` (required for `file://` loading)
+- Add `electron/main.cjs` with `BrowserWindow` loading `dist/index.html`
+- Install `electron` + `@electron/packager` as devDeps
+- Add npm scripts: `electron:build`, `electron:package:win`, `electron:package:mac`
+- IndexedDB-based offline already in place (notes, focus assets, canvas)
+- Document: user runs `npm run electron:package:win` on Windows to produce `.exe`
 
-## Track 6 — Dashboard Padding
+**Mobile (Capacitor → Play Store / App Store)**:
+- Install `@capacitor/core`, `@capacitor/cli`, `@capacitor/android`, `@capacitor/ios`
+- `capacitor.config.ts` with appId `app.lovable.04520665efff45e69c707c0c38ad61d2`
+- Hot-reload server URL configured for sandbox preview
+- Document export-to-GitHub flow + `npx cap add android/ios` + `npx cap sync` workflow
+- Service worker (`public/sw.js`) already provides offline caching → mobile app works offline
 
-**`src/pages/Dashboard.tsx`**: Wrap desktop content in `px-4 md:px-6 lg:px-8 py-6` consistently. Audit current — all 4 sides currently inconsistent.
+Add a new **`docs/PACKAGING.md`** with step-by-step instructions for both targets.
 
-## Track 7 — Mobile Top Bar (Flipkart-style) Universal Wire
-
-**`src/components/MobileTopBar.tsx`** already exists. Wire it into Notes, Study, Resources mobile branches. Replace the broken `MobilePageHeader` instances. Ensure auto-hide via `useScrollDirection`. Hamburger opens left `MobileSheet`. Profile chip + search pill + horizontally scrollable section chips.
-
-**Mobile actions broken**: audit each mobile page — every chip/button needs an `onClick` wired to the existing handler. Currently UI renders but handlers are no-ops.
-
-## Track 8 — Mobile Resources Public/Private Toggle
-
-`Resources.tsx` already has it on mobile per Track A earlier — verify it's still wired and visible above the search pill on `< md` breakpoints.
-
-## Track 9 — Pull-to-Refresh
-
-Wire `usePullToRefresh` (already built) into `Resources.tsx` and the mobile branch of `StudyMode.tsx` — match the rubber-band spinner used on Dashboard.
-
-## Track 10 — Profile Dropdown Profile Link Bug
-
-`Layout.tsx` mobile bottom nav "Me" → `/profile`. Verify route exists in `App.tsx` and `Profile.tsx` doesn't redirect. Currently goes to calendar — likely a misordered route or a `<Navigate>` inside Profile.
-
-## Files (~24, all parallel)
+## Files (~28, all parallel)
 
 | File | Action |
 |---|---|
-| `src/components/canvas/state/canvasStore.ts` | Fix `Set<string>` typing, add `'hand'` Tool, default snap off |
-| `src/components/canvas/elements/types.ts` | Add `'hand'` to Tool union |
-| `src/components/canvas/engine/canvasEngine.ts` | Type fixes, DPR-aware coordinate mapping |
-| `src/components/canvas/components/ContextMenu.tsx` | `new Set<string>()` |
-| `src/components/canvas/components/MermaidEditor.tsx` | `new Set<string>()` |
-| `src/components/canvas/components/TextEditor.tsx` | `new Set<string>()` |
-| `src/components/canvas/components/CanvasRenderer.tsx` | DPR scaling, theme-aware bg |
-| `src/components/canvas/components/TopToolbar.tsx` | Drag handle + persist position |
-| `src/components/canvas/components/RightSidebar.tsx` | Token-based styling |
-| `src/components/canvas/components/LibraryPanel.tsx` | Load from IndexedDB |
-| `src/components/canvas/components/ExportModal.tsx` | Real PNG/SVG/JSON export |
-| `src/components/canvas/VivaCanvas.tsx` | Pass resolvedTheme, token bg |
-| `src/components/canvas/canvas.css` | Replace all colors with tokens |
-| `src/index.css` | Unify sidebar/card/bg tones, both modes |
-| `src/pages/FocusMode.tsx` | Dashboard-like layout, custom bg upload, accurate time tracking |
-| `src/components/focus/MusicPicker.tsx` | Fix audio play |
-| `src/components/focus/SceneEngine.tsx` | Implement all 20 animations |
-| `src/components/FloatingDock.tsx` | Click-vs-drag fix, height-restore event |
-| `src/components/Layout.tsx` | Remove top desktop-app button, add to profile menu, app-shell-offset var |
-| `src/pages/Dashboard.tsx` | Padding cleanup |
-| `src/pages/Notes.tsx` | Wire MobileTopBar, fix Canvas nav click |
-| `src/pages/StudyMode.tsx` | Wire MobileTopBar, pull-to-refresh |
-| `src/pages/Resources.tsx` | Wire pull-to-refresh, verify public/private toggle |
-| `src/pages/Profile.tsx` | Audit for route hijack |
+| `src/index.css` | Unified palette, light default |
+| `src/contexts/ThemeContext.tsx` | Default `"light"` (already) |
+| Project sweep (~12 files) | Token replacement |
+| `src/pages/FocusMode.tsx` | Dashboard redesign + bg upload + accurate timing |
+| `src/components/focus/SceneEngine.tsx` | All 20 animations |
+| `src/components/focus/MusicPicker.tsx` | Autoplay fix |
+| `src/components/canvas/components/TopToolbar.tsx` | Drag handle + persist |
+| `src/components/canvas/components/RightSidebar.tsx` | Token-based shadcn |
+| `src/pages/Notes.tsx` | MobileTopBar wiring |
+| `src/pages/StudyMode.tsx` | MobileTopBar + PTR |
+| `src/pages/Resources.tsx` | MobileTopBar + PTR + desktop sidebar + folder tree |
+| `src/pages/Dashboard.tsx` | Mobile greeting rebuild |
+| `src/components/resources/ResourcesSidebar.tsx` | New (mirrors NotesSidebar) |
+| `src/components/Layout.tsx` | Cleanup + dropdown reorg + AnimatedAvatar |
+| `src/components/AnimatedAvatar.tsx` | New SVG/CSS smiley |
+| `src/components/FloatingDock.tsx` | Wider, more opaque |
+| `vite.config.ts` | `base: './'` |
+| `electron/main.cjs` | New |
+| `capacitor.config.ts` | New |
+| `package.json` | Electron + Capacitor scripts/deps |
+| `docs/PACKAGING.md` | New guide |
 
 ## Approach
 
-- Build errors fixed first (everything else depends on the canvas compiling)
-- Color sweep is mostly find-and-replace — small per-file diffs
-- Canvas precision fix is concentrated in 2 files (engine + renderer DPR)
-- All 10 tracks ship in one parallel pass
-- No new deps
+- All 8 tracks ship in one parallel pass — no "next message"
+- AnimatedAvatar pure SVG + CSS (no new deps, respects `prefers-reduced-motion`)
+- Native packaging: configs + docs in this pass; user runs the OS-specific commands locally
+- Color sweep is mechanical find-and-replace
+- Desktop preserved everywhere; mobile branches purpose-built
 
-## Out of scope (explicit)
+## Out of scope
 
-- Three.js / WebGL canvas rewrite (current 2D canvas is fine — just needs DPR fix)
-- New mobile pages beyond what already exists
-- Backend changes
+- Actually building `.exe` / `.apk` binaries (requires user-side Windows/Android Studio)
+- Three.js canvas rewrite
+- Backend schema changes
 
