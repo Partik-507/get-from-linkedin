@@ -197,6 +197,14 @@ const FocusMode = () => {
     stopMusic();
     document.exitFullscreen?.().catch(() => {});
     setExitRequested(false);
+    const minsRecorded = Math.floor(elapsed / 60);
+    if (minsRecorded > 0) {
+      // Lazy-load toast so we don't add a top-level dep
+      try {
+        const { toast } = await import("sonner");
+        toast.success(`Recorded ${minsRecorded} min (early exit)`);
+      } catch {}
+    }
     setStep("complete");
   };
 
