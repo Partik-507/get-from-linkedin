@@ -5,6 +5,8 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Relative base — required so the same build works under file:// (Electron) and Capacitor WebViews.
+  base: "./",
   server: {
     host: "::",
     port: 8080,

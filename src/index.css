@@ -10,27 +10,27 @@
 @layer base {
   :root,
   .light {
-    /* ── Core palette ──────────────────────────────────────── */
-    --background: 250 20% 98%;
-    --foreground: 220 14% 10%;
+    /* ── Unified single-hue monotonic palette ──────────────── */
+    --background: 0 0% 100%;
+    --foreground: 240 12% 10%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 14% 10%;
+    --card: 250 14% 98%;
+    --card-foreground: 240 12% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 14% 10%;
+    --popover-foreground: 240 12% 10%;
 
     --primary: 263 70% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 250 12% 93%;
-    --secondary-foreground: 220 14% 10%;
+    --secondary: 250 14% 95%;
+    --secondary-foreground: 240 12% 10%;
 
-    --muted: 250 10% 91%;
-    --muted-foreground: 220 8% 46%;
+    --muted: 250 14% 94%;
+    --muted-foreground: 240 6% 45%;
 
-    --accent: 250 12% 93%;
-    --accent-foreground: 220 14% 10%;
+    --accent: 250 14% 95%;
+    --accent-foreground: 240 12% 10%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -41,14 +41,14 @@
 
     --radius: 0.625rem;
 
-    /* ── Sidebar ───────────────────────────────────────────── */
-    --sidebar-background: 250 12% 96%;
-    --sidebar-foreground: 220 8% 35%;
+    /* ── Sidebar (single-hue, monotonic) ───────────────────── */
+    --sidebar-background: 250 14% 96%;
+    --sidebar-foreground: 240 6% 35%;
     --sidebar-primary: 263 70% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 250 12% 93%;
-    --sidebar-accent-foreground: 220 14% 10%;
-    --sidebar-border: 220 13% 90%;
+    --sidebar-accent: 250 14% 92%;
+    --sidebar-accent-foreground: 240 12% 10%;
+    --sidebar-border: 250 14% 90%;
     --sidebar-ring: 263 70% 50%;
 
     /* ── Glass ─────────────────────────────────────────────── */
@@ -87,19 +87,19 @@
     --space-10: 2.5rem;
     --space-12: 3rem;
 
-    /* ── OS panel tokens ───────────────────────────────────── */
-    --os-panel-bg: 0 0% 100%;
-    --os-panel-border: 220 13% 90%;
+    /* ── OS panel tokens (unified with --card) ─────────────── */
+    --os-panel-bg: 250 14% 98%;
+    --os-panel-border: 250 14% 90%;
     --os-panel-shadow: 0 2px 12px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05);
     --os-panel-radius: 1.75rem;
 
-    /* ── OS page background ────────────────────────────────── */
-    --os-bg: 250 18% 96%;
+    /* ── OS page background (unified with --background) ────── */
+    --os-bg: 0 0% 100%;
 
-    /* ── Unified surface system (3 layers) ─────────────────── */
-    --surface-base: 250 20% 98%;
-    --surface-raised: 0 0% 100%;
-    --surface-elevated: 250 12% 96%;
+    /* ── Unified surface system (3 layers, monotonic) ──────── */
+    --surface-base: 0 0% 100%;
+    --surface-raised: 250 14% 98%;
+    --surface-elevated: 250 14% 96%;
 
     /* ── Unified text hierarchy ────────────────────────────── */
     --text-primary: 220 14% 10%;
@@ -108,10 +108,10 @@
   }
 
   .dark {
-    --background: 240 15% 5%;
+    --background: 240 12% 6%;
     --foreground: 220 10% 93%;
 
-    --card: 240 12% 8%;
+    --card: 240 10% 9%;
     --card-foreground: 220 10% 93%;
 
     --popover: 240 12% 8%;
@@ -138,8 +138,8 @@
 
     --radius: 0.625rem;
 
-    --sidebar-background: 240 12% 6%;
-    --sidebar-foreground: 220 5% 55%;
+    --sidebar-background: 240 10% 8%;
+    --sidebar-foreground: 220 5% 60%;
     --sidebar-primary: 263 70% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 10% 12%;
@@ -170,15 +170,15 @@
     --warning: 38 92% 55%;
     --streak: 24 95% 58%;
 
-    --os-panel-bg: 240 12% 8%;
+    --os-panel-bg: 240 10% 9%;
     --os-panel-border: 240 6% 15%;
     --os-panel-shadow: 0 2px 12px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3);
     --os-panel-radius: 1.75rem;
-    --os-bg: 240 15% 4%;
+    --os-bg: 240 12% 6%;
 
-    /* ── Unified surface system (3 layers) ─────────────────── */
-    --surface-base: 240 15% 5%;
-    --surface-raised: 240 12% 8%;
+    /* ── Unified surface system (3 layers, monotonic) ──────── */
+    --surface-base: 240 12% 6%;
+    --surface-raised: 240 10% 9%;
     --surface-elevated: 240 10% 12%;
 
     /* ── Unified text hierarchy ────────────────────────────── */
