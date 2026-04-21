@@ -165,7 +165,7 @@ const QuestionCard = ({ q, onUpvote, isUpvoted, isStudied, onToggleStudied, book
   const [copied, setCopied] = useState(false);
 
   const editor = useEditor({
-    extensions: [StarterKit, Placeholder.configure({ placeholder: "Type your answer here..." })],
+    extensions: [StarterKit, Placeholder.configure({ placeholder: "Type your answer here..." })] as any[],
     content: q.answer || "",
     editable: editing,
   });
