@@ -604,7 +604,24 @@ const Resources = () => {
       <div className="flex flex-col lg:flex-row gap-6 min-h-[70vh]">
         {/* Sidebar — Folders */}
         <aside className="lg:w-60 shrink-0">
-          <div className="vv-card p-3 sticky top-20">
+          <div className="vv-card p-3 sticky top-20 bg-sidebar text-sidebar-foreground border border-sidebar-border">
+            {/* Public / Private segmented toggle (web parity with mobile) */}
+            <div className="flex items-center gap-0 h-9 bg-muted/60 rounded-lg p-0.5 mb-3">
+              {(["public", "private"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setScope(s)}
+                  className={cn(
+                    "flex-1 h-8 rounded-md text-[11px] font-body font-medium capitalize transition-colors",
+                    scope === s
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-body font-semibold text-muted-foreground uppercase tracking-widest">Folders</span>
               {isAdmin && (
